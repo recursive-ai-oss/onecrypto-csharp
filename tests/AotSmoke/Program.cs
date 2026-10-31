@@ -201,5 +201,11 @@ using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
     }
 }
 
+if (!OneCrypto.Smoke.FallbackSmoke.Run())
+{
+    Console.Error.WriteLine("platform-gap code failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

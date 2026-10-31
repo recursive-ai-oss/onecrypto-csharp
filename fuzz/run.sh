@@ -41,6 +41,7 @@ case "$target" in
   pem) maxlen=16384 ;;
   x509) maxlen=16384 ;;
   ocsp) maxlen=16384 ;;
+  verify) maxlen=1024 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 
