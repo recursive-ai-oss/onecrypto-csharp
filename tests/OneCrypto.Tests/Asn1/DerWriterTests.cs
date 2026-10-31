@@ -14,8 +14,8 @@ public class DerWriterTests
     [InlineData("1.2.840.113583.1.1.8")]
     public void ObjectIdentifiersRoundTripThroughTheReader(string oid)
     {
-        Assert.True(Asn1Reader.TryRead(DerWriter.Oid(oid), out Asn1Element e, out _, out _));
-        Assert.Equal(oid, Asn1Reader.TryOid(e));
+        Assert.True(Asn1Element.TryRead(DerWriter.Oid(oid), out Asn1Element e, out _, out _));
+        Assert.Equal(oid, Asn1Values.TryOid(e));
     }
 
     [Theory]
@@ -30,7 +30,7 @@ public class DerWriterTests
     public void LengthsOfEveryWidthAreReadBack(int size)
     {
         byte[] encoded = DerWriter.OctetString(new byte[size]);
-        Assert.True(Asn1Reader.TryRead(encoded, out Asn1Element e, out int used, out _));
+        Assert.True(Asn1Element.TryRead(encoded, out Asn1Element e, out int used, out _));
         Assert.Equal(encoded.Length, used);
         Assert.Equal(size, e.Content.Length);
         int expectedHeader = size < 128 ? 2 : size < 256 ? 3 : size < 65536 ? 4 : size < (1 << 24) ? 5 : 6;
@@ -40,10 +40,10 @@ public class DerWriterTests
     [Fact]
     public void IntegersAreMinimalTwosComplement()
     {
-        Assert.Equal([0x02, 0x01, 0x00], DerWriter.Integer(0));
-        Assert.Equal([0x02, 0x01, 0x7F], DerWriter.Integer(127));
-        Assert.Equal([0x02, 0x02, 0x00, 0x80], DerWriter.Integer(128));
-        Assert.Equal([0x02, 0x01, 0xFF], DerWriter.Integer(-1));
+        Assert.Equal([0x02, 0x01, 0x00], DerWriter.SignedInteger(0));
+        Assert.Equal([0x02, 0x01, 0x7F], DerWriter.SignedInteger(127));
+        Assert.Equal([0x02, 0x02, 0x00, 0x80], DerWriter.SignedInteger(128));
+        Assert.Equal([0x02, 0x01, 0xFF], DerWriter.SignedInteger(-1));
         Assert.Equal([0x02, 0x03, 0x00, 0x80, 0x01], DerWriter.UnsignedInteger([0x00, 0x00, 0x80, 0x01]));
         Assert.Equal([0x02, 0x01, 0x05], DerWriter.UnsignedInteger([0x05]));
         Assert.Equal([0x02, 0x01, 0x00], DerWriter.UnsignedInteger([]));
@@ -52,12 +52,12 @@ public class DerWriterTests
     [Fact]
     public void SetOfSortsMembersByEncoding()
     {
-        byte[] set = DerWriter.SetOf([DerWriter.Integer(300), DerWriter.Integer(2), DerWriter.Integer(1)]);
-        Assert.True(Asn1Reader.TryRead(set, out Asn1Element e, out _, out _));
+        byte[] set = DerWriter.SetOf([DerWriter.SignedInteger(300), DerWriter.SignedInteger(2), DerWriter.SignedInteger(1)]);
+        Assert.True(Asn1Element.TryRead(set, out Asn1Element e, out _, out _));
         var kids = new List<Asn1Element>();
-        Assert.True(Asn1Reader.TryChildren(e, 10, kids, out _));
-        Assert.Equal([1, 2], kids.Take(2).Select(static k => Asn1Reader.TrySmallInt(k)).ToArray());
-        Assert.Equal(300, Asn1Reader.TrySmallInt(kids[2]));
+        Assert.True(Asn1Element.TryChildren(e, 10, kids, out _));
+        Assert.Equal([1, 2], kids.Take(2).Select(static k => Asn1Values.TrySmallInt(k)).ToArray());
+        Assert.Equal(300, Asn1Values.TrySmallInt(kids[2]));
     }
 
     [Fact]
@@ -80,8 +80,8 @@ public class DerWriterTests
             [0x30, 0x80],
             [0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF],
             [0x30, 0x03, 0x02, 0x01, 0x00],
-            DerWriter.Sequence(DerWriter.Sequence(DerWriter.Integer(0))),
-            DerWriter.Sequence(DerWriter.Sequence(DerWriter.Integer(0)), DerWriter.Sequence(DerWriter.Oid(Oids.SignedData), DerWriter.Context(0))),
+            DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(0))),
+            DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(0)), DerWriter.Sequence(DerWriter.Oid(Oids.SignedData), DerWriter.Context(0))),
             DerWriter.Sequence(DerWriter.Oid(Oids.SignedData)),
             new byte[2 << 20],
         ];

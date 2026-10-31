@@ -11,7 +11,7 @@ namespace RecursiveAI.OneCrypto.Asn1;
 /// the SignedData in <c>/Contents</c> is DER). Authorities nearly always answer in DER already; some write the outer ContentInfo with
 /// indefinite lengths. Constructed forms of other string types and non-minimal definite lengths are left as they are.
 /// </remarks>
-internal static class BerToDer
+public static class BerToDer
 {
     /// <summary>Most nesting levels rewritten; deeper input fails.</summary>
     private const int MaxDepth = 64;
@@ -26,7 +26,7 @@ internal static class BerToDer
     public static bool TryConvert(ReadOnlyMemory<byte> data, out byte[] der)
     {
         der = [];
-        if (!Asn1Reader.TryRead(data, out Asn1Element e, out int used, out _) || used != data.Length)
+        if (!Asn1Element.TryRead(data, out Asn1Element e, out int used, out _) || used != data.Length)
         {
             return false;
         }
@@ -58,7 +58,7 @@ internal static class BerToDer
 
         if (e.TagClass == 0 && e.TagNumber == Asn1Tags.OctetString)
         {
-            if (!Asn1Reader.TryOctetString(e, MaxBytes, out byte[] joined))
+            if (!Asn1Values.TryOctetString(e, MaxBytes, out byte[] joined))
             {
                 return false;
             }
@@ -69,7 +69,7 @@ internal static class BerToDer
         }
 
         var kids = new List<Asn1Element>();
-        if (!Asn1Reader.TryChildren(e, 1 << 16, kids, out _))
+        if (!Asn1Element.TryChildren(e, 1 << 16, kids, out _))
         {
             return false;
         }

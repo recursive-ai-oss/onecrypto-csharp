@@ -85,7 +85,7 @@ internal sealed class CmsAttribute
     public bool TryFirst(out Asn1Element e)
     {
         e = default;
-        return Values.Count > 0 && Asn1Reader.TryRead(Values[0], out e, out _, out _);
+        return Values.Count > 0 && Asn1Element.TryRead(Values[0], out e, out _, out _);
     }
 }
 
@@ -107,7 +107,7 @@ internal readonly struct CmsAlgorithm
     {
         algorithm = default;
         var kids = new List<Asn1Element>(2);
-        if (!e.IsSequence || !Asn1Reader.TryChildren(e, 4, kids, out _) || kids.Count == 0 || Asn1Reader.TryOid(kids[0]) is not { } oid)
+        if (!e.IsSequence || !Asn1Element.TryChildren(e, 4, kids, out _) || kids.Count == 0 || Asn1Values.TryOid(kids[0]) is not { } oid)
         {
             return false;
         }
@@ -188,34 +188,34 @@ internal sealed class CmsSignedData
     public static bool TryParse(ReadOnlyMemory<byte> data, out CmsSignedData? result, out string? error)
     {
         result = null;
-        if (!Asn1Reader.TryReadPadded(data, out Asn1Element ci, out error))
+        if (!Asn1Element.TryReadPadded(data, out Asn1Element ci, out error))
         {
             return false;
         }
 
         var kids = new List<Asn1Element>(2);
-        if (!ci.IsSequence || !Asn1Reader.TryChildren(ci, 3, kids, out error) || kids.Count != 2 || Asn1Reader.TryOid(kids[0]) != Oids.SignedData || !kids[1].IsContext(0))
+        if (!ci.IsSequence || !Asn1Element.TryChildren(ci, 3, kids, out error) || kids.Count != 2 || Asn1Values.TryOid(kids[0]) != Oids.SignedData || !kids[1].IsContext(0))
         {
             error ??= "The data is not a CMS ContentInfo holding SignedData.";
             return false;
         }
 
         var inner = new List<Asn1Element>(1);
-        if (!Asn1Reader.TryChildren(kids[1], 2, inner, out error) || inner.Count != 1 || !inner[0].IsSequence)
+        if (!Asn1Element.TryChildren(kids[1], 2, inner, out error) || inner.Count != 1 || !inner[0].IsSequence)
         {
             error ??= "The SignedData wrapper is malformed.";
             return false;
         }
 
         var f = new List<Asn1Element>(8);
-        if (!Asn1Reader.TryChildren(inner[0], 8, f, out error) || f.Count < 4)
+        if (!Asn1Element.TryChildren(inner[0], 8, f, out error) || f.Count < 4)
         {
             error ??= "The SignedData is malformed.";
             return false;
         }
 
         int i = 0;
-        int version = Asn1Reader.TrySmallInt(f[i++]);
+        int version = Asn1Values.TrySmallInt(f[i++]);
         if (version < 0 || !f[i].IsSet)
         {
             error = "The SignedData header is malformed.";
@@ -224,7 +224,7 @@ internal sealed class CmsSignedData
 
         var digestAlgs = new List<string>();
         var algEls = new List<Asn1Element>();
-        if (!Asn1Reader.TryChildren(f[i++], MaxSigners * 2, algEls, out error))
+        if (!Asn1Element.TryChildren(f[i++], MaxSigners * 2, algEls, out error))
         {
             return false;
         }
@@ -239,7 +239,7 @@ internal sealed class CmsSignedData
 
         // EncapsulatedContentInfo
         var enc = new List<Asn1Element>(2);
-        if (!f[i].IsSequence || !Asn1Reader.TryChildren(f[i++], 3, enc, out error) || enc.Count is 0 or > 2 || Asn1Reader.TryOid(enc[0]) is not { } contentType)
+        if (!f[i].IsSequence || !Asn1Element.TryChildren(f[i++], 3, enc, out error) || enc.Count is 0 or > 2 || Asn1Values.TryOid(enc[0]) is not { } contentType)
         {
             error ??= "The encapsulated content info is malformed.";
             return false;
@@ -249,7 +249,7 @@ internal sealed class CmsSignedData
         if (enc.Count == 2)
         {
             var c = new List<Asn1Element>(1);
-            if (!enc[1].IsContext(0) || !Asn1Reader.TryChildren(enc[1], 2, c, out error) || c.Count != 1 || !Asn1Reader.TryOctetString(c[0], MaxContentBytes, out byte[] held))
+            if (!enc[1].IsContext(0) || !Asn1Element.TryChildren(enc[1], 2, c, out error) || c.Count != 1 || !Asn1Values.TryOctetString(c[0], MaxContentBytes, out byte[] held))
             {
                 error ??= "The encapsulated content is malformed or too large.";
                 return false;
@@ -264,7 +264,7 @@ internal sealed class CmsSignedData
             if (f[i].IsContext(0))
             {
                 var certEls = new List<Asn1Element>();
-                if (!Asn1Reader.TryChildren(f[i], MaxCertificates, certEls, out error))
+                if (!Asn1Element.TryChildren(f[i], MaxCertificates, certEls, out error))
                 {
                     return false;
                 }
@@ -288,7 +288,7 @@ internal sealed class CmsSignedData
         }
 
         var signerEls = new List<Asn1Element>();
-        if (!Asn1Reader.TryChildren(f[i], MaxSigners, signerEls, out error))
+        if (!Asn1Element.TryChildren(f[i], MaxSigners, signerEls, out error))
         {
             return false;
         }
@@ -321,20 +321,20 @@ internal sealed class CmsSignedData
         si = null;
         error = null;
         var f = new List<Asn1Element>(8);
-        if (!e.IsSequence || !Asn1Reader.TryChildren(e, 9, f, out error) || f.Count < 5)
+        if (!e.IsSequence || !Asn1Element.TryChildren(e, 9, f, out error) || f.Count < 5)
         {
             error ??= "A signer information is malformed.";
             return false;
         }
 
         int i = 0;
-        int version = Asn1Reader.TrySmallInt(f[i++]);
+        int version = Asn1Values.TrySmallInt(f[i++]);
         ReadOnlyMemory<byte> issuer = default, serial = default, ski = default;
         Asn1Element sid = f[i++];
         if (sid.IsSequence)
         {
             var iss = new List<Asn1Element>(2);
-            if (!Asn1Reader.TryChildren(sid, 3, iss, out error) || iss.Count != 2 || !iss[0].IsSequence || !iss[1].IsUniversal(Asn1Tags.Integer))
+            if (!Asn1Element.TryChildren(sid, 3, iss, out error) || iss.Count != 2 || !iss[0].IsSequence || !iss[1].IsUniversal(Asn1Tags.IntegerType))
             {
                 error ??= "The signer identifier is malformed.";
                 return false;
@@ -407,7 +407,7 @@ internal sealed class CmsSignedData
         var list = new List<CmsAttribute>();
         attributes = list;
         var els = new List<Asn1Element>();
-        if (!Asn1Reader.TryChildren(set, MaxAttributes, els, out error))
+        if (!Asn1Element.TryChildren(set, MaxAttributes, els, out error))
         {
             return false;
         }
@@ -415,14 +415,14 @@ internal sealed class CmsSignedData
         foreach (Asn1Element a in els)
         {
             var kids = new List<Asn1Element>(2);
-            if (!a.IsSequence || !Asn1Reader.TryChildren(a, 3, kids, out error) || kids.Count != 2 || Asn1Reader.TryOid(kids[0]) is not { } oid || !kids[1].IsSet)
+            if (!a.IsSequence || !Asn1Element.TryChildren(a, 3, kids, out error) || kids.Count != 2 || Asn1Values.TryOid(kids[0]) is not { } oid || !kids[1].IsSet)
             {
                 error ??= "An attribute is malformed.";
                 return false;
             }
 
             var vals = new List<Asn1Element>();
-            if (!Asn1Reader.TryChildren(kids[1], 16, vals, out error))
+            if (!Asn1Element.TryChildren(kids[1], 16, vals, out error))
             {
                 return false;
             }
@@ -454,13 +454,13 @@ internal readonly struct CertificateIdentity
     {
         id = default;
         var top = new List<Asn1Element>(3);
-        if (!Asn1Reader.TryRead(der, out Asn1Element cert, out _, out _) || !cert.IsSequence || !Asn1Reader.TryChildren(cert, 4, top, out _) || top.Count < 3 || !top[0].IsSequence)
+        if (!Asn1Element.TryRead(der, out Asn1Element cert, out _, out _) || !cert.IsSequence || !Asn1Element.TryChildren(cert, 4, top, out _) || top.Count < 3 || !top[0].IsSequence)
         {
             return false;
         }
 
         var tbs = new List<Asn1Element>(12);
-        if (!Asn1Reader.TryChildren(top[0], 16, tbs, out _))
+        if (!Asn1Element.TryChildren(top[0], 16, tbs, out _))
         {
             return false;
         }
@@ -472,7 +472,7 @@ internal readonly struct CertificateIdentity
         }
 
         // serial, signature algorithm, issuer
-        if (i + 2 >= tbs.Count || !tbs[i].IsUniversal(Asn1Tags.Integer) || !tbs[i + 2].IsSequence)
+        if (i + 2 >= tbs.Count || !tbs[i].IsUniversal(Asn1Tags.IntegerType) || !tbs[i + 2].IsSequence)
         {
             return false;
         }
@@ -487,13 +487,13 @@ internal readonly struct CertificateIdentity
 
             var seq = new List<Asn1Element>(1);
             var exts = new List<Asn1Element>();
-            if (Asn1Reader.TryChildren(t, 2, seq, out _) && seq.Count == 1 && Asn1Reader.TryChildren(seq[0], 64, exts, out _))
+            if (Asn1Element.TryChildren(t, 2, seq, out _) && seq.Count == 1 && Asn1Element.TryChildren(seq[0], 64, exts, out _))
             {
                 foreach (Asn1Element ext in exts)
                 {
                     var parts = new List<Asn1Element>(3);
-                    if (Asn1Reader.TryChildren(ext, 4, parts, out _) && parts.Count >= 2 && Asn1Reader.TryOid(parts[0]) == Oids.SubjectKeyIdentifier
-                        && Asn1Reader.TryRead(parts[^1].Content, out Asn1Element keyId, out _, out _) && keyId.IsUniversal(Asn1Tags.OctetString))
+                    if (Asn1Element.TryChildren(ext, 4, parts, out _) && parts.Count >= 2 && Asn1Values.TryOid(parts[0]) == Oids.SubjectKeyIdentifier
+                        && Asn1Element.TryRead(parts[^1].Content, out Asn1Element keyId, out _, out _) && keyId.IsUniversal(Asn1Tags.OctetString))
                     {
                         ski = keyId.Content;
                     }

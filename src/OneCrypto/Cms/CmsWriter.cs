@@ -37,7 +37,7 @@ internal static class CmsWriter
             byte[] parameters = DerWriter.Sequence(
                 DerWriter.Context(0, hashAlg),
                 DerWriter.Context(1, DerWriter.Sequence(DerWriter.Oid(Oids.Mgf1), hashAlg)),
-                DerWriter.Context(2, DerWriter.Integer(salt)));
+                DerWriter.Context(2, DerWriter.SignedInteger(salt)));
             return DerWriter.Sequence(DerWriter.Oid(Oids.RsaPss), parameters);
         }
 
@@ -108,7 +108,7 @@ internal static class CmsWriter
 
         var signerInfo = new List<byte[]>
         {
-            DerWriter.Integer(1),
+            DerWriter.SignedInteger(1),
             DerWriter.Sequence(id.IssuerName.ToArray(), DerWriter.Tlv(0x02, id.SerialNumber.ToArray())),
             DigestAlgorithm(hash),
             DerWriter.Retag(signedAttributes, 0xA0),
@@ -131,7 +131,7 @@ internal static class CmsWriter
         }
 
         byte[] signedData = DerWriter.Sequence(
-            DerWriter.Integer(1),
+            DerWriter.SignedInteger(1),
             DerWriter.Set(DigestAlgorithm(hash)),
             DerWriter.Sequence(DerWriter.Oid(Oids.Data)),
             DerWriter.Tlv(0xA0, certs.ToArray()),

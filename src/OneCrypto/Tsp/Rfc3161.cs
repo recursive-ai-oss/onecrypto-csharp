@@ -20,7 +20,7 @@ internal static class Rfc3161
     public static byte[] BuildRequest(HashAlgorithmName hash, ReadOnlySpan<byte> imprint, ReadOnlySpan<byte> nonce)
     {
         byte[] messageImprint = DerWriter.Sequence(CmsWriter.DigestAlgorithm(hash), DerWriter.OctetString(imprint));
-        return DerWriter.Sequence(DerWriter.Integer(1), messageImprint, DerWriter.UnsignedInteger(nonce), DerWriter.Boolean(true));
+        return DerWriter.Sequence(DerWriter.SignedInteger(1), messageImprint, DerWriter.UnsignedInteger(nonce), DerWriter.Boolean(true));
     }
 
     /// <summary>
@@ -36,21 +36,21 @@ internal static class Rfc3161
             return false;
         }
 
-        if (!Asn1Reader.TryRead(data, out Asn1Element top, out _, out string? readError) || !top.IsSequence)
+        if (!Asn1Element.TryRead(data, out Asn1Element top, out _, out string? readError) || !top.IsSequence)
         {
             error = "The time-stamp response is not a DER sequence" + (readError is null ? "." : ": " + readError);
             return false;
         }
 
         var kids = new List<Asn1Element>(3);
-        if (!Asn1Reader.TryChildren(top, 4, kids, out _) || kids.Count == 0)
+        if (!Asn1Element.TryChildren(top, 4, kids, out _) || kids.Count == 0)
         {
             error = "The time-stamp response is malformed.";
             return false;
         }
 
         ReadOnlyMemory<byte> tokenBytes;
-        if (Asn1Reader.TryOid(kids[0]) is not null)
+        if (Asn1Values.TryOid(kids[0]) is not null)
         {
             // A bare token: ContentInfo ::= SEQUENCE { contentType OID, content [0] }.
             tokenBytes = top.Encoded;
@@ -59,13 +59,13 @@ internal static class Rfc3161
         {
             // TimeStampResp ::= SEQUENCE { status PKIStatusInfo, timeStampToken ContentInfo OPTIONAL }; PKIStatus 0 granted, 1 grantedWithMods.
             var status = new List<Asn1Element>(3);
-            if (!kids[0].IsSequence || !Asn1Reader.TryChildren(kids[0], 4, status, out _) || status.Count == 0 || Asn1Reader.TrySmallInt(status[0]) < 0)
+            if (!kids[0].IsSequence || !Asn1Element.TryChildren(kids[0], 4, status, out _) || status.Count == 0 || Asn1Values.TrySmallInt(status[0]) < 0)
             {
                 error = "The time-stamp response has no readable status.";
                 return false;
             }
 
-            int code = Asn1Reader.TrySmallInt(status[0]);
+            int code = Asn1Values.TrySmallInt(status[0]);
             if (code > 1)
             {
                 error = $"The time-stamp authority refused the request (PKIStatus {code}).";
@@ -96,8 +96,8 @@ internal static class Rfc3161
         // TSTInfo ::= SEQUENCE { version, policy, messageImprint, serialNumber, genTime, accuracy?, ordering?, nonce?, tsa?, extensions? }
         var f = new List<Asn1Element>(12);
         var mi = new List<Asn1Element>(2);
-        if (!Asn1Reader.TryRead(sd.Content, out Asn1Element tst, out _, out _) || !tst.IsSequence || !Asn1Reader.TryChildren(tst, 16, f, out _) || f.Count < 5
-            || !f[2].IsSequence || !Asn1Reader.TryChildren(f[2], 3, mi, out _) || mi.Count != 2 || !CmsAlgorithm.TryParse(mi[0], out CmsAlgorithm alg)
+        if (!Asn1Element.TryRead(sd.Content, out Asn1Element tst, out _, out _) || !tst.IsSequence || !Asn1Element.TryChildren(tst, 16, f, out _) || f.Count < 5
+            || !f[2].IsSequence || !Asn1Element.TryChildren(f[2], 3, mi, out _) || mi.Count != 2 || !CmsAlgorithm.TryParse(mi[0], out CmsAlgorithm alg)
             || !mi[1].IsUniversal(Asn1Tags.OctetString))
         {
             error = "The TSTInfo in the time-stamp token is malformed.";
@@ -114,10 +114,10 @@ internal static class Rfc3161
         bool hasNonce = false;
         for (int i = 5; i < f.Count; i++)
         {
-            if (f[i].IsUniversal(Asn1Tags.Integer))
+            if (f[i].IsUniversal(Asn1Tags.IntegerType))
             {
                 Asn1Element nonceElement = f[i];
-                echoed = Asn1Reader.IntegerMagnitude(nonceElement).ToArray();
+                echoed = Asn1Values.IntegerMagnitude(nonceElement).ToArray();
                 hasNonce = true;
                 break;
             }

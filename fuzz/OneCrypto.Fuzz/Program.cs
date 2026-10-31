@@ -22,11 +22,15 @@ internal static class Program
     {
         ["noop"] = static data => _ = data.Length,
         ["cms"] = CmsTarget.Run,
+        ["asn1"] = Asn1Target.Run,
+        ["pem"] = PemTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
     {
         "cms" => CmsTarget.Seeds(),
+        "asn1" => Asn1Target.Seeds(),
+        "pem" => PemTarget.Seeds(),
         _ => [],
     };
 

@@ -16,7 +16,7 @@ public class HostileInputTests
             data[i + 1] = 0x80;
         }
 
-        Assert.False(Asn1Reader.TryRead(data, out _, out _, out string? error));
+        Assert.False(Asn1Element.TryRead(data, out _, out _, out string? error));
         Assert.NotNull(error);
         Assert.False(CmsSignedData.TryParse(data, out _, out _));
     }
@@ -32,7 +32,7 @@ public class HostileInputTests
     [InlineData(new byte[] { })]
     public void MalformedElementsFailWithoutAllocatingOrThrowing(byte[] data)
     {
-        Assert.False(Asn1Reader.TryRead(data, out _, out _, out _));
+        Assert.False(Asn1Element.TryRead(data, out _, out _, out _));
         Assert.False(CmsSignedData.TryParse(data, out _, out _));
     }
 
@@ -46,22 +46,22 @@ public class HostileInputTests
         }
 
         data.AddRange([0, 0]);
-        Assert.True(Asn1Reader.TryRead(data.ToArray(), out Asn1Element e, out int used, out _));
+        Assert.True(Asn1Element.TryRead(data.ToArray(), out Asn1Element e, out int used, out _));
         Assert.Equal(data.Count, used);
-        Assert.False(Asn1Reader.TryChildren(e, 1000, [], out _));
+        Assert.False(Asn1Element.TryChildren(e, 1000, [], out _));
     }
 
     [Fact]
     public void ObjectIdentifiersAndTimesAreValidated()
     {
-        Assert.True(Asn1Reader.TryRead(new byte[] { 6, 3, 0x2A, 0x03, 0x04 }, out Asn1Element oid, out _, out _));
-        Assert.Equal("1.2.3.4", Asn1Reader.TryOid(oid));
-        Assert.True(Asn1Reader.TryRead(new byte[] { 6, 11, 0x2A, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F }, out Asn1Element big, out _, out _));
-        Assert.Null(Asn1Reader.TryOid(big));
-        Assert.True(Asn1Reader.TryRead(System.Text.Encoding.ASCII.GetBytes("\u0018\u000f20260102030405Z"), out Asn1Element t, out _, out _));
-        Assert.True(Asn1Reader.TryTime(t, out DateTimeOffset when));
+        Assert.True(Asn1Element.TryRead(new byte[] { 6, 3, 0x2A, 0x03, 0x04 }, out Asn1Element oid, out _, out _));
+        Assert.Equal("1.2.3.4", Asn1Values.TryOid(oid));
+        Assert.True(Asn1Element.TryRead(new byte[] { 6, 11, 0x2A, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F }, out Asn1Element big, out _, out _));
+        Assert.Null(Asn1Values.TryOid(big));
+        Assert.True(Asn1Element.TryRead(System.Text.Encoding.ASCII.GetBytes("\u0018\u000f20260102030405Z"), out Asn1Element t, out _, out _));
+        Assert.True(Asn1Values.TryTime(t, out DateTimeOffset when));
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero), when);
-        Assert.True(Asn1Reader.TryRead(System.Text.Encoding.ASCII.GetBytes("\u0018\u000f20261302030405Z"), out Asn1Element badMonth, out _, out _));
-        Assert.False(Asn1Reader.TryTime(badMonth, out _));
+        Assert.True(Asn1Element.TryRead(System.Text.Encoding.ASCII.GetBytes("\u0018\u000f20261302030405Z"), out Asn1Element badMonth, out _, out _));
+        Assert.False(Asn1Values.TryTime(badMonth, out _));
     }
 }

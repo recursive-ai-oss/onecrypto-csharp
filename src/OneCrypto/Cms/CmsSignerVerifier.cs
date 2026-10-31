@@ -289,7 +289,7 @@ internal static class CmsSignerVerifier
             DigestName = Oids.Name(si.DigestAlgorithm.Oid),
             SigName = Oids.Name(si.SignatureAlgorithm.Oid),
         };
-        if (si.FindSigned(Oids.SigningTime) is { } st && st.TryFirst(out Asn1Element ste) && Asn1Reader.TryTime(ste, out DateTimeOffset when))
+        if (si.FindSigned(Oids.SigningTime) is { } st && st.TryFirst(out Asn1Element ste) && Asn1Values.TryTime(ste, out DateTimeOffset when))
         {
             o.SigningTime = when;
         }
@@ -347,7 +347,7 @@ internal static class CmsSignerVerifier
             {
                 warnings.Add("The signed attributes have no contentType.");
             }
-            else if (!ct.TryFirst(out Asn1Element cte) || Asn1Reader.TryOid(cte) != sd.ContentType)
+            else if (!ct.TryFirst(out Asn1Element cte) || Asn1Values.TryOid(cte) != sd.ContentType)
             {
                 warnings.Add("The contentType attribute differs from the encapsulated content type.");
                 o.Integrity = CmsCheckStatus.Invalid;
@@ -566,14 +566,14 @@ internal static class CmsSignerVerifier
 
             var seq = new List<Asn1Element>(2);
             var ids = new List<Asn1Element>(4);
-            if (!top.IsSequence || !Asn1Reader.TryChildren(top, 3, seq, out _) || seq.Count == 0 || !seq[0].IsSequence || !Asn1Reader.TryChildren(seq[0], 8, ids, out _) || ids.Count == 0)
+            if (!top.IsSequence || !Asn1Element.TryChildren(top, 3, seq, out _) || seq.Count == 0 || !seq[0].IsSequence || !Asn1Element.TryChildren(seq[0], 8, ids, out _) || ids.Count == 0)
             {
                 warnings.Add("The signing-certificate attribute is malformed.");
                 return false;
             }
 
             var parts = new List<Asn1Element>(3);
-            if (!ids[0].IsSequence || !Asn1Reader.TryChildren(ids[0], 4, parts, out _) || parts.Count == 0)
+            if (!ids[0].IsSequence || !Asn1Element.TryChildren(ids[0], 4, parts, out _) || parts.Count == 0)
             {
                 warnings.Add("The signing-certificate attribute is malformed.");
                 return false;
@@ -622,7 +622,7 @@ internal static class CmsSignerVerifier
             return true;
         }
 
-        if (!Asn1Reader.TryRead(p, out Asn1Element seq, out _, out _))
+        if (!Asn1Element.TryRead(p, out Asn1Element seq, out _, out _))
         {
             error = "malformed";
             return false;
@@ -634,7 +634,7 @@ internal static class CmsSignerVerifier
         }
 
         var kids = new List<Asn1Element>(4);
-        if (!seq.IsSequence || !Asn1Reader.TryChildren(seq, 5, kids, out _))
+        if (!seq.IsSequence || !Asn1Element.TryChildren(seq, 5, kids, out _))
         {
             error = "malformed";
             return false;
@@ -643,7 +643,7 @@ internal static class CmsSignerVerifier
         foreach (Asn1Element k in kids)
         {
             var inner = new List<Asn1Element>(1);
-            if (k.TagClass != 2 || !Asn1Reader.TryChildren(k, 2, inner, out _) || inner.Count != 1)
+            if (k.TagClass != 2 || !Asn1Element.TryChildren(k, 2, inner, out _) || inner.Count != 1)
             {
                 error = "malformed";
                 return false;
@@ -661,7 +661,7 @@ internal static class CmsSignerVerifier
                     hash = hn;
                     break;
                 case 1:
-                    if (!CmsAlgorithm.TryParse(inner[0], out CmsAlgorithm m) || m.Oid != Oids.Mgf1 || !Asn1Reader.TryRead(m.Parameters, out Asn1Element mh, out _, out _)
+                    if (!CmsAlgorithm.TryParse(inner[0], out CmsAlgorithm m) || m.Oid != Oids.Mgf1 || !Asn1Element.TryRead(m.Parameters, out Asn1Element mh, out _, out _)
                         || !CmsAlgorithm.TryParse(mh, out CmsAlgorithm mhash) || Oids.HashFor(mhash.Oid) is not { } mn)
                     {
                         error = "unsupported mask generation function";
@@ -671,7 +671,7 @@ internal static class CmsSignerVerifier
                     mgfHash = mn;
                     break;
                 case 2:
-                    salt = Asn1Reader.TrySmallInt(inner[0]);
+                    salt = Asn1Values.TrySmallInt(inner[0]);
                     if (salt < 0)
                     {
                         error = "bad salt length";
@@ -680,7 +680,7 @@ internal static class CmsSignerVerifier
 
                     break;
                 case 3:
-                    if (Asn1Reader.TrySmallInt(inner[0]) != 1)
+                    if (Asn1Values.TrySmallInt(inner[0]) != 1)
                     {
                         error = "unsupported trailer field";
                         return false;
@@ -719,9 +719,9 @@ internal static class CmsSignerVerifier
         // TSTInfo ::= SEQUENCE { version, policy, messageImprint, serialNumber, genTime, ... }
         var f = new List<Asn1Element>(10);
         var imprint = new List<Asn1Element>(2);
-        if (!Asn1Reader.TryRead(sd.Content, out Asn1Element tst, out _, out _) || !tst.IsSequence || !Asn1Reader.TryChildren(tst, 16, f, out _) || f.Count < 5
-            || !f[2].IsSequence || !Asn1Reader.TryChildren(f[2], 3, imprint, out _) || imprint.Count != 2 || !CmsAlgorithm.TryParse(imprint[0], out CmsAlgorithm imprintAlg)
-            || !imprint[1].IsUniversal(Asn1Tags.OctetString) || !Asn1Reader.TryTime(f[4], out DateTimeOffset genTime))
+        if (!Asn1Element.TryRead(sd.Content, out Asn1Element tst, out _, out _) || !tst.IsSequence || !Asn1Element.TryChildren(tst, 16, f, out _) || f.Count < 5
+            || !f[2].IsSequence || !Asn1Element.TryChildren(f[2], 3, imprint, out _) || imprint.Count != 2 || !CmsAlgorithm.TryParse(imprint[0], out CmsAlgorithm imprintAlg)
+            || !imprint[1].IsUniversal(Asn1Tags.OctetString) || !Asn1Values.TryTime(f[4], out DateTimeOffset genTime))
         {
             w.Add("The TSTInfo in the time-stamp token is malformed.");
             return r;
