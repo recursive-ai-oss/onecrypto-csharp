@@ -452,4 +452,27 @@ public class SignedDataTests
 
     private static string Describe(SignedDataReport r) =>
         string.Join(" | ", r.Checks.Concat(r.Signers.SelectMany(static s => s.Checks.Concat(s.Countersignatures.SelectMany(static c => c.Checks)))).Where(static c => c.Status is not (CmsCheckStatus.Passed or CmsCheckStatus.NotApplicable)).Select(static c => $"{c.Rule}:{c.Status}:{c.Reason}"));
+
+    [Fact]
+    public void DamagedSignatureAlgorithmParametersAreReportedNotThrown()
+    {
+        // A fuzz run found RSASSA-PSS parameters with a malformed hash identifier escaping the verifier as a different exception type.
+        SignerKit k = CmsKeys.Get(SigKind.RsaPss);
+        byte[] enc = SignedData.Create(Content, [k.Spec()]).Encoded.ToArray();
+        SignerInfo si = SignedData.Parse(enc).Signers[0];
+        int at = enc.AsSpan().LastIndexOf(si.SignatureAlgorithm.Encoded.Span);
+        Assert.True(at > 0);
+        for (int i = 0; i < si.SignatureAlgorithm.Encoded.Length; i++)
+        {
+            foreach (byte value in new byte[] { 0x00, 0xFF, 0x30, 0x06 })
+            {
+                byte[] bad = (byte[])enc.Clone();
+                bad[at + i] = value;
+                if (SignedData.TryParse(bad, out SignedData? sd) && sd is not null)
+                {
+                    _ = sd.Verify().IsValid; // any verdict, but no exception
+                }
+            }
+        }
+    }
 }

@@ -566,7 +566,7 @@ public sealed partial class SignedData
             {
                 named = PssParameters.Parse(alg.Parameters).HashOid;
             }
-            catch (Asn1ParseException)
+            catch (Exception e) when (e is Asn1ParseException or X509ParseException)
             {
                 return new CmsCheck("signature", CmsCheckStatus.Failed, "The RSASSA-PSS parameters are malformed.", "RFC 4055 §3.1");
             }
