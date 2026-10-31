@@ -2,6 +2,8 @@
 
 An independent read of the path validator's verdict logic (`src/OneCrypto/Validation/*`, behaviour in `docs/validation.md`) against RFC 5280 §6, RFC 6960 and the Baseline Requirements, written by someone who did not write it. Method: the code was read rule by rule; adversarial chains were built with the library's own builders; every finding has a test that asserts the behaviour the RFC asks for, so it fails today and carries `Skip = "review finding Rn"`. Tests: `tests/OneCrypto.Tests/Validation/ReviewFindingTests.cs` (findings), `ReviewCoverageTests.cs` (what was found correct, running), `ReviewSupport.cs` (chain helpers). Nothing under `src/` was changed. Un-skipping a test is how a fix is accepted.
 
+**Status.** All eight findings and O1 are fixed, and the finding tests run (no Skip). R1: candidates that cannot issue are tried last and a search stopped by a limit with no valid path is `Indeterminate`; R2: the CRL signer is validated to the path's own anchor; R3: a listed entry counts whatever its reason; R4: a critical unknown entry extension makes the CRL unusable (a critical `holdInstructionCode` too, since it is not processed); R5: `SmtpUTF8Mailbox` is compared as rfc822Name; R6: one trailing dot and percent-encoding are normalised before comparison; R7: the required purpose is checked on an anchor target; R8: `*.` matches an A-label host. O1: `UnknownRevocationIsFatal` now defaults to true. O7: the citations are corrected in `validation.md`, and the 33 excluded-subtree cases are explained there. The text below is the review as written.
+
 Findings: 8. By severity class: accept-invalid 6 (R2–R7), reject-valid 2 (R1, R8). R1 is also a denial-of-service shape. No wrong-reason or report-inconsistency findings; see "Reports".
 
 ## Findings

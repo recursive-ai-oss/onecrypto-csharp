@@ -21,6 +21,12 @@ internal sealed class RNode : IDisposable
 
     public X509Signer Signer { get; }
 
+    /// <summary>The key, for tests that sign with another hash or hand the key to a tool.</summary>
+    public ECDsa Key => _key;
+
+    /// <summary>The private key as PKCS #8 PEM, for handing to openssl.</summary>
+    public string KeyPem => _key.ExportPkcs8PrivateKeyPem();
+
     public Certificate Certificate { get; }
 
     public static Extension CaBasic { get; } = Extension.Create(new BasicConstraints(true), true);
