@@ -61,6 +61,7 @@ internal static class LegacyCipherTargets
         // A/A control: both classes use distinct random keys, so a flagged difference is the harness or the machine.
         Cipher[] all = Ciphers();
         yield return new KeyTarget(all[0], "control-key", all[0].Decrypting, control: true);
+        yield return new KeyTarget(all[1], "control-key", all[1].Decrypting, control: true);
         yield return new KeyTarget(all[4], "control-key", all[4].Decrypting, control: true);
     }
 
