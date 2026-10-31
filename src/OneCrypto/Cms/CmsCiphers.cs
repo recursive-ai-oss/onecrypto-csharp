@@ -417,8 +417,9 @@ internal static class CmsCiphers
             byte[] inner = [.. head, .. lastInner];
             byte[] formatted = aes.DecryptCbc(inner, iv, PaddingMode.None);
             int len = formatted[0];
-            bool ok = len >= 3 && len <= formatted.Length - 4
-                && (byte)~formatted[1] == formatted[4] && (byte)~formatted[2] == formatted[5] && (byte)~formatted[3] == formatted[6];
+            // Non-short-circuit: which check failed must not show in the timing (the decrypted bytes depend on the key).
+            bool ok = (len >= 3) & (len <= formatted.Length - 4)
+                & ((byte)~formatted[1] == formatted[4]) & ((byte)~formatted[2] == formatted[5]) & ((byte)~formatted[3] == formatted[6]);
             return ok ? formatted.AsSpan(4, len).ToArray() : null;
         }
         catch (CryptographicException)
