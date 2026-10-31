@@ -36,15 +36,17 @@ Raise a limit by passing your own `KdfLimits`; the memory check also refuses siz
 
 - **Argon2i:** every memory index is computed from the pass, lane, slice and block counters and the parameters, never from the
   password. Timing and cache observations reveal nothing about the password through addressing.
-- **Argon2id:** the same for the first two slices of the first pass; after that, as in the RFC, reference blocks are chosen from
-  block contents.
+- **Argon2id:** no constant-time claim for the derivation as a whole. The first two slices of the first pass are addressed as in
+  Argon2i, but from the third slice on, as in the RFC (§3.4), reference blocks are chosen from block contents, so password-dependent
+  timing and cache behaviour are expected by design. A timing test of the whole derivation flags this (|t| 12 on arm64 with one
+  pass and 64 KiB), which is why there is no Argon2id timing target.
 - **Argon2d, scrypt:** addresses depend on the data by definition (RFC 9106 §3.4.1.1, RFC 7914 §5). That is a property of the
   algorithms, not something to fix, and no constant-time claim is made.
 - **bcrypt-pbkdf:** Blowfish indexes S-boxes by data. A full-table scan on every lookup would cost 256 times as much, so lookups
   are direct; an attacker would need to share the CPU cache while a key file is being unlocked.
 - No branch, loop bound or early exit in any of them depends on the password. Working memory is pinned and zeroed before the call
   returns. A garbage-collected runtime cannot promise that no copy of a secret survives elsewhere.
-- The timing tests (`tests/Timing/KdfTargets.cs`) check Argon2i and Argon2id with one pass and 64 KiB against a fixed and a
+- The timing tests (`tests/Timing/KdfTargets.cs`) check Argon2i with one pass and 64 KiB against a fixed and a
   random password.
 
 ## Threads and vectors

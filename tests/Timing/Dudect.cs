@@ -85,6 +85,7 @@ public static class Dudect
             target.Prepare(slice);
             for (int i = 0; i < n; i++)
             {
+                target.Before(i);
                 long t0 = Stopwatch.GetTimestamp();
                 target.Run(i);
                 long t1 = Stopwatch.GetTimestamp();
@@ -109,6 +110,7 @@ public static class Dudect
             target.Prepare(batchClasses);
             for (int i = 0; i < batchClasses.Length; i++)
             {
+                target.Before(i);
                 target.Run(i);
             }
         }

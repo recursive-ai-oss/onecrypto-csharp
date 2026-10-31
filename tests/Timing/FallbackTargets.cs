@@ -24,10 +24,32 @@ internal static class FallbackTargets
         byte[] aad = RandomNumberGenerator.GetBytes(13);
         byte[] fixedKey = RandomNumberGenerator.GetBytes(32);
         byte[] message = RandomNumberGenerator.GetBytes(1000);
-        yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "encrypt-key-1000B", 32, key => Seal(key, nonce, message, aad));
+        yield return new KeyTarget("encrypt-key-1000B", false, key => Seal(key, nonce, message, aad));
         yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "encrypt-data-1000B", 1000, plain => Seal(fixedKey, nonce, plain, aad));
-        yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "encrypt-key-17B", 32, key => Seal(key, nonce, message.AsSpan(0, 17), aad));
-        yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "decrypt-wrong-tag-key-100B", 32, key => Open(key, nonce, message.AsSpan(0, 100), aad));
+        yield return new KeyTarget("encrypt-key-17B", false, key => Seal(key, nonce, message.AsSpan(0, 17), aad));
+        yield return new KeyTarget("decrypt-wrong-tag-key-100B", false, key => Open(key, nonce, message.AsSpan(0, 100), aad));
+        // A/A controls: both classes use fresh random keys.
+        yield return new KeyTarget("control-encrypt-key-1000B", true, key => Seal(key, nonce, message, aad));
+        yield return new KeyTarget("control-encrypt-key-17B", true, key => Seal(key, nonce, message.AsSpan(0, 17), aad));
+        yield return new KeyTarget("control-decrypt-wrong-tag-key-100B", true, key => Open(key, nonce, message.AsSpan(0, 100), aad));
+    }
+
+    /// <summary>The key is the secret: one key buffer, refilled in the untimed hook by the same branch-free code in both classes.</summary>
+    private sealed class KeyTarget(string operation, bool control, Action<byte[]> run) : TimingTarget
+    {
+        private readonly byte[] _fixedKey = RandomNumberGenerator.GetBytes(32);
+        private readonly byte[] _key = new byte[32];
+        private TimingClass[] _classes = [];
+
+        public override string Primitive => "ChaCha20-Poly1305";
+
+        public override string Operation => operation;
+
+        public override void Prepare(ReadOnlySpan<TimingClass> classes) => _classes = classes.ToArray();
+
+        public override void Before(int index) => FillKey(_key, _fixedKey, _classes[index], control);
+
+        public override void Run(int index) => run(_key);
     }
 
     private static void Sha3(int rate, int size, byte[] secret)

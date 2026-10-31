@@ -11,7 +11,7 @@ internal static class Program
     private const string Usage =
         "usage: timing list\n" +
         "       timing selfcheck [--preset short|full] [--n N] [--out FILE]\n" +
-        "       timing run <primitive/operation|primitive> [--preset short|full] [--n N] [--out FILE]\n" +
+        "       timing run <primitive/operation|primitive> [--only OPERATION-SUBSTRING] [--preset short|full] [--n N] [--out FILE]\n" +
         "Exit code 0: every target met its expectation (selfcheck) or showed no leak (run); 1: not; 2: usage.";
 
     private static int Main(string[] args)
@@ -25,6 +25,7 @@ internal static class Program
         string command = args[0];
         TimingOptions options = TimingOptions.Quick;
         string? outFile = null;
+        string? only = null;
         string? name = args.Length > 1 && !args[1].StartsWith("--", StringComparison.Ordinal) ? args[1] : null;
         for (int i = 1; i < args.Length; i++)
         {
@@ -35,6 +36,9 @@ internal static class Program
                     break;
                 case "--n" when i + 1 < args.Length:
                     options = options with { Measurements = int.Parse(args[++i], CultureInfo.InvariantCulture) };
+                    break;
+                case "--only" when i + 1 < args.Length:
+                    only = args[++i];
                     break;
                 case "--out" when i + 1 < args.Length:
                     outFile = args[++i];
@@ -56,7 +60,7 @@ internal static class Program
                 return SelfCheckRun(options, outFile);
 
             case "run" when name is not null:
-                var chosen = Targets.All.Where(t => t.Primitive == name || $"{t.Primitive}/{t.Operation}" == name).ToList();
+                var chosen = Targets.All.Where(t => (t.Primitive == name || $"{t.Primitive}/{t.Operation}" == name) && (only is null || t.Operation.Contains(only, StringComparison.Ordinal))).ToList();
                 if (chosen.Count == 0)
                 {
                     Console.Error.WriteLine("no such target; try 'list'");
