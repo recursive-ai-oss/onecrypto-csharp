@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OneCrypto/OneCrypto.csproj" />
+    <Project Path="src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
+    <Project Path="src/OneCrypto.Online/OneCrypto.Online.csproj" />
+    <Project Path="src/OneCrypto.Keys/OneCrypto.Keys.csproj" />
+    <Project Path="src/OneCrypto.AdES/OneCrypto.AdES.csproj" />
+    <Project Path="src/OneCrypto.Files/OneCrypto.Files.csproj" />
+    <Project Path="src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
+    <Project Path="src/OneCrypto.AzureKeyVault/OneCrypto.AzureKeyVault.csproj" />
+    <Project Path="src/OneCrypto.AwsKms/OneCrypto.AwsKms.csproj" />
+    <Project Path="src/OneCrypto.GoogleKms/OneCrypto.GoogleKms.csproj" />
+    <Project Path="src/OneCrypto.Cli/OneCrypto.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OneCrypto.Tests/OneCrypto.Tests.csproj" />
+    <Project Path="tests/Interop/OneCrypto.Interop.csproj" />
+    <Project Path="tests/AotSmoke/OneCrypto.AotSmoke.csproj" />
+  </Folder>
+  <Folder Name="/bench/">
+    <Project Path="bench/OneCrypto.Benchmarks/OneCrypto.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/fuzz/">
+    <Project Path="fuzz/OneCrypto.Fuzz/OneCrypto.Fuzz.csproj" />
+  </Folder>
+</Solution>

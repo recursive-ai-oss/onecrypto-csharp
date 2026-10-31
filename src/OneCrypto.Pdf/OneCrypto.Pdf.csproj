@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>PAdES and PDF signature validation for OneCrypto on OnePDF. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+  </PropertyGroup>
+
+</Project>

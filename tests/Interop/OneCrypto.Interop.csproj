@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Drivers for the black-box oracles (OpenSSL, Go, GnuPG, Sequoia and the rest) and the timing harness. Empty until a unit needs them. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Interop</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>

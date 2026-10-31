@@ -1,0 +1,32 @@
+# Fuzzing
+
+One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. SharpFuzz instruments `RecursiveAI.OneCrypto.dll`; libFuzzer drives it.
+
+| Target | Input | Surface |
+|---|---|---|
+| `cms` | a mode byte, then a CMS blob (or, with mode bits `10`, a time-stamp response) | BER-to-DER conversion, CMS SignedData parsing, signer verification with chain building, time-stamp response checks |
+
+Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.
+
+## Running
+
+    export ONECRYPTO_FUZZ_TOOLS=/path/to/tools     # holds fuzz/libfuzzer-dotnet and sharpfuzz/sharpfuzz
+    export ONECRYPTO_FUZZ_WORK=/path/to/workdir    # builds, corpora, findings; must be outside the checkout
+    fuzz/run.sh cms 600                            # fuzz the CMS target for 10 minutes
+    fuzz/run.sh replay cms some-input...           # run saved inputs once, without libFuzzer
+
+`run.sh` builds the harness in release mode into `$ONECRYPTO_FUZZ_WORK/bin`, writes seeds into `$ONECRYPTO_FUZZ_WORK/corpus/<target>/`, instruments the library, and runs libFuzzer. Findings land in `$ONECRYPTO_FUZZ_WORK/findings/<target>/`. Per-input timeout and memory limit: `FUZZ_TIMEOUT` (10 s) and `FUZZ_RSS_MB` (1024). Extra arguments after the corpus directory go to libFuzzer. Run one fuzz process at a time.
+
+The tools:
+
+* `libfuzzer-dotnet`: the C++ host from the SharpFuzz project, compiled with `clang++ -fsanitize=fuzzer`.
+* `sharpfuzz`: `dotnet tool install SharpFuzz.CommandLine --tool-path <dir>/sharpfuzz`.
+
+Reading the output: `ft` (features) is the number to watch. The host's own `cov` stays small because only the .NET side is instrumented.
+
+Without a libFuzzer host the executable has local modes, run as `dotnet OneCrypto.Fuzz.dll <mode>`: `mutate <target> <seconds> <seed>...` (random mutation in process; a crashing input is saved under `$ONECRYPTO_FUZZ_WORK/findings/mutate`), `replay` and `seeds`.
+
+## Adding a target
+
+1. Write `Run(ReadOnlySpan<byte> data)` that lets only the library's typed exceptions escape.
+2. Add one line to `Targets` in `Program.cs`, one `case` in `run.sh` with its maximum input length, and its seeds to `SeedsFor`.

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Network clients for OneCrypto behind a pluggable, guarded transport: timestamp, OCSP, CRL, enrollment, discovery. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Google Cloud KMS signing and decryption keys for OneCrypto. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+  </PropertyGroup>
+
+</Project>

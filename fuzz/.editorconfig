@@ -1,0 +1,3 @@
+# A fuzz driver has to record whatever escapes a target, so it catches the general exception on purpose.
+[*.cs]
+dotnet_diagnostic.CA1031.severity = none

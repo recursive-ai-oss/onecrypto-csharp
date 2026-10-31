@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Fuzz</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- The target runs under libFuzzer with SharpFuzz coverage instrumentation, not as a trimmed app. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The CMS target signs its starting files with the test kit that the unit tests use. -->
+    <Compile Include="../../tests/OneCrypto.Tests/Support/SigKit.cs" Link="Support/SigKit.cs" />
+    <Compile Include="../../tests/OneCrypto.Tests/Support/CmsFixture.cs" Link="Support/CmsFixture.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>

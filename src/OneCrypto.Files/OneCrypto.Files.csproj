@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>age, minisign, signify, SSHSIG and Sigstore bundle verification for OneCrypto. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+  </PropertyGroup>
+
+</Project>

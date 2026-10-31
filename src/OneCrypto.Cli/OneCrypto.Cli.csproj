@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The command a user types; the package ID stays RecursiveAI.OneCrypto.Cli. -->
+    <AssemblyName>onecrypto</AssemblyName>
+    <Description>The onecrypto command-line tool: the Stateless OpenPGP interface (sop), inspection and convenience verbs. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Azure Key Vault signing and decryption keys for OneCrypto. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <!-- Parses a CMS structure inside the browser runtime, where the platform offers hashes and HMAC only. `run.sh` publishes it and runs it under Node. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).WasmSmoke</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>
