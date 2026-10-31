@@ -13,6 +13,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 out=$1; shift
 dotnet build -c Release bench/OneCrypto.Benchmarks -v quiet -clp:NoSummary
 mkdir -p "$out"
-tools/perf-run.sh "$out" "${PERF_MAX:-30m}" "onecrypto u7 bench $*" -- \
+tools/perf-run.sh "$out" "${PERF_MAX:-30m}" "onecrypto bench $*" -- \
   dotnet run --no-build -c Release --project bench/OneCrypto.Benchmarks -- "$@" \
   --artifacts "$out/artifacts" --summary "$out/summary.json"

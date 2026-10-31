@@ -13,5 +13,5 @@ out=$1; shift
 export DOTNET_TieredCompilation=0 DOTNET_TieredPGO=0 DOTNET_ReadyToRun=0
 dotnet build -c Release tests/Timing/OneCrypto.Timing.csproj -v quiet -clp:NoSummary
 mkdir -p "$out"
-tools/perf-run.sh "$out" "${PERF_MAX:-30m}" "onecrypto u7 timing $*" -- \
+tools/perf-run.sh "$out" "${PERF_MAX:-30m}" "onecrypto timing $*" -- \
   dotnet run --no-build -c Release --project tests/Timing/OneCrypto.Timing.csproj -- "$@" --out "$out/timing.json"
