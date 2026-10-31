@@ -164,12 +164,12 @@ internal static class PemTarget
 
         PemMode mode = (data[0] & 1) == 0 ? PemMode.Strict : PemMode.Lax;
         ReadOnlySpan<byte> text = data[1..];
-        if (PemEncoding.TryParseAll(text, mode, out IReadOnlyList<PemBlock> blocks, out _))
+        if (PemCodec.TryParseAll(text, mode, out IReadOnlyList<PemBlock> blocks, out _))
         {
             foreach (PemBlock b in blocks)
             {
-                string again = PemEncoding.Write(b.Label, b.Data, b.Headers);
-                PemBlock back = PemEncoding.Parse(again, PemMode.Lax);
+                string again = PemCodec.Write(b.Label, b.Data, b.Headers);
+                PemBlock back = PemCodec.Parse(again, PemMode.Lax);
                 if (!back.Data.AsSpan().SequenceEqual(b.Data) || back.Label != b.Label)
                 {
                     throw new InvalidOperationException("PEM did not round-trip");
@@ -177,12 +177,12 @@ internal static class PemTarget
             }
         }
 
-        _ = PemEncoding.TryParse(text, mode, out _, out _);
+        _ = PemCodec.TryParse(text, mode, out _, out _);
     }
 
     public static IEnumerable<byte[]> Seeds()
     {
-        yield return [0, .. Encoding.ASCII.GetBytes(PemEncoding.Write("CERTIFICATE", new byte[100]))];
+        yield return [0, .. Encoding.ASCII.GetBytes(PemCodec.Write("CERTIFICATE", new byte[100]))];
         yield return [1, .. Encoding.ASCII.GetBytes("text\r\n-----BEGIN RSA PRIVATE KEY-----\r\nProc-Type: 4,ENCRYPTED\r\nDEK-Info: AES-128-CBC,00112233445566778899AABBCCDDEEFF\r\n\r\nAQID BAUG\r\n-----END RSA PRIVATE KEY-----")];
         yield return [1, .. Encoding.ASCII.GetBytes("-----BEGIN A-----\n-----END A-----\n-----BEGIN B-----\nAA==\n-----END B-----")];
     }

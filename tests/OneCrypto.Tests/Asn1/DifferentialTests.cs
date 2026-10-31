@@ -203,7 +203,7 @@ public class DifferentialTests
                     string s = e.GetString()!;
                     if (s.Contains("-----BEGIN ", StringComparison.Ordinal))
                     {
-                        foreach (PemBlock b in PemEncoding.ParseAll(s, PemMode.Lax))
+                        foreach (PemBlock b in PemCodec.ParseAll(s, PemMode.Lax))
                         {
                             stats.Inputs++;
                             stats.Add(b.Data, true);
@@ -263,7 +263,7 @@ public class DifferentialTests
                         stats.Add(data, true);
                         stats.Add(data, false);
                     }
-                    else if (s.Contains("-----BEGIN ", StringComparison.Ordinal) && PemEncoding.TryParseAll(s, PemMode.Lax, out IReadOnlyList<PemBlock> blocks, out _))
+                    else if (s.Contains("-----BEGIN ", StringComparison.Ordinal) && PemCodec.TryParseAll(s, PemMode.Lax, out IReadOnlyList<PemBlock> blocks, out _))
                     {
                         foreach (PemBlock b in blocks)
                         {

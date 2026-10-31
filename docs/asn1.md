@@ -51,10 +51,10 @@ Found by the differential run (`tests/OneCrypto.Tests/Asn1/DifferentialTests.cs`
 
 ## PEM (RFC 7468)
 
-`PemEncoding.Parse`/`ParseAll` (throwing, `PemFormatException` with reason and offset) and `TryParse`/`TryParseAll`, on text or UTF-8 bytes.
+`PemCodec.Parse`/`ParseAll` (throwing, `PemFormatException` with reason and offset) and `TryParse`/`TryParseAll`, on text or UTF-8 bytes.
 
 * **Strict** (RFC 7468 clause 3): `-----BEGIN label-----` at the start of a line, base64 in lines of exactly 64 characters except the last (1 to 64), no whitespace inside a line, LF or CRLF line ends, no encapsulation headers, END label equal to BEGIN label. Explanatory text before, between and after blocks is skipped.
 * **Lax** (clause 2): any whitespace and line length in the body, a missing final newline, and the legacy `Name: value` encapsulation headers of RFC 1421 clause 4.4 as OpenSSL writes them (`Proc-Type: 4,ENCRYPTED`, `DEK-Info: cipher,iv`), which are returned as `PemBlock.Headers`; a blank line ends them. The body of an encrypted block is not decrypted here.
 * A decoded block is limited to 64 MiB. Base64 padding must be correct in both modes.
 
-`PemEncoding.Write` writes LF line ends, 64-column lines and a trailing newline.
+`PemCodec.Write` writes LF line ends, 64-column lines and a trailing newline.

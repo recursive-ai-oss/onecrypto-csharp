@@ -235,29 +235,29 @@ public class StreamReaderTests
 
 public class PemTests
 {
-    private static readonly string Cert = PemEncoding.Write("CERTIFICATE", Enumerable.Range(1, 99).Select(i => (byte)i).ToArray());
+    private static readonly string Cert = PemCodec.Write("CERTIFICATE", Enumerable.Range(1, 99).Select(i => (byte)i).ToArray());
 
     [Fact]
     public void WritesSixtyFourColumnLinesAndReadsThemBack()
     {
         byte[] data = Enumerable.Range(1, 99).Select(i => (byte)i).ToArray();
-        string pem = PemEncoding.Write("CERTIFICATE", data);
+        string pem = PemCodec.Write("CERTIFICATE", data);
         string[] lines = pem.TrimEnd('\n').Split('\n');
         Assert.Equal("-----BEGIN CERTIFICATE-----", lines[0]);
         Assert.Equal(64, lines[1].Length);
         Assert.True(lines[2].Length <= 64);
         Assert.Equal("-----END CERTIFICATE-----", lines[^1]);
-        Assert.Equal(data, PemEncoding.Parse(pem, PemMode.Strict).Data);
-        Assert.Equal(pem, PemEncoding.Write("CERTIFICATE", data));
+        Assert.Equal(data, PemCodec.Parse(pem, PemMode.Strict).Data);
+        Assert.Equal(pem, PemCodec.Write("CERTIFICATE", data));
     }
 
     [Fact]
     public void StrictRejectsWhatLaxAccepts()
     {
         string lax = "junk before\r\n-----BEGIN PRIVATE KEY-----\r\n  AQID BAUG\r\n\r\nBwgJ  \r\n-----END PRIVATE KEY-----";
-        Assert.False(PemEncoding.TryParse(lax, PemMode.Strict, out _, out PemError e));
+        Assert.False(PemCodec.TryParse(lax, PemMode.Strict, out _, out PemError e));
         Assert.Equal(PemError.InvalidLayout, e);
-        PemBlock b = PemEncoding.Parse(lax, PemMode.Lax);
+        PemBlock b = PemCodec.Parse(lax, PemMode.Lax);
         Assert.Equal("PRIVATE KEY", b.Label);
         Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, b.Data);
     }
@@ -265,8 +265,8 @@ public class PemTests
     [Fact]
     public void MultipleBlocksAndExplanatoryTextAreRead()
     {
-        string text = "Subject: x\n" + Cert + "\nnote\n" + PemEncoding.Write("PUBLIC KEY", [1, 2, 3]) + PemEncoding.Write("EMPTY", []);
-        IReadOnlyList<PemBlock> blocks = PemEncoding.ParseAll(text, PemMode.Strict);
+        string text = "Subject: x\n" + Cert + "\nnote\n" + PemCodec.Write("PUBLIC KEY", [1, 2, 3]) + PemCodec.Write("EMPTY", []);
+        IReadOnlyList<PemBlock> blocks = PemCodec.ParseAll(text, PemMode.Strict);
         Assert.Equal(["CERTIFICATE", "PUBLIC KEY", "EMPTY"], blocks.Select(b => b.Label).ToArray());
         Assert.Empty(blocks[2].Data);
         Assert.Equal(99, blocks[0].Data.Length);
@@ -281,30 +281,30 @@ public class PemTests
     [InlineData("-----BEGIN A-----\nProc-Type: 4,ENCRYPTED\n\nAQID\n-----END A-----\n", PemError.HeadersNotAllowed)]
     public void MalformedBlocksAreTypedErrors(string text, PemError expected)
     {
-        Assert.False(PemEncoding.TryParse(text, PemMode.Strict, out _, out PemError e));
+        Assert.False(PemCodec.TryParse(text, PemMode.Strict, out _, out PemError e));
         Assert.Equal(expected, e);
-        Assert.Throws<PemFormatException>(() => PemEncoding.Parse(text, PemMode.Strict));
+        Assert.Throws<PemFormatException>(() => PemCodec.Parse(text, PemMode.Strict));
     }
 
     [Fact]
     public void LegacyEncryptedHeadersAreParsed()
     {
         string text = "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,0123456789ABCDEF0123456789ABCDEF\n\nAQIDBAUGBwgJ\n-----END RSA PRIVATE KEY-----\n";
-        PemBlock b = PemEncoding.Parse(text, PemMode.Lax);
+        PemBlock b = PemCodec.Parse(text, PemMode.Lax);
         Assert.True(b.IsLegacyEncrypted);
         Assert.Equal("AES-128-CBC,0123456789ABCDEF0123456789ABCDEF", b.DekInfo);
         Assert.Equal(9, b.Data.Length);
-        Assert.Equal(b.Data, PemEncoding.Parse(PemEncoding.Write(b.Label, b.Data, b.Headers), PemMode.Lax).Data);
+        Assert.Equal(b.Data, PemCodec.Parse(PemCodec.Write(b.Label, b.Data, b.Headers), PemMode.Lax).Data);
     }
 
     [Fact]
     public void Utf8InputIsCheckedAndNoInputGivesNoBlock()
     {
-        Assert.False(PemEncoding.TryParse(new byte[] { 0xFF, 0xFE }, PemMode.Lax, out _, out PemError e));
+        Assert.False(PemCodec.TryParse(new byte[] { 0xFF, 0xFE }, PemMode.Lax, out _, out PemError e));
         Assert.Equal(PemError.InvalidText, e);
-        Assert.False(PemEncoding.TryParse("nothing here", PemMode.Lax, out _, out e));
+        Assert.False(PemCodec.TryParse("nothing here", PemMode.Lax, out _, out e));
         Assert.Equal(PemError.NoBlock, e);
-        Assert.True(PemEncoding.TryParse(System.Text.Encoding.ASCII.GetBytes(Cert), PemMode.Strict, out PemBlock? b, out _));
+        Assert.True(PemCodec.TryParse(System.Text.Encoding.ASCII.GetBytes(Cert), PemMode.Strict, out PemBlock? b, out _));
         Assert.Equal(99, b!.Data.Length);
     }
 }

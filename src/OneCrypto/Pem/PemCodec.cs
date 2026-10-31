@@ -134,11 +134,11 @@ public sealed class PemBlock
     public string? DekInfo => GetHeader("DEK-Info");
 
     /// <summary>Writes this block as RFC 7468 text (or with its headers, if it has any).</summary>
-    public override string ToString() => PemEncoding.Write(Label, Data, Headers);
+    public override string ToString() => PemCodec.Write(Label, Data, Headers);
 }
 
 /// <summary>Parsing and writing of PEM text (RFC 7468).</summary>
-public static class PemEncoding
+public static class PemCodec
 {
     /// <summary>Largest decoded block accepted: 64 MiB. Larger bodies raise <see cref="PemError.TooLarge"/>.</summary>
     public const int MaxBlockBytes = 64 * 1024 * 1024;
