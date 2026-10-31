@@ -5,11 +5,13 @@ namespace OneCrypto.Timing;
 
 /// <summary>
 /// Timing targets for the secret-handling glue of the AES modes: decryption (and unwrapping) of valid messages.
-/// Two kinds, each with the fixed class against a fresh random one:
+/// Two kinds (plus A/A controls for the key kind), each with the fixed class against a fresh random one:
 /// <list type="bullet">
 /// <item>data: the key is fixed, the plaintext (or key data) is the secret;</item>
-/// <item>key: the message is fixed, the key is the secret, drawn from a pool of random keys because building a key object is not
-/// part of what is timed.</item>
+/// <item>key: the message is fixed, the key is the secret. Building a key object is not part of what is timed, so each class draws a
+/// key object at random from its own half of a pool of 2 x <see cref="PoolSize"/> objects, the halves interleaved slot by slot: every
+/// object of the fixed class holds the same key, every object of the random class holds its own. Both classes thus touch equally many distinct, equally cold objects, and only the key
+/// value differs; a single shared object for the fixed class would make it cache-hot and show a difference that is not the key.</item>
 /// </list>
 /// The sizes are chosen so one is a few blocks with a partial last block and one crosses the internal batch boundary.
 /// </summary>
@@ -27,6 +29,9 @@ internal static class AesModesTargets
         new AeadKey("AES-EAX", "decrypt-key-40B", 40, 16, key => new EaxMode(key)),
         new WrapData(),
         new WrapKey(),
+        // A/A controls: both classes use distinct random keys, so any flagged difference is the harness or the machine, not the key.
+        new AeadKey("AES-EAX", "control-key-40B", 40, 16, key => new EaxMode(key), control: true),
+        new WrapKey("control-key-32B", control: true),
     ];
 
     private abstract class Mode : IDisposable
@@ -115,16 +120,16 @@ internal static class AesModesTargets
     }
 
     /// <summary>Same message every call; the key is the secret.</summary>
-    private sealed class AeadKey(string primitive, string operation, int size, int nonceSize, Func<byte[], Mode> create) : TimingTarget
+    private sealed class AeadKey(string primitive, string operation, int size, int nonceSize, Func<byte[], Mode> create, bool control = false) : TimingTarget
     {
         private readonly byte[] _nonce = RandomNumberGenerator.GetBytes(nonceSize);
         private readonly byte[] _aad = RandomNumberGenerator.GetBytes(13);
         private readonly byte[] _plain = RandomNumberGenerator.GetBytes(size);
         private readonly byte[] _sinkOut = new byte[size];
         private readonly byte[] _fixedKey = RandomNumberGenerator.GetBytes(16);
-        private readonly Mode[] _modes = new Mode[PoolSize + 1];
-        private readonly byte[][] _ct = new byte[PoolSize + 1][];
-        private readonly byte[][] _tag = new byte[PoolSize + 1][];
+        private readonly Mode[] _modes = new Mode[2 * PoolSize];
+        private readonly byte[][] _ct = new byte[2 * PoolSize][];
+        private readonly byte[][] _tag = new byte[2 * PoolSize][];
         private int[] _pick = [];
         private bool _sink;
 
@@ -134,10 +139,11 @@ internal static class AesModesTargets
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
         {
-            for (int k = 0; k <= PoolSize; k++)
+            // Even slots hold the fixed key, odd slots distinct random keys, so the two classes are interleaved in memory.
+            for (int k = 0; k < 2 * PoolSize; k++)
             {
                 _modes[k]?.Release();
-                _modes[k] = create(k == 0 ? _fixedKey : RandomNumberGenerator.GetBytes(16));
+                _modes[k] = create(k % 2 == 0 && !control ? _fixedKey : RandomNumberGenerator.GetBytes(16));
                 _ct[k] = new byte[size];
                 _tag[k] = new byte[16];
                 _modes[k].Encrypt(_nonce, _plain, _ct[k], _tag[k], _aad);
@@ -150,7 +156,7 @@ internal static class AesModesTargets
 
             for (int i = 0; i < classes.Length; i++)
             {
-                _pick[i] = classes[i] == TimingClass.Fixed ? 0 : 1 + RandomNumberGenerator.GetInt32(PoolSize);
+                _pick[i] = (2 * RandomNumberGenerator.GetInt32(PoolSize)) + (classes[i] == TimingClass.Fixed ? 0 : 1);
             }
         }
 
@@ -195,26 +201,26 @@ internal static class AesModesTargets
     }
 
     /// <summary>Same wrapped message every call; the key-encryption key is the secret.</summary>
-    private sealed class WrapKey : TimingTarget
+    private sealed class WrapKey(string operation = "unwrap-key-32B", bool control = false) : TimingTarget
     {
         private readonly byte[] _data = RandomNumberGenerator.GetBytes(32);
         private readonly byte[] _fixedKek = RandomNumberGenerator.GetBytes(32);
-        private readonly AesKeyWrap[] _kws = new AesKeyWrap[PoolSize + 1];
-        private readonly byte[][] _wrapped = new byte[PoolSize + 1][];
+        private readonly AesKeyWrap[] _kws = new AesKeyWrap[2 * PoolSize];
+        private readonly byte[][] _wrapped = new byte[2 * PoolSize][];
         private readonly byte[] _out = new byte[32];
         private int[] _pick = [];
         private bool _sink;
 
         public override string Primitive => "AES-KW";
 
-        public override string Operation => "unwrap-key-32B";
+        public override string Operation => operation;
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
         {
-            for (int k = 0; k <= PoolSize; k++)
+            for (int k = 0; k < 2 * PoolSize; k++)
             {
                 _kws[k]?.Dispose();
-                _kws[k] = new AesKeyWrap(k == 0 ? _fixedKek : RandomNumberGenerator.GetBytes(32));
+                _kws[k] = new AesKeyWrap(k % 2 == 0 && !control ? _fixedKek : RandomNumberGenerator.GetBytes(32));
                 _wrapped[k] = new byte[40];
                 _kws[k].Wrap(_data, _wrapped[k]);
             }
@@ -226,7 +232,7 @@ internal static class AesModesTargets
 
             for (int i = 0; i < classes.Length; i++)
             {
-                _pick[i] = classes[i] == TimingClass.Fixed ? 0 : 1 + RandomNumberGenerator.GetInt32(PoolSize);
+                _pick[i] = (2 * RandomNumberGenerator.GetInt32(PoolSize)) + (classes[i] == TimingClass.Fixed ? 0 : 1);
             }
         }
 
