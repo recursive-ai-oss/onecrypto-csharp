@@ -147,6 +147,29 @@ internal static class X509Read
         }
     }
 
+    /// <summary>Checks that <paramref name="alg"/> is an AlgorithmIdentifier and returns its slice of <paramref name="root"/>, so a later read of it cannot fail.</summary>
+    public static ReadOnlyMemory<byte> Algorithm(ReadOnlySpan<byte> alg, ReadOnlyMemory<byte> root, X509Limits limits)
+    {
+        try
+        {
+            var outer = new Asn1Reader(alg, Asn1Rules.Ber, limits.Asn1);
+            Asn1Reader seq = outer.ReadSequence();
+            outer.ThrowIfNotEmpty();
+            seq.ReadObjectIdentifierBytes();
+            if (seq.HasData)
+            {
+                seq.SkipValue();
+                seq.ThrowIfNotEmpty();
+            }
+        }
+        catch (Asn1ParseException e)
+        {
+            throw new X509ParseException("AlgorithmIdentifier", e);
+        }
+
+        return Slice(root, alg);
+    }
+
     /// <summary>The blocks of PEM text (lax mode), with a PEM failure reported as the typed error for the structure.</summary>
     public static IReadOnlyList<PemBlock> Pem(string what, string text)
     {

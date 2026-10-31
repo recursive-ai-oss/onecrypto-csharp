@@ -214,6 +214,11 @@ internal static class SignatureAlgorithms
         {
             return Fail(SignatureStatus.Malformed, e.Message, "RFC 5280 §4.1.1.2");
         }
+        catch (NotSupportedException e)
+        {
+            // PlatformNotSupportedException included: the platform lacks the curve or parameter set.
+            return Fail(SignatureStatus.AlgorithmNotSupported, $"{RuntimeInformation.OSDescription} cannot use this key or parameter set: {e.Message}", "RFC 5280 §4.1.1.2");
+        }
         catch (CryptographicException e)
         {
             // The platform refuses the key or the encoding (a malformed ECDSA signature, an unsupported curve, a bad modulus).

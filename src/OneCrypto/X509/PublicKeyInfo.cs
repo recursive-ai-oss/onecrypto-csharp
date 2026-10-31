@@ -248,7 +248,8 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
     }
 
     /// <summary>The key as a BCL <see cref="ECDsa"/> (verification and key agreement use the same import).</summary>
-    /// <exception cref="CryptographicException">The key is not an EC key on a curve this platform has.</exception>
+    /// <exception cref="CryptographicException">The key is not a valid EC key.</exception>
+    /// <exception cref="NotSupportedException">The platform does not have the key's curve.</exception>
     public ECDsa ToECDsa()
     {
         var ec = ECDsa.Create();

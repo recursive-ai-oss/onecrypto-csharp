@@ -36,7 +36,7 @@ public sealed class CertificateSigningRequest : IEquatable<CertificateSigningReq
             top.ThrowIfNotEmpty();
             ReadOnlySpan<byte> info = req.ReadEncodedValue();
             _info = X509Read.Slice(encoded, info);
-            _algEnc = X509Read.Slice(encoded, req.ReadEncodedValue());
+            _algEnc = X509Read.Algorithm(req.ReadEncodedValue(), encoded, limits);
             Signature = X509Read.Slice(encoded, req.ReadBitString(out int unused));
             SignatureUnusedBits = unused;
             req.ThrowIfNotEmpty();
@@ -67,7 +67,12 @@ public sealed class CertificateSigningRequest : IEquatable<CertificateSigningReq
 
                     Asn1Reader a = attrs.ReadSequence();
                     a.ReadObjectIdentifierBytes();
-                    a.ReadSet();
+                    Asn1Reader values = a.ReadSet();
+                    while (values.HasData)
+                    {
+                        values.SkipValue();
+                    }
+
                     a.ThrowIfNotEmpty();
                 }
             }

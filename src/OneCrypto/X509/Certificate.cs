@@ -43,7 +43,7 @@ public sealed class Certificate : IEquatable<Certificate>
             ReadOnlySpan<byte> tbsEnc = cert.ReadEncodedValue();
             _tbs = X509Read.Slice(encoded, tbsEnc);
             ReadOnlySpan<byte> outerAlg = cert.ReadEncodedValue();
-            _outerAlgEnc = X509Read.Slice(encoded, outerAlg);
+            _outerAlgEnc = X509Read.Algorithm(outerAlg, encoded, limits);
             ReadOnlySpan<byte> sig = cert.ReadBitString(out int unused);
             cert.ThrowIfNotEmpty();
             _signature = X509Read.Slice(encoded, sig);
@@ -71,7 +71,7 @@ public sealed class Certificate : IEquatable<Certificate>
                 throw X509Read.Limit("Certificate", "serial number longer than 64 octets");
             }
 
-            _tbsAlgEnc = X509Read.Slice(encoded, tbs.ReadEncodedValue());
+            _tbsAlgEnc = X509Read.Algorithm(tbs.ReadEncodedValue(), encoded, limits);
             ReadOnlySpan<byte> issuer = tbs.ReadEncodedValue();
             DistinguishedName.Validate(issuer, limits);
             _issuer = X509Read.Slice(encoded, issuer);

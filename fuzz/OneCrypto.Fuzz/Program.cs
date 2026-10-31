@@ -24,6 +24,8 @@ internal static class Program
         ["cms"] = CmsTarget.Run,
         ["asn1"] = Asn1Target.Run,
         ["pem"] = PemTarget.Run,
+        ["x509"] = X509Target.Run,
+        ["ocsp"] = OcspTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -31,6 +33,8 @@ internal static class Program
         "cms" => CmsTarget.Seeds(),
         "asn1" => Asn1Target.Seeds(),
         "pem" => PemTarget.Seeds(),
+        "x509" => X509Target.Seeds(),
+        "ocsp" => OcspTarget.Seeds(),
         _ => [],
     };
 

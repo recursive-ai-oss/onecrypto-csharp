@@ -36,7 +36,7 @@ public sealed class AttributeCertificate : IEquatable<AttributeCertificate>
             top.ThrowIfNotEmpty();
             ReadOnlySpan<byte> infoEnc = ac.ReadEncodedValue();
             AcInfo = X509Read.Slice(encoded, infoEnc);
-            _algEnc = X509Read.Slice(encoded, ac.ReadEncodedValue());
+            _algEnc = X509Read.Algorithm(ac.ReadEncodedValue(), encoded, limits);
             Signature = X509Read.Slice(encoded, ac.ReadBitString(out int unused));
             SignatureUnusedBits = unused;
             ac.ThrowIfNotEmpty();
@@ -51,7 +51,7 @@ public sealed class AttributeCertificate : IEquatable<AttributeCertificate>
 
             Holder = X509Read.Slice(encoded, info.ReadEncodedValue());
             Issuer = X509Read.Slice(encoded, info.ReadEncodedValue());
-            _tbsAlgEnc = X509Read.Slice(encoded, info.ReadEncodedValue());
+            _tbsAlgEnc = X509Read.Algorithm(info.ReadEncodedValue(), encoded, limits);
             SerialNumber = X509Read.Slice(encoded, info.ReadIntegerBytes());
             Asn1Reader validity = info.ReadSequence();
             NotBefore = validity.ReadGeneralizedTime();

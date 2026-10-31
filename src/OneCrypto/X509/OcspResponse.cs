@@ -96,7 +96,7 @@ public sealed class OcspBasicResponse : IEquatable<OcspBasicResponse>
             top.ThrowIfNotEmpty();
             ReadOnlySpan<byte> tbsEnc = basic.ReadEncodedValue();
             TbsResponseData = X509Read.Slice(encoded, tbsEnc);
-            _algEnc = X509Read.Slice(encoded, basic.ReadEncodedValue());
+            _algEnc = X509Read.Algorithm(basic.ReadEncodedValue(), encoded, limits);
             Signature = X509Read.Slice(encoded, basic.ReadBitString(out int unused));
             SignatureUnusedBits = unused;
             Certificates = OcspRead.Certificates(ref basic, encoded, limits, 0);

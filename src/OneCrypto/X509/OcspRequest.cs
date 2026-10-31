@@ -92,7 +92,7 @@ public sealed class OcspRequest : IEquatable<OcspRequest>
                 Asn1Reader w = req.ReadSequence(Asn1Tag.Context(0, true));
                 Asn1Reader sig = w.ReadSequence();
                 w.ThrowIfNotEmpty();
-                _algEnc = X509Read.Slice(encoded, sig.ReadEncodedValue());
+                _algEnc = X509Read.Algorithm(sig.ReadEncodedValue(), encoded, limits);
                 Signature = X509Read.Slice(encoded, sig.ReadBitString(out int unused));
                 SignatureUnusedBits = unused;
                 Certificates = OcspRead.Certificates(ref sig, encoded, limits, 0);

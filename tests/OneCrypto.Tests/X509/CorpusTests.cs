@@ -15,6 +15,17 @@ public class CorpusTests
 {
     private static readonly string[] Curves = ["secp256r1", "secp384r1", "secp521r1", "brainpoolP256r1", "brainpoolP384r1", "brainpoolP512r1"];
 
+    // Counts go to the console and, when ONECRYPTO_REPORT names a file, are appended there too (a passing test shows no console output).
+    private static void Report(string line)
+    {
+        Console.WriteLine(line);
+        string? path = Environment.GetEnvironmentVariable("ONECRYPTO_REPORT");
+        if (!string.IsNullOrEmpty(path))
+        {
+            File.AppendAllText(path, line + "\n");
+        }
+    }
+
     private static string? LimboPath => Environment.GetEnvironmentVariable("ONECRYPTO_LIMBO");
 
     private static string? WycheproofPath => Environment.GetEnvironmentVariable("ONECRYPTO_WYCHEPROOF");
@@ -232,11 +243,11 @@ public class CorpusTests
             }
         }
 
-        Console.WriteLine($"limbo: certificates {certs} distinct, parsed {certOk}, typed-rejected {certTyped}, PEM-rejected {pemBad}; CRLs {crls}, parsed {crlOk}, typed-rejected {crlTyped}");
-        Console.WriteLine($"limbo differential vs X509Certificate2: loaded {bclLoaded}, refused by platform {bclRefused}, identical {same}, differences {string.Join(", ", diffs.Select(p => p.Key + "=" + p.Value))}");
+        Report($"limbo: certificates {certs} distinct, parsed {certOk}, typed-rejected {certTyped}, PEM-rejected {pemBad}; CRLs {crls}, parsed {crlOk}, typed-rejected {crlTyped}");
+        Report($"limbo differential vs X509Certificate2: loaded {bclLoaded}, refused by platform {bclRefused}, identical {same}, differences {string.Join(", ", diffs.Select(p => p.Key + "=" + p.Value))}");
         foreach (string e in diffExamples)
         {
-            Console.WriteLine("  " + e);
+            Report("  " + e);
         }
 
         Assert.True(certOk > 0);
@@ -318,10 +329,10 @@ public class CorpusTests
             }
         }
 
-        Console.WriteLine($"wycheproof: files {files}, public keys {keys} (rejected {keyRejected}), signatures checked {sigs} (valid {mustPass}, invalid {mustFail}), failures {failures.Count}");
+        Report($"wycheproof: files {files}, public keys {keys} (rejected {keyRejected}), signatures checked {sigs} (valid {mustPass}, invalid {mustFail}), failures {failures.Count}");
         foreach (string f in failures.Take(60))
         {
-            Console.WriteLine("  " + f);
+            Report("  " + f);
         }
 
         Assert.Empty(failures);

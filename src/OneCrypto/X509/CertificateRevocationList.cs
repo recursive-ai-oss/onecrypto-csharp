@@ -99,7 +99,7 @@ public sealed class CertificateRevocationList : IEquatable<CertificateRevocation
             top.ThrowIfNotEmpty();
             ReadOnlySpan<byte> tbsEnc = crl.ReadEncodedValue();
             _tbs = X509Read.Slice(encoded, tbsEnc);
-            _outerAlgEnc = X509Read.Slice(encoded, crl.ReadEncodedValue());
+            _outerAlgEnc = X509Read.Algorithm(crl.ReadEncodedValue(), encoded, limits);
             Signature = X509Read.Slice(encoded, crl.ReadBitString(out int unused));
             SignatureUnusedBits = unused;
             crl.ThrowIfNotEmpty();
@@ -118,7 +118,7 @@ public sealed class CertificateRevocationList : IEquatable<CertificateRevocation
                 Version = v + 1;
             }
 
-            _tbsAlgEnc = X509Read.Slice(encoded, tbs.ReadEncodedValue());
+            _tbsAlgEnc = X509Read.Algorithm(tbs.ReadEncodedValue(), encoded, limits);
             ReadOnlySpan<byte> issuer = tbs.ReadEncodedValue();
             DistinguishedName.Validate(issuer, limits);
             _issuer = X509Read.Slice(encoded, issuer);
