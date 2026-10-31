@@ -60,5 +60,22 @@ using (var xb4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
     }
 }
 
+// Camellia (RFC 3713 Appendix A) and the decrypt-only legacy ciphers (RFC 2144 B.1 for CAST5, the published Twofish known answer).
+using (var cam = new RecursiveAI.OneCrypto.Primitives.Camellia(Convert.FromHexString("0123456789abcdeffedcba9876543210")))
+using (var cast = new RecursiveAI.OneCrypto.Primitives.Cast5(Convert.FromHexString("0123456712345678234567893456789A")))
+using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
+{
+    byte[] camPlain = Convert.FromHexString("0123456789abcdeffedcba9876543210");
+    byte[] camOut = new byte[16], castOut = new byte[8], twoOut = new byte[16];
+    cam.EncryptEcb(camPlain, camOut);
+    cast.DecryptEcb(Convert.FromHexString("238B4FE5847E44B2"), castOut);
+    two.DecryptEcb(Convert.FromHexString("9F589F5CF6122C32B6BFEC2F2AE8C35A"), twoOut);
+    if (Convert.ToHexString(camOut) != "67673138549669730857065648EABE43" || Convert.ToHexString(castOut) != "0123456789ABCDEF" || twoOut.AsSpan().ContainsAnyExcept((byte)0))
+    {
+        Console.Error.WriteLine("block ciphers gave a wrong result");
+        return 1;
+    }
+}
+
 Console.WriteLine("OneCrypto WASM smoke: ok");
 return 0;
