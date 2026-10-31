@@ -67,7 +67,7 @@ public sealed partial class CompressedData
         {
             throw new CmsParseException("CompressedData", CmsError.UnexpectedStructure, e.Message);
         }
-        catch (InvalidDataException e)
+        catch (InvalidDataException e) when (counting is null || !counting.SourceFaulted)
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
         }
@@ -137,7 +137,7 @@ public sealed partial class CompressedData
         {
             throw new CmsParseException("CompressedData", CmsError.UnexpectedStructure, e.Message);
         }
-        catch (InvalidDataException e)
+        catch (InvalidDataException e) when (counting is null || !counting.SourceFaulted)
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
         }
