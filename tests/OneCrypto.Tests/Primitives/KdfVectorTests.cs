@@ -80,9 +80,34 @@ public class KdfVectorTests
             limits: new KdfLimits { MaxMemoryBytes = 4L << 30 });
         using var aes = Aes.Create();
         aes.Key = key;
-        byte[] clear = aes.DecryptCfb(Hex(encryptedSessionKey), new byte[16], PaddingMode.None, 128);
+        byte[] clear = CfbDecrypt(aes, Hex(encryptedSessionKey));
         Assert.Equal(Hex(sessionKey), clear[1..]);
         Assert.Equal(keySize, clear.Length - 1);
+    }
+
+    // OpenPGP CFB with a zero IV (RFC 9580 section 5.3.1): each keystream block is the block cipher applied to the previous
+    // ciphertext block, and the last block may be short, which the platform's CFB does not accept.
+    private static byte[] CfbDecrypt(Aes aes, byte[] data)
+    {
+        byte[] clear = new byte[data.Length];
+        byte[] previous = new byte[16];
+        byte[] stream = new byte[16];
+        for (int i = 0; i < data.Length; i += 16)
+        {
+            aes.EncryptEcb(previous, stream, PaddingMode.None);
+            int n = Math.Min(16, data.Length - i);
+            for (int j = 0; j < n; j++)
+            {
+                clear[i + j] = (byte)(data[i + j] ^ stream[j]);
+            }
+
+            if (n == 16)
+            {
+                Array.Copy(data, i, previous, 0, 16);
+            }
+        }
+
+        return clear;
     }
 
     [Fact]
@@ -136,6 +161,20 @@ public class KdfVectorTests
         Assert.Equal(
             Hex("E277EA2CACB23EDAFC039D229B79DC13ECEDB601D99B182A9FEDBA1E2BFB4F58"),
             Scrypt.DeriveKey("Rabbit"u8, "Mouse"u8, 1 << 20, 8, 1, 32, limits));
+    }
+
+    [Fact]
+    public void ScryptVectorSalsaMatchesTheScalarReference()
+    {
+        for (int i = 0; i < 2000; i++)
+        {
+            uint[] block = new uint[16];
+            RandomNumberGenerator.Fill(System.Runtime.InteropServices.MemoryMarshal.AsBytes(block.AsSpan()));
+            uint[] scalar = (uint[])block.Clone();
+            Scrypt.Salsa208(scalar);
+            Scrypt.Salsa208Vector(block);
+            Assert.Equal(scalar, block);
+        }
     }
 
     [Fact]

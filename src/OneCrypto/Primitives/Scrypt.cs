@@ -1,8 +1,9 @@
 using System.Buffers.Binary;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using RecursiveAI.OneCrypto.Primitives.Internal;
 
 namespace RecursiveAI.OneCrypto.Primitives;
 
@@ -93,10 +94,10 @@ public static class Scrypt
         finally
         {
             CryptographicOperations.ZeroMemory(b);
-            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(v.AsSpan()));
-            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(x.AsSpan()));
-            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(t.AsSpan()));
-            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(scratch.AsSpan()));
+            Wipe.Array(v);
+            Wipe.Array(x);
+            Wipe.Array(t);
+            Wipe.Array(scratch);
         }
     }
 
@@ -130,11 +131,7 @@ public static class Scrypt
             // Integerify: the first word of the last 64-byte block, reduced mod N (a power of two no larger than 2^30, so
             // the low 32 bits are enough). The address depends on the data by design.
             int j = (int)(cur[words - 16] & (uint)(n - 1));
-            ReadOnlySpan<uint> vj = v.AsSpan(j * words, words);
-            for (int w = 0; w < words; w++)
-            {
-                cur[w] ^= vj[w];
-            }
+            XorInto(cur, v.AsSpan(j * words, words));
 
             BlockMix(cur, other, r, scratch);
             (cur, other) = (other, cur);
@@ -146,27 +143,111 @@ public static class Scrypt
         }
     }
 
+    // destination ^= source over a whole number of 4-word groups (every scrypt block is a multiple of 16 words).
+    private static void XorInto(Span<uint> destination, ReadOnlySpan<uint> source)
+    {
+        if (Vector128.IsHardwareAccelerated)
+        {
+            for (int w = 0; w < source.Length; w += 4)
+            {
+                (Vector128.Create<uint>(destination.Slice(w, 4)) ^ Vector128.Create(source.Slice(w, 4))).CopyTo(destination.Slice(w, 4));
+            }
+        }
+        else
+        {
+            for (int w = 0; w < source.Length; w++)
+            {
+                destination[w] ^= source[w];
+            }
+        }
+    }
+
     // RFC 7914 §4: BlockMix with Salsa20/8; the even outputs come first, then the odd ones.
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void BlockMix(ReadOnlySpan<uint> input, Span<uint> output, int r, Span<uint> x)
     {
         input.Slice(((2 * r) - 1) * 16, 16).CopyTo(x);
         for (int i = 0; i < 2 * r; i++)
         {
-            ReadOnlySpan<uint> block = input.Slice(i * 16, 16);
-            for (int w = 0; w < 16; w++)
+            XorInto(x, input.Slice(i * 16, 16));
+
+            if (Vector128.IsHardwareAccelerated)
             {
-                x[w] ^= block[w];
+                Salsa208Vector(x);
+            }
+            else
+            {
+                Salsa208(x);
             }
 
-            Salsa208(x);
             int target = (i & 1) == 0 ? i / 2 : r + (i / 2);
             x.CopyTo(output.Slice(target * 16, 16));
         }
     }
 
-    // RFC 7914 §3: the Salsa20/8 core, in place.
+    // RFC 7914 §3: the Salsa20/8 core, in place, with one 4-word vector per diagonal so a quarter-round runs on four columns at
+    // once. Between the column round and the row round the vectors are rotated by lane, as in the usual SIMD formulation of
+    // Salsa20; the scalar Salsa208 below is the reference and the fallback when 128-bit vectors are not accelerated.
+    internal static void Salsa208Vector(Span<uint> b)
+    {
+        Vector128<uint> a = Vector128.Create(b[0], b[5], b[10], b[15]);
+        Vector128<uint> v1 = Vector128.Create(b[4], b[9], b[14], b[3]);
+        Vector128<uint> v2 = Vector128.Create(b[8], b[13], b[2], b[7]);
+        Vector128<uint> v3 = Vector128.Create(b[12], b[1], b[6], b[11]);
+        Vector128<uint> a0 = a, b0 = v1, c0 = v2, d0 = v3;
+        Vector128<uint> s1 = Vector128.Create(1u, 2, 3, 0);
+        Vector128<uint> s2 = Vector128.Create(2u, 3, 0, 1);
+        Vector128<uint> s3 = Vector128.Create(3u, 0, 1, 2);
+        for (int i = 0; i < 8; i += 2)
+        {
+            // Column round: lane j is the quarter-round of column j.
+            v1 ^= RotateLeft(a + v3, 7);
+            v2 ^= RotateLeft(v1 + a, 9);
+            v3 ^= RotateLeft(v2 + v1, 13);
+            a ^= RotateLeft(v3 + v2, 18);
+
+            // Row round on the transposed diagonals.
+            Vector128<uint> rb = Vector128.Shuffle(v3, s1);
+            Vector128<uint> rc = Vector128.Shuffle(v2, s2);
+            Vector128<uint> rd = Vector128.Shuffle(v1, s3);
+            rb ^= RotateLeft(a + rd, 7);
+            rc ^= RotateLeft(rb + a, 9);
+            rd ^= RotateLeft(rc + rb, 13);
+            a ^= RotateLeft(rd + rc, 18);
+            v1 = Vector128.Shuffle(rd, s1);
+            v2 = Vector128.Shuffle(rc, s2);
+            v3 = Vector128.Shuffle(rb, s3);
+        }
+
+        a += a0;
+        v1 += b0;
+        v2 += c0;
+        v3 += d0;
+        b[0] = a[0];
+        b[5] = a[1];
+        b[10] = a[2];
+        b[15] = a[3];
+        b[4] = v1[0];
+        b[9] = v1[1];
+        b[14] = v1[2];
+        b[3] = v1[3];
+        b[8] = v2[0];
+        b[13] = v2[1];
+        b[2] = v2[2];
+        b[7] = v2[3];
+        b[12] = v3[0];
+        b[1] = v3[1];
+        b[6] = v3[2];
+        b[11] = v3[3];
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void Salsa208(Span<uint> b)
+    private static Vector128<uint> RotateLeft(Vector128<uint> v, int n) =>
+        Vector128.ShiftLeft(v, n) | Vector128.ShiftRightLogical(v, 32 - n);
+
+    // RFC 7914 §3: the Salsa20/8 core, in place (scalar reference).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void Salsa208(Span<uint> b)
     {
         uint x0 = b[0], x1 = b[1], x2 = b[2], x3 = b[3], x4 = b[4], x5 = b[5], x6 = b[6], x7 = b[7];
         uint x8 = b[8], x9 = b[9], x10 = b[10], x11 = b[11], x12 = b[12], x13 = b[13], x14 = b[14], x15 = b[15];

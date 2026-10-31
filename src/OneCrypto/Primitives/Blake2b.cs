@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
 namespace RecursiveAI.OneCrypto.Primitives;
@@ -117,6 +118,7 @@ internal sealed class Blake2b
         Array.Clear(_v);
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private void Compress(byte[] block, bool last)
     {
         ulong[] v = _v;

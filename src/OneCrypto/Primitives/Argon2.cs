@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using RecursiveAI.OneCrypto.Primitives.Internal;
 
 namespace RecursiveAI.OneCrypto.Primitives;
 
@@ -106,7 +107,7 @@ public static class Argon2
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(MemoryAsBytes(memory));
+            Wipe.Array(memory);
             CryptographicOperations.ZeroMemory(h0);
         }
     }
@@ -399,6 +400,7 @@ public static class Argon2
     }
 
     // RFC 9106 §3.5: G(X, Y) = P-columns(P-rows(X xor Y)) xor (X xor Y), and XORed into the old value on later passes.
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CompressBlock(ReadOnlySpan<ulong> x, ReadOnlySpan<ulong> y, Span<ulong> destination, Span<ulong> r, Span<ulong> scratch, bool xorDestination)
     {
         for (int i = 0; i < BlockWords; i++)
@@ -487,9 +489,6 @@ public static class Argon2
         c = c + d + (2UL * (uint)c * (uint)d);
         b = BitOperations.RotateRight(b ^ c, 63);
     }
-
-    private static Span<byte> MemoryAsBytes(ulong[] memory) =>
-        System.Runtime.InteropServices.MemoryMarshal.AsBytes(memory.AsSpan());
 
     // Per-lane scratch so lanes can run on different threads.
     private sealed class Worker

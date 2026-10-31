@@ -11,6 +11,7 @@ internal static class Targets
     public static IReadOnlyList<TimingTarget> All { get; } =
     [
         .. SelfCheck.Targets(),
+        .. KdfTargets.Targets(),
     ];
 }
 
