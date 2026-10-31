@@ -32,7 +32,7 @@ if (!CmsFixture.VerifyOne(own).IsValid || tsa.Calls != 1)
 }
 
 // Hostile input is refused, not thrown.
-if (Asn1Reader.TryRead(new byte[] { 0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF }, out _, out _, out _)
+if (Asn1Element.TryRead(new byte[] { 0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF }, out _, out _, out _)
     || Rfc3161.TryExtractToken([0x30, 0x80], HashAlgorithmName.SHA256, new byte[32], new byte[8], out _, out _))
 {
     Console.Error.WriteLine("hostile input accepted");

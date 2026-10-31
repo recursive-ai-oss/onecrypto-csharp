@@ -4,6 +4,8 @@ One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. Sharp
 
 | Target | Input | Surface |
 |---|---|---|
+| `asn1` | a rules/mode byte, then ASN.1 bytes | the span reader over every type, the element model, the stream reader and its OCTET STRING stream, BER-to-DER |
+| `pem` | a mode byte, then text | strict and lax PEM parsing and write/parse round trip |
 | `cms` | a mode byte, then a CMS blob (or, with mode bits `10`, a time-stamp response) | BER-to-DER conversion, CMS SignedData parsing, signer verification with chain building, time-stamp response checks |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.

@@ -4,7 +4,7 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: cms (see fuzz/README.md)
+# Targets: cms, asn1, pem (see fuzz/README.md)
 #
 # Environment (nothing is baked into the script):
 #   ONECRYPTO_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.
@@ -37,6 +37,8 @@ shift
 # Maximum input length per target.
 case "$target" in
   cms) maxlen=131072 ;;
+  asn1) maxlen=16384 ;;
+  pem) maxlen=16384 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 

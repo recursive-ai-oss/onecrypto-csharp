@@ -8,7 +8,7 @@ namespace RecursiveAI.OneCrypto.Asn1;
 /// Every function returns a complete encoding, so structures are built from the inside out. Sizes are computed with checked
 /// arithmetic; nothing here reads input from a file.
 /// </summary>
-internal static class DerWriter
+public static class DerWriter
 {
     /// <summary>Tag, definite length and the concatenated <paramref name="parts"/>.</summary>
     public static byte[] Tlv(byte tag, params ReadOnlySpan<byte[]> parts)
@@ -46,25 +46,31 @@ internal static class DerWriter
         return result;
     }
 
+    /// <summary>A SEQUENCE of the concatenated parts.</summary>
     public static byte[] Sequence(params ReadOnlySpan<byte[]> parts) => Tlv(0x30, parts);
 
+    /// <summary>A SET of the parts in the order given (use <see cref="SetOf"/> for SET OF).</summary>
     public static byte[] Set(params ReadOnlySpan<byte[]> parts) => Tlv(0x31, parts);
 
     /// <summary>SET OF: the members sorted by their encodings, as DER requires (X.690 11.6).</summary>
     public static byte[] SetOf(IEnumerable<byte[]> members)
     {
         var list = new List<byte[]>(members);
-        list.Sort(static (a, b) => a.AsSpan().SequenceCompareTo(b));
+        list.Sort(static (a, b) => Asn1Wire.CompareSetOfMembers(a, b));
         return Tlv(0x31, list.ToArray());
     }
 
+    /// <summary>An OCTET STRING.</summary>
     public static byte[] OctetString(ReadOnlySpan<byte> data) => Tlv(0x04, data.ToArray());
 
+    /// <summary>NULL.</summary>
     public static byte[] Null() => [0x05, 0x00];
 
+    /// <summary>BOOLEAN: 0xFF for true, 0x00 for false (X.690 11.1).</summary>
     public static byte[] Boolean(bool value) => [0x01, 0x01, value ? (byte)0xFF : (byte)0x00];
 
-    public static byte[] Integer(long value) => Tlv(0x02, new BigInteger(value).ToByteArray(isUnsigned: false, isBigEndian: true));
+    /// <summary>A signed INTEGER in the fewest octets.</summary>
+    public static byte[] SignedInteger(long value) => Tlv(0x02, new BigInteger(value).ToByteArray(isUnsigned: false, isBigEndian: true));
 
     /// <summary>A non-negative INTEGER from big-endian magnitude bytes (a leading zero octet is added when the top bit is set).</summary>
     public static byte[] UnsignedInteger(ReadOnlySpan<byte> magnitude)
@@ -82,6 +88,7 @@ internal static class DerWriter
         return (magnitude[0] & 0x80) != 0 ? Tlv(0x02, new byte[] { 0 }, magnitude.ToArray()) : Tlv(0x02, magnitude.ToArray());
     }
 
+    /// <summary>An OBJECT IDENTIFIER from its dotted form. Throws <see cref="ArgumentException"/>, <see cref="FormatException"/> or <see cref="OverflowException"/> for arcs that are out of range or not numbers.</summary>
     public static byte[] Oid(string dotted)
     {
         string[] parts = dotted.Split('.');
@@ -125,6 +132,7 @@ internal static class DerWriter
     /// <summary>[n] IMPLICIT primitive.</summary>
     public static byte[] ContextPrimitive(int n, ReadOnlySpan<byte> data) => Tlv(checked((byte)(0x80 | n)), data.ToArray());
 
+    /// <summary>A UTF8String.</summary>
     public static byte[] Utf8String(string s) => Tlv(0x0C, System.Text.Encoding.UTF8.GetBytes(s));
 
     /// <summary>GeneralizedTime in UTC, whole seconds (RFC 5280 4.1.2.5.2 form).</summary>

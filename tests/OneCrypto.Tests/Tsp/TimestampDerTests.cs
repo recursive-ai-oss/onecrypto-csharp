@@ -10,14 +10,14 @@ public class TimestampDerTests
     // Writes the first <levels> nested constructed levels of a DER encoding with indefinite lengths, as some authorities do.
     private static byte[] Indefinite(byte[] der, int levels)
     {
-        Assert.True(Asn1Reader.TryRead(der, out Asn1Element e, out _, out _));
+        Assert.True(Asn1Element.TryRead(der, out Asn1Element e, out _, out _));
         if (levels == 0 || !e.Constructed)
         {
             return der;
         }
 
         var kids = new List<Asn1Element>();
-        Assert.True(Asn1Reader.TryChildren(e, 1000, kids, out _));
+        Assert.True(Asn1Element.TryChildren(e, 1000, kids, out _));
         var body = new List<byte> { der[0], 0x80 };
         for (int i = 0; i < kids.Count; i++)
         {
