@@ -9,6 +9,8 @@ One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. Sharp
 | `cms` | a mode byte, then a CMS blob (or, with mode bits `10`, a time-stamp response) | BER-to-DER conversion, CMS SignedData parsing, signer verification with chain building, time-stamp response checks |
 | `x509` | a structure byte, then its encoding | certificates, CRLs and their entries, certification requests, attribute certificates, every typed extension value (parse, encode, parse again), names, general names, public keys with signature checks |
 | `cmsenv` | a content-type byte, then a ContentInfo | EnvelopedData, AuthEnvelopedData, AuthenticatedData, EncryptedData, DigestedData and CompressedData parsed and opened with fixed keys; streamed decryption and verification |
+| `tsa` | a structure byte, then octets | the time-stamp authority handler end to end (every granted token must verify against its own request), and the time-stamp request, response and TSTInfo parsers |
+| `ocspresp` | a structure byte, then octets | the OCSP responder handler end to end, CA-signed and delegated (every successful response must verify and echo the request), and the CA's certification request path |
 | `ocsp` | a structure byte, then its encoding | OCSP requests, responses, basic responses and CertIDs, with signature checks against embedded certificates |
 | `keys` | a serialised two-phase signing state | `PreparedSignature` decode, re-encode identity and signature checks against whatever decodes |
 | `verify` | a case byte, then a signature or a public key | the verify-only managed RSA (PKCS#1 v1.5, PSS) and ECDSA (P-256 and Brainpool, DER and fixed-width) verifiers, and their public-key validation |

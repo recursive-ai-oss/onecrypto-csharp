@@ -41,6 +41,18 @@ if (!BerToDer.TryConvert(request, out byte[] der) || der.Length != request.Lengt
     return 1;
 }
 
+// The issuer side's message layer needs no signing to parse: a request round trip, a refusal read back and checked by the client, a TSTInfo read.
+TimeStampRequest wasmReq = TimeStampRequest.Create(new TimeStampRequestOptions { Hash = HashAlgorithmName.SHA256, MessageImprint = digest, Nonce = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, Policy = "1.2.3.4.5" });
+byte[] refusal = DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(2), DerWriter.Sequence(DerWriter.Utf8String("no")), DerWriter.Tlv(0x03, [7, 0x80])));
+TimeStampResponse parsedRefusal = TimeStampResponse.Parse(refusal);
+TimeStampReport refusedReport = TimeStampVerifier.Verify(wasmReq, refusal);
+if (TimeStampRequest.Parse(wasmReq.Encoded).Policy != "1.2.3.4.5" || parsedRefusal.Status != TimeStampStatus.Rejection || parsedRefusal.FailureInfo != TimeStampFailure.BadAlg || refusedReport.IsValid
+    || TstInfo.TryParse(new byte[] { 0x30, 0x00 }, out _) || RecursiveAI.OneCrypto.Issuance.CertificateProfile.TlsServer.MaxValidityAt(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)).TotalDays != 200)
+{
+    Console.Error.WriteLine("time-stamp messages failed");
+    return 1;
+}
+
 // The curves the platform lacks: sign and verify with each, and agree a secret both ways.
 using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
 using (var ed4 = RecursiveAI.OneCrypto.Primitives.Ed448PrivateKey.Generate())

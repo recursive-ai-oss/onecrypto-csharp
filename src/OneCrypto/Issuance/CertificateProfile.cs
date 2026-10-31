@@ -3,6 +3,11 @@ using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.Issuance;
 
+/// <summary>A validity limit that applies to certificates starting on or after a date.</summary>
+/// <param name="From">The first notBefore the limit applies to.</param>
+/// <param name="Max">The longest validity from then on.</param>
+public sealed record ValidityStep(DateTimeOffset From, TimeSpan Max);
+
 /// <summary>
 /// What a class of certificate must look like, as data: the key usage, extended key usage, basic constraints, subject alternative name rules and the longest
 /// validity. A <see cref="CertificateAuthority"/> refuses to issue anything a profile does not allow and writes the extensions the profile fixes. Make your own with
@@ -40,8 +45,28 @@ public sealed class CertificateProfile
     /// <summary>The name kinds a subject alternative name may hold. Empty means none, and a request for one is refused.</summary>
     public IReadOnlyList<GeneralNameKind> AllowedSubjectAlternativeNames { get; init; } = [];
 
-    /// <summary>The longest validity the profile allows.</summary>
+    /// <summary>The longest validity the profile allows, unless <see cref="ValiditySchedule"/> says otherwise for the issuance date.</summary>
     public required TimeSpan MaxValidity { get; init; }
+
+    /// <summary>Limits that start on a date, for rules that tighten over time. The step with the latest <see cref="ValidityStep.From"/> that is not after the certificate's notBefore applies; before the first step, <see cref="MaxValidity"/>.</summary>
+    public IReadOnlyList<ValidityStep> ValiditySchedule { get; init; } = [];
+
+    /// <summary>The longest validity for a certificate that starts at <paramref name="notBefore"/>.</summary>
+    public TimeSpan MaxValidityAt(DateTimeOffset notBefore)
+    {
+        TimeSpan max = MaxValidity;
+        DateTimeOffset latest = DateTimeOffset.MinValue;
+        foreach (ValidityStep step in ValiditySchedule)
+        {
+            if (step.From <= notBefore && step.From >= latest)
+            {
+                latest = step.From;
+                max = step.Max;
+            }
+        }
+
+        return max;
+    }
 
     /// <summary>A self-signed or cross-certified root: cA, keyCertSign and cRLSign, 25 years.</summary>
     public static CertificateProfile Root { get; } = new()
@@ -61,7 +86,10 @@ public sealed class CertificateProfile
         MaxValidity = TimeSpan.FromDays(10 * 365),
     };
 
-    /// <summary>A TLS server certificate: digitalSignature, serverAuth, a DNS or IP subject alternative name required, 398 days (CA/Browser Forum Baseline Requirements §6.3.2).</summary>
+    /// <summary>
+    /// A TLS server certificate: digitalSignature, serverAuth, a DNS or IP subject alternative name required. The longest validity follows the schedule of the
+    /// CA/Browser Forum TLS Baseline Requirements §6.3.2 (version 2.3.1): 398 days before 2026-03-15, then 200 days, 100 days from 2027-03-15 and 47 days from 2029-03-15.
+    /// </summary>
     public static CertificateProfile TlsServer { get; } = new()
     {
         Name = "tls-server",
@@ -70,9 +98,15 @@ public sealed class CertificateProfile
         SubjectAlternativeNameRequired = true,
         AllowedSubjectAlternativeNames = [GeneralNameKind.DnsName, GeneralNameKind.IPAddress],
         MaxValidity = TimeSpan.FromDays(398),
+        ValiditySchedule =
+        [
+            new ValidityStep(new DateTimeOffset(2026, 3, 15, 0, 0, 0, TimeSpan.Zero), TimeSpan.FromDays(200)),
+            new ValidityStep(new DateTimeOffset(2027, 3, 15, 0, 0, 0, TimeSpan.Zero), TimeSpan.FromDays(100)),
+            new ValidityStep(new DateTimeOffset(2029, 3, 15, 0, 0, 0, TimeSpan.Zero), TimeSpan.FromDays(47)),
+        ],
     };
 
-    /// <summary>A TLS client certificate: digitalSignature, clientAuth, any identity-like subject alternative name, 398 days.</summary>
+    /// <summary>A TLS client certificate: digitalSignature, clientAuth, any identity-like subject alternative name, 398 days (our default; no baseline sets one for client certificates).</summary>
     public static CertificateProfile TlsClient { get; } = new()
     {
         Name = "tls-client",
@@ -82,7 +116,7 @@ public sealed class CertificateProfile
         MaxValidity = TimeSpan.FromDays(398),
     };
 
-    /// <summary>An S/MIME certificate: digitalSignature and nonRepudiation (plus keyEncipherment for RSA), emailProtection, an rfc822Name subject alternative name required, 825 days.</summary>
+    /// <summary>An S/MIME certificate: digitalSignature and nonRepudiation (plus keyEncipherment for RSA), emailProtection, an rfc822Name subject alternative name required, 825 days (our default).</summary>
     public static CertificateProfile SMime { get; } = new()
     {
         Name = "smime",
@@ -94,7 +128,7 @@ public sealed class CertificateProfile
         MaxValidity = TimeSpan.FromDays(825),
     };
 
-    /// <summary>A code-signing certificate: digitalSignature, codeSigning, no subject alternative name, 1185 days (39 months).</summary>
+    /// <summary>A code-signing certificate: digitalSignature, codeSigning, no subject alternative name, 1185 days (39 months; our default).</summary>
     public static CertificateProfile CodeSigning { get; } = new()
     {
         Name = "code-signing",
@@ -103,7 +137,7 @@ public sealed class CertificateProfile
         MaxValidity = TimeSpan.FromDays(1185),
     };
 
-    /// <summary>A delegated OCSP responder certificate: digitalSignature, id-kp-OCSPSigning, id-pkix-ocsp-nocheck, 90 days (RFC 6960 §4.2.2.2).</summary>
+    /// <summary>A delegated OCSP responder certificate: digitalSignature, id-kp-OCSPSigning, id-pkix-ocsp-nocheck (RFC 6960 §4.2.2.2), 90 days (our default; a short life limits what a stolen responder key can vouch for).</summary>
     public static CertificateProfile OcspSigning { get; } = new()
     {
         Name = "ocsp-signing",

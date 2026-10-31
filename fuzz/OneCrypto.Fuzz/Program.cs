@@ -29,6 +29,8 @@ internal static class Program
         ["ocsp"] = OcspTarget.Run,
         ["verify"] = VerifyTarget.Run,
         ["keys"] = KeysTarget.Run,
+        ["tsa"] = IssuerTarget.RunTsa,
+        ["ocspresp"] = IssuerTarget.RunOcsp,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -41,6 +43,8 @@ internal static class Program
         "ocsp" => OcspTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
+        "tsa" => IssuerTarget.SeedsTsa(),
+        "ocspresp" => IssuerTarget.SeedsOcsp(),
         _ => [],
     };
 

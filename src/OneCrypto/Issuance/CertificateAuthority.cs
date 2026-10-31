@@ -296,9 +296,10 @@ public sealed class CertificateAuthority
         TimeSpan validity;
         if (o.Validity is { } v)
         {
-            if (v <= TimeSpan.Zero || v > p.MaxValidity)
+            TimeSpan longest = p.MaxValidityAt(notBefore);
+            if (v <= TimeSpan.Zero || v > longest)
             {
-                throw new IssuanceException("validity", $"The validity of {v.TotalDays:0.##} days is outside the {p.Name} profile (longest {p.MaxValidity.TotalDays:0}).", "profile " + p.Name);
+                throw new IssuanceException("validity", $"The validity of {v.TotalDays:0.##} days is outside the {p.Name} profile (longest {longest.TotalDays:0} days for a certificate starting {notBefore:yyyy-MM-dd}).", "profile " + p.Name);
             }
 
             if (notBefore + v > ca.NotAfter)
@@ -310,7 +311,7 @@ public sealed class CertificateAuthority
         }
         else
         {
-            validity = TimeSpan.FromTicks(Math.Min(p.MaxValidity.Ticks, (ca.NotAfter - notBefore).Ticks));
+            validity = TimeSpan.FromTicks(Math.Min(p.MaxValidityAt(notBefore).Ticks, (ca.NotAfter - notBefore).Ticks));
         }
 
         // A CA may only issue CA certificates under its own path length constraint (RFC 5280 §4.2.1.9, §6.1.4(l)).

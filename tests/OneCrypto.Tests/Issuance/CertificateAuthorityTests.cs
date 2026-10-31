@@ -174,7 +174,7 @@ public class CertificateAuthorityTests
         Assert.Equal("san", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.TlsServer, NotBefore = T0 })).Rule);
         Assert.Equal("san", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.SMime, NotBefore = T0, SubjectAlternativeNames = [GeneralName.Dns("a.example.test")] })).Rule);
         Assert.Equal("san", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.CodeSigning, NotBefore = T0, SubjectAlternativeNames = [GeneralName.Dns("a.example.test")] })).Rule);
-        Assert.Equal("validity", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.TlsServer, NotBefore = T0, Validity = TimeSpan.FromDays(399), SubjectAlternativeNames = SanFor(CertificateProfile.TlsServer) })).Rule);
+        Assert.Equal("validity", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.TlsServer, NotBefore = T0, Validity = TimeSpan.FromDays(201), SubjectAlternativeNames = SanFor(CertificateProfile.TlsServer) })).Rule);
         Assert.Equal("issuer-validity", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.CodeSigning, NotBefore = T0.AddYears(20) })).Rule);
         Assert.Equal("issuer-validity", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.CodeSigning, NotBefore = T0.AddDays(-400) })).Rule);
         Assert.Equal("path-length", Refused(() => ca.Issue(key, Name("x"), new CertificateIssueOptions { Profile = CertificateProfile.TlsServer, NotBefore = T0, PathLength = 1, SubjectAlternativeNames = SanFor(CertificateProfile.TlsServer) })).Rule);
@@ -189,6 +189,19 @@ public class CertificateAuthorityTests
         // A short-lived key is refused by the policy, not by a profile rule.
         using var weak = RSA.Create(1024);
         Assert.Throws<PolicyViolationException>(() => ca.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(weak), Name("weak"), new CertificateIssueOptions { Profile = CertificateProfile.CodeSigning, NotBefore = T0 }));
+    }
+
+    [Fact]
+    public void TlsValidityFollowsTheBaselineSchedule()
+    {
+        CertificateProfile p = CertificateProfile.TlsServer;
+        Assert.Equal(TimeSpan.FromDays(398), p.MaxValidityAt(new DateTimeOffset(2026, 3, 14, 23, 59, 59, TimeSpan.Zero)));
+        Assert.Equal(TimeSpan.FromDays(200), p.MaxValidityAt(new DateTimeOffset(2026, 3, 15, 0, 0, 0, TimeSpan.Zero)));
+        Assert.Equal(TimeSpan.FromDays(100), p.MaxValidityAt(new DateTimeOffset(2028, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        Assert.Equal(TimeSpan.FromDays(47), p.MaxValidityAt(new DateTimeOffset(2031, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        // Without a requested validity the CA takes the longest the schedule allows.
+        Certificate c = Kit.Intermediate.Issue(CmsKeys.Get(SigKind.P256).Signer.PublicKey, Name("schedule"), new CertificateIssueOptions { Profile = p, NotBefore = T0, SubjectAlternativeNames = SanFor(p) });
+        Assert.Equal(TimeSpan.FromDays(200), c.NotAfter - c.NotBefore);
     }
 
     [Fact]
