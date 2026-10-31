@@ -131,85 +131,212 @@ internal struct Fe448
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fe448 Neg(in Fe448 a) => Sub(Zero, a);
 
+    /// <summary>
+    /// Adds the product a·b to a column kept as lo + hi·2^56: the product is split at bit 56, so the column sums never carry
+    /// and need no 128-bit type or comparison. A product of two limbs below 2^57 has hi below 2^59.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static UInt128 M(ulong a, ulong b)
-        => Math.BigMul(a, b);
+    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong b)
+    {
+        ulong h = Math.BigMul(a, b, out ulong l);
+        lo += l & Mask;
+        hi += (h << 8) | (l >> 56);
+    }
 
-    /// <summary>Folds the 15 columns of a product back to eight limbs and carries.</summary>
+    /// <summary>Folds the 15 columns (each lo + hi·2^56) of a product back to eight limbs and carries.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fe448 Reduce(
-        UInt128 c0, UInt128 c1, UInt128 c2, UInt128 c3, UInt128 c4, UInt128 c5, UInt128 c6, UInt128 c7,
-        UInt128 c8, UInt128 c9, UInt128 c10, UInt128 c11, UInt128 c12, UInt128 c13, UInt128 c14)
+    private static Fe448 Reduce(ulong l0, ulong h0, ulong l1, ulong h1, ulong l2, ulong h2, ulong l3, ulong h3, ulong l4, ulong h4, ulong l5, ulong h5, ulong l6, ulong h6, ulong l7, ulong h7, ulong l8, ulong h8, ulong l9, ulong h9, ulong l10, ulong h10, ulong l11, ulong h11, ulong l12, ulong h12, ulong l13, ulong h13, ulong l14, ulong h14)
     {
         // 2^(56 i) for i >= 8 equals 2^(56 (i-8)) (2^224 + 1): column i lands on columns i - 8 and i - 4. Going from the
-        // top down, a column is complete before it is folded (only higher columns add to it).
-        c10 += c14; c6 += c14;
-        c9 += c13; c5 += c13;
-        c8 += c12; c4 += c12;
-        c7 += c11; c3 += c11;
-        c6 += c10; c2 += c10;
-        c5 += c9; c1 += c9;
-        c4 += c8; c0 += c8;
+        // top down, a column is complete before it is folded (only higher columns add to it). Each column stays below
+        // about 2^61 (lo) and 2^63 (hi), so nothing overflows 64 bits.
+        l6 += l14; h6 += h14;
+        l10 += l14; h10 += h14;
+        l5 += l13; h5 += h13;
+        l9 += l13; h9 += h13;
+        l4 += l12; h4 += h12;
+        l8 += l12; h8 += h12;
+        l3 += l11; h3 += h11;
+        l7 += l11; h7 += h11;
+        l2 += l10; h2 += h10;
+        l6 += l10; h6 += h10;
+        l1 += l9; h1 += h9;
+        l5 += l9; h5 += h9;
+        l0 += l8; h0 += h8;
+        l4 += l8; h4 += h8;
         Fe448 r;
-        UInt128 t = c0; ulong c = (ulong)(t >> 56); r.V0 = (ulong)t & Mask;
-        t = c1 + c; c = (ulong)(t >> 56); r.V1 = (ulong)t & Mask;
-        t = c2 + c; c = (ulong)(t >> 56); r.V2 = (ulong)t & Mask;
-        t = c3 + c; c = (ulong)(t >> 56); r.V3 = (ulong)t & Mask;
-        t = c4 + c; c = (ulong)(t >> 56); r.V4 = (ulong)t & Mask;
-        t = c5 + c; c = (ulong)(t >> 56); r.V5 = (ulong)t & Mask;
-        t = c6 + c; c = (ulong)(t >> 56); r.V6 = (ulong)t & Mask;
-        t = c7 + c; c = (ulong)(t >> 56); r.V7 = (ulong)t & Mask;
+        ulong t = l0;
+        ulong c = (t >> 56) + h0;
+        r.V0 = t & Mask;
+        t = l1 + c;
+        c = (t >> 56) + h1;
+        r.V1 = t & Mask;
+        t = l2 + c;
+        c = (t >> 56) + h2;
+        r.V2 = t & Mask;
+        t = l3 + c;
+        c = (t >> 56) + h3;
+        r.V3 = t & Mask;
+        t = l4 + c;
+        c = (t >> 56) + h4;
+        r.V4 = t & Mask;
+        t = l5 + c;
+        c = (t >> 56) + h5;
+        r.V5 = t & Mask;
+        t = l6 + c;
+        c = (t >> 56) + h6;
+        r.V6 = t & Mask;
+        t = l7 + c;
+        c = (t >> 56) + h7;
+        r.V7 = t & Mask;
         r.V0 += c;
         r.V4 += c;
         return Carry(r);
     }
 
-    /// <summary>Field multiplication. Inputs must be reduced (limbs below 2^56 + a few units; sums of two reduced values are fine).</summary>
+    /// <summary>Field multiplication. Inputs must be reduced (limbs below 2^57).</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static Fe448 Mul(in Fe448 a, in Fe448 b)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4, a5 = a.V5, a6 = a.V6, a7 = a.V7;
         ulong b0 = b.V0, b1 = b.V1, b2 = b.V2, b3 = b.V3, b4 = b.V4, b5 = b.V5, b6 = b.V6, b7 = b.V7;
-        UInt128 c0 = M(a0, b0);
-        UInt128 c1 = M(a0, b1) + M(a1, b0);
-        UInt128 c2 = M(a0, b2) + M(a1, b1) + M(a2, b0);
-        UInt128 c3 = M(a0, b3) + M(a1, b2) + M(a2, b1) + M(a3, b0);
-        UInt128 c4 = M(a0, b4) + M(a1, b3) + M(a2, b2) + M(a3, b1) + M(a4, b0);
-        UInt128 c5 = M(a0, b5) + M(a1, b4) + M(a2, b3) + M(a3, b2) + M(a4, b1) + M(a5, b0);
-        UInt128 c6 = M(a0, b6) + M(a1, b5) + M(a2, b4) + M(a3, b3) + M(a4, b2) + M(a5, b1) + M(a6, b0);
-        UInt128 c7 = M(a0, b7) + M(a1, b6) + M(a2, b5) + M(a3, b4) + M(a4, b3) + M(a5, b2) + M(a6, b1) + M(a7, b0);
-        UInt128 c8 = M(a1, b7) + M(a2, b6) + M(a3, b5) + M(a4, b4) + M(a5, b3) + M(a6, b2) + M(a7, b1);
-        UInt128 c9 = M(a2, b7) + M(a3, b6) + M(a4, b5) + M(a5, b4) + M(a6, b3) + M(a7, b2);
-        UInt128 c10 = M(a3, b7) + M(a4, b6) + M(a5, b5) + M(a6, b4) + M(a7, b3);
-        UInt128 c11 = M(a4, b7) + M(a5, b6) + M(a6, b5) + M(a7, b4);
-        UInt128 c12 = M(a5, b7) + M(a6, b6) + M(a7, b5);
-        UInt128 c13 = M(a6, b7) + M(a7, b6);
-        UInt128 c14 = M(a7, b7);
-        return Reduce(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0, l5 = 0, h5 = 0, l6 = 0, h6 = 0, l7 = 0, h7 = 0, l8 = 0, h8 = 0, l9 = 0, h9 = 0, l10 = 0, h10 = 0, l11 = 0, h11 = 0, l12 = 0, h12 = 0, l13 = 0, h13 = 0, l14 = 0, h14 = 0;
+        MulAcc(ref l0, ref h0, a0, b0);
+        MulAcc(ref l1, ref h1, a0, b1);
+        MulAcc(ref l1, ref h1, a1, b0);
+        MulAcc(ref l2, ref h2, a0, b2);
+        MulAcc(ref l2, ref h2, a1, b1);
+        MulAcc(ref l2, ref h2, a2, b0);
+        MulAcc(ref l3, ref h3, a0, b3);
+        MulAcc(ref l3, ref h3, a1, b2);
+        MulAcc(ref l3, ref h3, a2, b1);
+        MulAcc(ref l3, ref h3, a3, b0);
+        MulAcc(ref l4, ref h4, a0, b4);
+        MulAcc(ref l4, ref h4, a1, b3);
+        MulAcc(ref l4, ref h4, a2, b2);
+        MulAcc(ref l4, ref h4, a3, b1);
+        MulAcc(ref l4, ref h4, a4, b0);
+        MulAcc(ref l5, ref h5, a0, b5);
+        MulAcc(ref l5, ref h5, a1, b4);
+        MulAcc(ref l5, ref h5, a2, b3);
+        MulAcc(ref l5, ref h5, a3, b2);
+        MulAcc(ref l5, ref h5, a4, b1);
+        MulAcc(ref l5, ref h5, a5, b0);
+        MulAcc(ref l6, ref h6, a0, b6);
+        MulAcc(ref l6, ref h6, a1, b5);
+        MulAcc(ref l6, ref h6, a2, b4);
+        MulAcc(ref l6, ref h6, a3, b3);
+        MulAcc(ref l6, ref h6, a4, b2);
+        MulAcc(ref l6, ref h6, a5, b1);
+        MulAcc(ref l6, ref h6, a6, b0);
+        MulAcc(ref l7, ref h7, a0, b7);
+        MulAcc(ref l7, ref h7, a1, b6);
+        MulAcc(ref l7, ref h7, a2, b5);
+        MulAcc(ref l7, ref h7, a3, b4);
+        MulAcc(ref l7, ref h7, a4, b3);
+        MulAcc(ref l7, ref h7, a5, b2);
+        MulAcc(ref l7, ref h7, a6, b1);
+        MulAcc(ref l7, ref h7, a7, b0);
+        MulAcc(ref l8, ref h8, a1, b7);
+        MulAcc(ref l8, ref h8, a2, b6);
+        MulAcc(ref l8, ref h8, a3, b5);
+        MulAcc(ref l8, ref h8, a4, b4);
+        MulAcc(ref l8, ref h8, a5, b3);
+        MulAcc(ref l8, ref h8, a6, b2);
+        MulAcc(ref l8, ref h8, a7, b1);
+        MulAcc(ref l9, ref h9, a2, b7);
+        MulAcc(ref l9, ref h9, a3, b6);
+        MulAcc(ref l9, ref h9, a4, b5);
+        MulAcc(ref l9, ref h9, a5, b4);
+        MulAcc(ref l9, ref h9, a6, b3);
+        MulAcc(ref l9, ref h9, a7, b2);
+        MulAcc(ref l10, ref h10, a3, b7);
+        MulAcc(ref l10, ref h10, a4, b6);
+        MulAcc(ref l10, ref h10, a5, b5);
+        MulAcc(ref l10, ref h10, a6, b4);
+        MulAcc(ref l10, ref h10, a7, b3);
+        MulAcc(ref l11, ref h11, a4, b7);
+        MulAcc(ref l11, ref h11, a5, b6);
+        MulAcc(ref l11, ref h11, a6, b5);
+        MulAcc(ref l11, ref h11, a7, b4);
+        MulAcc(ref l12, ref h12, a5, b7);
+        MulAcc(ref l12, ref h12, a6, b6);
+        MulAcc(ref l12, ref h12, a7, b5);
+        MulAcc(ref l13, ref h13, a6, b7);
+        MulAcc(ref l13, ref h13, a7, b6);
+        MulAcc(ref l14, ref h14, a7, b7);
+        return Reduce(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4, l5, h5, l6, h6, l7, h7, l8, h8, l9, h9, l10, h10, l11, h11, l12, h12, l13, h13, l14, h14);
     }
 
-    /// <summary>Field squaring (each cross product computed once and doubled).</summary>
+    /// <summary>Field squaring: each cross product is computed once and its column doubled.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static Fe448 Square(in Fe448 a)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4, a5 = a.V5, a6 = a.V6, a7 = a.V7;
-        ulong d0 = a0 << 1, d1 = a1 << 1, d2 = a2 << 1, d3 = a3 << 1, d4 = a4 << 1, d5 = a5 << 1, d6 = a6 << 1;
-        UInt128 c0 = M(a0, a0);
-        UInt128 c1 = M(d0, a1);
-        UInt128 c2 = M(d0, a2) + M(a1, a1);
-        UInt128 c3 = M(d0, a3) + M(d1, a2);
-        UInt128 c4 = M(d0, a4) + M(d1, a3) + M(a2, a2);
-        UInt128 c5 = M(d0, a5) + M(d1, a4) + M(d2, a3);
-        UInt128 c6 = M(d0, a6) + M(d1, a5) + M(d2, a4) + M(a3, a3);
-        UInt128 c7 = M(d0, a7) + M(d1, a6) + M(d2, a5) + M(d3, a4);
-        UInt128 c8 = M(d1, a7) + M(d2, a6) + M(d3, a5) + M(a4, a4);
-        UInt128 c9 = M(d2, a7) + M(d3, a6) + M(d4, a5);
-        UInt128 c10 = M(d3, a7) + M(d4, a6) + M(a5, a5);
-        UInt128 c11 = M(d4, a7) + M(d5, a6);
-        UInt128 c12 = M(d5, a7) + M(a6, a6);
-        UInt128 c13 = M(d6, a7);
-        UInt128 c14 = M(a7, a7);
-        return Reduce(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14);
+        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0, l5 = 0, h5 = 0, l6 = 0, h6 = 0, l7 = 0, h7 = 0, l8 = 0, h8 = 0, l9 = 0, h9 = 0, l10 = 0, h10 = 0, l11 = 0, h11 = 0, l12 = 0, h12 = 0, l13 = 0, h13 = 0, l14 = 0, h14 = 0;
+        MulAcc(ref l0, ref h0, a0, a0);
+        MulAcc(ref l1, ref h1, a0, a1);
+        l1 <<= 1;
+        h1 <<= 1;
+        MulAcc(ref l2, ref h2, a0, a2);
+        l2 <<= 1;
+        h2 <<= 1;
+        MulAcc(ref l2, ref h2, a1, a1);
+        MulAcc(ref l3, ref h3, a0, a3);
+        MulAcc(ref l3, ref h3, a1, a2);
+        l3 <<= 1;
+        h3 <<= 1;
+        MulAcc(ref l4, ref h4, a0, a4);
+        MulAcc(ref l4, ref h4, a1, a3);
+        l4 <<= 1;
+        h4 <<= 1;
+        MulAcc(ref l4, ref h4, a2, a2);
+        MulAcc(ref l5, ref h5, a0, a5);
+        MulAcc(ref l5, ref h5, a1, a4);
+        MulAcc(ref l5, ref h5, a2, a3);
+        l5 <<= 1;
+        h5 <<= 1;
+        MulAcc(ref l6, ref h6, a0, a6);
+        MulAcc(ref l6, ref h6, a1, a5);
+        MulAcc(ref l6, ref h6, a2, a4);
+        l6 <<= 1;
+        h6 <<= 1;
+        MulAcc(ref l6, ref h6, a3, a3);
+        MulAcc(ref l7, ref h7, a0, a7);
+        MulAcc(ref l7, ref h7, a1, a6);
+        MulAcc(ref l7, ref h7, a2, a5);
+        MulAcc(ref l7, ref h7, a3, a4);
+        l7 <<= 1;
+        h7 <<= 1;
+        MulAcc(ref l8, ref h8, a1, a7);
+        MulAcc(ref l8, ref h8, a2, a6);
+        MulAcc(ref l8, ref h8, a3, a5);
+        l8 <<= 1;
+        h8 <<= 1;
+        MulAcc(ref l8, ref h8, a4, a4);
+        MulAcc(ref l9, ref h9, a2, a7);
+        MulAcc(ref l9, ref h9, a3, a6);
+        MulAcc(ref l9, ref h9, a4, a5);
+        l9 <<= 1;
+        h9 <<= 1;
+        MulAcc(ref l10, ref h10, a3, a7);
+        MulAcc(ref l10, ref h10, a4, a6);
+        l10 <<= 1;
+        h10 <<= 1;
+        MulAcc(ref l10, ref h10, a5, a5);
+        MulAcc(ref l11, ref h11, a4, a7);
+        MulAcc(ref l11, ref h11, a5, a6);
+        l11 <<= 1;
+        h11 <<= 1;
+        MulAcc(ref l12, ref h12, a5, a7);
+        l12 <<= 1;
+        h12 <<= 1;
+        MulAcc(ref l12, ref h12, a6, a6);
+        MulAcc(ref l13, ref h13, a6, a7);
+        l13 <<= 1;
+        h13 <<= 1;
+        MulAcc(ref l14, ref h14, a7, a7);
+        return Reduce(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4, l5, h5, l6, h6, l7, h7, l8, h8, l9, h9, l10, h10, l11, h11, l12, h12, l13, h13, l14, h14);
     }
 
     /// <summary>Squares <paramref name="a"/> <paramref name="n"/> times (n is a public constant).</summary>

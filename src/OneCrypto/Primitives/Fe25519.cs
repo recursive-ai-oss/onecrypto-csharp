@@ -100,22 +100,33 @@ internal struct Fe25519
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Fe25519 Neg(in Fe25519 a) => Sub(Zero, a);
 
+    /// <summary>
+    /// Adds the product a·b to a column kept as lo + hi·2^51: the product is split at bit 51, so the column sums never carry
+    /// and need no 128-bit type or comparison. With reduced limbs (below 2^51 + a few thousand) and the 19-fold operands,
+    /// a column's hi stays below 2^58, so the final 19-fold carry fits in 64 bits.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static UInt128 M(ulong a, ulong b)
-        => Math.BigMul(a, b);
+    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong b)
+    {
+        ulong h = Math.BigMul(a, b, out ulong l);
+        lo += l & Mask;
+        hi += (h << 13) | (l >> 51);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fe25519 Finish(UInt128 r0, UInt128 r1, UInt128 r2, UInt128 r3, UInt128 r4)
+    private static Fe25519 Finish(ulong l0, ulong h0, ulong l1, ulong h1, ulong l2, ulong h2, ulong l3, ulong h3, ulong l4, ulong h4)
     {
         Fe25519 r;
-        ulong c = (ulong)(r0 >> 51);
-        r.V0 = (ulong)r0 & Mask;
-        r1 += c; c = (ulong)(r1 >> 51); r.V1 = (ulong)r1 & Mask;
-        r2 += c; c = (ulong)(r2 >> 51); r.V2 = (ulong)r2 & Mask;
-        r3 += c; c = (ulong)(r3 >> 51); r.V3 = (ulong)r3 & Mask;
-        r4 += c; c = (ulong)(r4 >> 51); r.V4 = (ulong)r4 & Mask;
-        r.V0 += c * 19;
-        c = r.V0 >> 51; r.V0 &= Mask;
+        ulong t = l0;
+        ulong c = (t >> 51) + h0;
+        r.V0 = t & Mask;
+        t = l1 + c; c = (t >> 51) + h1; r.V1 = t & Mask;
+        t = l2 + c; c = (t >> 51) + h2; r.V2 = t & Mask;
+        t = l3 + c; c = (t >> 51) + h3; r.V3 = t & Mask;
+        t = l4 + c; c = (t >> 51) + h4; r.V4 = t & Mask;
+        r.V0 += c * 19; // 2^255 = 19 (mod p)
+        c = r.V0 >> 51;
+        r.V0 &= Mask;
         r.V1 += c;
         return r;
     }
@@ -127,12 +138,33 @@ internal struct Fe25519
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4;
         ulong b0 = b.V0, b1 = b.V1, b2 = b.V2, b3 = b.V3, b4 = b.V4;
         ulong b1_19 = b1 * 19, b2_19 = b2 * 19, b3_19 = b3 * 19, b4_19 = b4 * 19;
-        UInt128 r0 = M(a0, b0) + M(a1, b4_19) + M(a2, b3_19) + M(a3, b2_19) + M(a4, b1_19);
-        UInt128 r1 = M(a0, b1) + M(a1, b0) + M(a2, b4_19) + M(a3, b3_19) + M(a4, b2_19);
-        UInt128 r2 = M(a0, b2) + M(a1, b1) + M(a2, b0) + M(a3, b4_19) + M(a4, b3_19);
-        UInt128 r3 = M(a0, b3) + M(a1, b2) + M(a2, b1) + M(a3, b0) + M(a4, b4_19);
-        UInt128 r4 = M(a0, b4) + M(a1, b3) + M(a2, b2) + M(a3, b1) + M(a4, b0);
-        return Finish(r0, r1, r2, r3, r4);
+        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0;
+        MulAcc(ref l0, ref h0, a0, b0);
+        MulAcc(ref l0, ref h0, a1, b4_19);
+        MulAcc(ref l0, ref h0, a2, b3_19);
+        MulAcc(ref l0, ref h0, a3, b2_19);
+        MulAcc(ref l0, ref h0, a4, b1_19);
+        MulAcc(ref l1, ref h1, a0, b1);
+        MulAcc(ref l1, ref h1, a1, b0);
+        MulAcc(ref l1, ref h1, a2, b4_19);
+        MulAcc(ref l1, ref h1, a3, b3_19);
+        MulAcc(ref l1, ref h1, a4, b2_19);
+        MulAcc(ref l2, ref h2, a0, b2);
+        MulAcc(ref l2, ref h2, a1, b1);
+        MulAcc(ref l2, ref h2, a2, b0);
+        MulAcc(ref l2, ref h2, a3, b4_19);
+        MulAcc(ref l2, ref h2, a4, b3_19);
+        MulAcc(ref l3, ref h3, a0, b3);
+        MulAcc(ref l3, ref h3, a1, b2);
+        MulAcc(ref l3, ref h3, a2, b1);
+        MulAcc(ref l3, ref h3, a3, b0);
+        MulAcc(ref l3, ref h3, a4, b4_19);
+        MulAcc(ref l4, ref h4, a0, b4);
+        MulAcc(ref l4, ref h4, a1, b3);
+        MulAcc(ref l4, ref h4, a2, b2);
+        MulAcc(ref l4, ref h4, a3, b1);
+        MulAcc(ref l4, ref h4, a4, b0);
+        return Finish(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4);
     }
 
     /// <summary>Field squaring; cheaper than <see cref="Mul"/> because each cross product is computed once.</summary>
@@ -140,14 +172,34 @@ internal struct Fe25519
     public static Fe25519 Square(in Fe25519 a)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4;
-        ulong d0 = a0 * 2, d1 = a1 * 2, d2 = a2 * 2;
-        ulong a3_19 = a3 * 19, a4_19 = a4 * 19;
-        UInt128 r0 = M(a0, a0) + M(d1, a4_19) + M(d2, a3_19);
-        UInt128 r1 = M(d0, a1) + M(d2, a4_19) + M(a3, a3_19);
-        UInt128 r2 = M(d0, a2) + M(a1, a1) + M(a3 * 2, a4_19);
-        UInt128 r3 = M(d0, a3) + M(d1, a2) + M(a4, a4_19);
-        UInt128 r4 = M(d0, a4) + M(d1, a3) + M(a2, a2);
-        return Finish(r0, r1, r2, r3, r4);
+        ulong a1_19 = a1 * 19, a2_19 = a2 * 19, a3_19 = a3 * 19, a4_19 = a4 * 19;
+        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0;
+        MulAcc(ref l0, ref h0, a1, a4_19);
+        MulAcc(ref l0, ref h0, a2, a3_19);
+        l0 <<= 1;
+        h0 <<= 1;
+        MulAcc(ref l0, ref h0, a0, a0);
+        MulAcc(ref l1, ref h1, a0, a1);
+        MulAcc(ref l1, ref h1, a2, a4_19);
+        l1 <<= 1;
+        h1 <<= 1;
+        MulAcc(ref l1, ref h1, a3, a3_19);
+        MulAcc(ref l2, ref h2, a0, a2);
+        MulAcc(ref l2, ref h2, a3, a4_19);
+        l2 <<= 1;
+        h2 <<= 1;
+        MulAcc(ref l2, ref h2, a1, a1);
+        MulAcc(ref l3, ref h3, a0, a3);
+        MulAcc(ref l3, ref h3, a1, a2);
+        l3 <<= 1;
+        h3 <<= 1;
+        MulAcc(ref l3, ref h3, a4, a4_19);
+        MulAcc(ref l4, ref h4, a0, a4);
+        MulAcc(ref l4, ref h4, a1, a3);
+        l4 <<= 1;
+        h4 <<= 1;
+        MulAcc(ref l4, ref h4, a2, a2);
+        return Finish(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4);
     }
 
     /// <summary>Squares <paramref name="a"/> <paramref name="n"/> times (n is a public constant).</summary>

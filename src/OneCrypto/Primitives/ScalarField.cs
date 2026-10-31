@@ -25,6 +25,23 @@ internal sealed class ScalarField
     /// <summary>The number of 64-bit limbs of a scalar.</summary>
     public int Limbs => _n;
 
+    /// <summary>The carry out (0 or 1) of x + y = sum, computed with bit operations only, never a comparison.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong AddCarry(ulong x, ulong y, ulong sum) => ((x & y) | ((x | y) & ~sum)) >> 63;
+
+    /// <summary>a·b + c + d as a 128-bit value: returns the high word and writes the low word. It cannot overflow 128 bits.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong MulAdd2(ulong a, ulong b, ulong c, ulong d, out ulong low)
+    {
+        ulong high = Math.BigMul(a, b, out ulong lo);
+        ulong s1 = lo + c;
+        high += AddCarry(lo, c, s1);
+        ulong s2 = s1 + d;
+        high += AddCarry(s1, d, s2);
+        low = s2;
+        return high;
+    }
+
     /// <summary>r = a·b·R^-1 mod N. Requires a·b &lt; N·R; the result is fully reduced. r may alias a or b.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public void MontMul(ReadOnlySpan<ulong> a, ReadOnlySpan<ulong> b, Span<ulong> r)
@@ -37,26 +54,22 @@ internal sealed class ScalarField
             ulong carry = 0;
             for (int j = 0; j < n; j++)
             {
-                UInt128 acc = ((UInt128)a[j] * bi) + t[j] + carry;
-                t[j] = (ulong)acc;
-                carry = (ulong)(acc >> 64);
+                carry = MulAdd2(a[j], bi, t[j], carry, out t[j]);
             }
-            UInt128 top = (UInt128)t[n] + carry;
-            t[n] = (ulong)top;
-            t[n + 1] = (ulong)(top >> 64);
+            ulong sumTop = t[n] + carry;
+            t[n + 1] = AddCarry(t[n], carry, sumTop);
+            t[n] = sumTop;
 
             ulong m = t[0] * _n0;
-            UInt128 red = ((UInt128)m * _modulus[0]) + t[0];
-            carry = (ulong)(red >> 64);
+            carry = MulAdd2(m, _modulus[0], t[0], 0, out _);
             for (int j = 1; j < n; j++)
             {
-                red = ((UInt128)m * _modulus[j]) + t[j] + carry;
-                t[j - 1] = (ulong)red;
-                carry = (ulong)(red >> 64);
+                carry = MulAdd2(m, _modulus[j], t[j], carry, out t[j - 1]);
             }
-            red = (UInt128)t[n] + carry;
-            t[n - 1] = (ulong)red;
-            t[n] = t[n + 1] + (ulong)(red >> 64);
+            ulong sumHigh = t[n] + carry;
+            ulong carryOut = AddCarry(t[n], carry, sumHigh);
+            t[n - 1] = sumHigh;
+            t[n] = t[n + 1] + carryOut;
         }
         CondSubtract(t, t[n], r);
         t.Clear();
@@ -70,9 +83,11 @@ internal sealed class ScalarField
         ulong carry = 0;
         for (int i = 0; i < n; i++)
         {
-            UInt128 s = (UInt128)a[i] + b[i] + carry;
-            t[i] = (ulong)s;
-            carry = (ulong)(s >> 64);
+            ulong partial = a[i] + b[i];
+            ulong c1 = AddCarry(a[i], b[i], partial);
+            ulong total = partial + carry;
+            carry = c1 + AddCarry(partial, carry, total);
+            t[i] = total;
         }
         CondSubtract(t, carry, r);
     }
