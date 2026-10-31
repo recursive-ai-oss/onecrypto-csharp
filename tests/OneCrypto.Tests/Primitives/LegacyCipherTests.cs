@@ -274,6 +274,64 @@ public class LegacyCipherTests(ITestOutputHelper output)
         }
     }
 
+    // The AES-instruction S-box path and the shuffle path must agree on every key size, in both directions, and the two-block path
+    // must agree with the one-block path. Where the processor has no AES instruction the two engines are the same path.
+    [Theory]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(32)]
+    public void CamelliaPathsAgree(int keyLength)
+    {
+        var rng = new Random(keyLength);
+        for (int round = 0; round < 200; round++)
+        {
+            byte[] key = new byte[keyLength];
+            byte[] data = new byte[32];
+            rng.NextBytes(key);
+            rng.NextBytes(data);
+            using var fast = new CamelliaEngine(key, allowAesInstructions: true);
+            using var slow = new CamelliaEngine(key, allowAesInstructions: false);
+            byte[] a = new byte[32];
+            byte[] b = new byte[32];
+            byte[] single = new byte[32];
+            fast.EncryptTwoBlocks(data, a);
+            slow.EncryptTwoBlocks(data, b);
+            fast.EncryptBlock(data.AsSpan(0, 16), single.AsSpan(0, 16));
+            slow.EncryptBlock(data.AsSpan(16, 16), single.AsSpan(16, 16));
+            Assert.Equal(Hex.Encode(b), Hex.Encode(a));
+            Assert.Equal(Hex.Encode(single), Hex.Encode(a));
+            fast.DecryptTwoBlocks(a, b);
+            Assert.Equal(Hex.Encode(data), Hex.Encode(b));
+            slow.DecryptTwoBlocks(a, b);
+            Assert.Equal(Hex.Encode(data), Hex.Encode(b));
+        }
+    }
+
+    [Fact]
+    public void CbcAndEcbOddBlockCountsInPlace()
+    {
+        var rng = new Random(77);
+        byte[] key = new byte[16];
+        byte[] iv = new byte[16];
+        rng.NextBytes(key);
+        rng.NextBytes(iv);
+        using var c = new Camellia(key);
+        foreach (int blocks in new[] { 1, 2, 3, 4, 5, 8, 9 })
+        {
+            byte[] plain = new byte[blocks * 16];
+            rng.NextBytes(plain);
+            byte[] ct = new byte[plain.Length];
+            c.EncryptCbc(plain, iv, ct, PaddingMode.None);
+            byte[] inPlace = (byte[])ct.Clone();
+            c.DecryptCbc(inPlace, iv, inPlace, PaddingMode.None);
+            Assert.Equal(Hex.Encode(plain), Hex.Encode(inPlace));
+            byte[] ecb = new byte[plain.Length];
+            c.EncryptEcb(plain, ecb);
+            c.DecryptEcb(ecb, ecb);
+            Assert.Equal(Hex.Encode(plain), Hex.Encode(ecb));
+        }
+    }
+
     [Fact]
     public void OpenPgpCfbResync()
     {

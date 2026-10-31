@@ -32,4 +32,22 @@ internal static class ByteShuffle
 
         return Vector128.Shuffle(table, index);
     }
+
+    /// <summary>Whether <see cref="AesRound"/> is a single AES instruction on this processor.</summary>
+    internal static bool HasAesRound => System.Runtime.Intrinsics.X86.Aes.IsSupported || System.Runtime.Intrinsics.Arm.Aes.IsSupported;
+
+    /// <summary>
+    /// The AES S-box on every byte followed by AES's row shift (lane j of the input ends up in lane (j - 4 (j mod 4)) mod 16), which is
+    /// one AES round with a zero round key and no column mixing: AESENCLAST on x86, AESE on Arm. Only call when <see cref="HasAesRound"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static Vector128<byte> AesRound(Vector128<byte> value)
+    {
+        if (System.Runtime.Intrinsics.X86.Aes.IsSupported)
+        {
+            return System.Runtime.Intrinsics.X86.Aes.EncryptLast(value, Vector128<byte>.Zero);
+        }
+
+        return System.Runtime.Intrinsics.Arm.Aes.Encrypt(value, Vector128<byte>.Zero);
+    }
 }

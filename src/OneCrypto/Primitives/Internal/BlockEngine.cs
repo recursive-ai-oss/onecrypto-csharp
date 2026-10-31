@@ -16,6 +16,20 @@ internal abstract class BlockEngine : IDisposable
     /// <summary>Decrypts one block. <paramref name="source"/> and <paramref name="destination"/> are exactly one block and may be the same span.</summary>
     internal abstract void DecryptBlock(ReadOnlySpan<byte> source, Span<byte> destination);
 
+    /// <summary>Encrypts two consecutive blocks (32 bytes); engines that can work on two blocks at once override it.</summary>
+    internal virtual void EncryptTwoBlocks(ReadOnlySpan<byte> source, Span<byte> destination)
+    {
+        EncryptBlock(source[..BlockSize], destination[..BlockSize]);
+        EncryptBlock(source.Slice(BlockSize, BlockSize), destination.Slice(BlockSize, BlockSize));
+    }
+
+    /// <summary>Decrypts two consecutive blocks; see <see cref="EncryptTwoBlocks"/>. Only used for 16-byte blocks.</summary>
+    internal virtual void DecryptTwoBlocks(ReadOnlySpan<byte> source, Span<byte> destination)
+    {
+        DecryptBlock(source[..BlockSize], destination[..BlockSize]);
+        DecryptBlock(source.Slice(BlockSize, BlockSize), destination.Slice(BlockSize, BlockSize));
+    }
+
     /// <summary>Zeroes the key schedule.</summary>
     public abstract void Dispose();
 }

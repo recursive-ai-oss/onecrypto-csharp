@@ -27,7 +27,7 @@ internal sealed class BlowfishEngine : BlockEngine
             throw new ArgumentException("A Blowfish key is 4 to 56 bytes (32 to 448 bits).", nameof(key));
         }
 
-        BlowfishInitialState.Words.CopyTo(_state);
+        BlowfishTables.Initial.CopyTo(_state);
         int position = 0;
         for (int i = 0; i < PWords; i++)
         {

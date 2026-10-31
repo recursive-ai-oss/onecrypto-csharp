@@ -47,7 +47,20 @@ internal static class BlockModes
     {
         CheckWhole(engine, source, destination);
         int bs = engine.BlockSize;
-        for (int i = 0; i < source.Length; i += bs)
+        int start = 0;
+        for (; start + (2 * bs) <= source.Length; start += 2 * bs)
+        {
+            if (decrypt)
+            {
+                engine.DecryptTwoBlocks(source.Slice(start, 2 * bs), destination.Slice(start, 2 * bs));
+            }
+            else
+            {
+                engine.EncryptTwoBlocks(source.Slice(start, 2 * bs), destination.Slice(start, 2 * bs));
+            }
+        }
+
+        for (int i = start; i < source.Length; i += bs)
         {
             if (decrypt)
             {
@@ -87,9 +100,24 @@ internal static class BlockModes
     {
         int bs = engine.BlockSize;
         Span<byte> chain = stackalloc byte[MaxBlock];
-        Span<byte> saved = stackalloc byte[MaxBlock];
+        Span<byte> saved = stackalloc byte[2 * MaxBlock]; // the ciphertext of two blocks, kept because an in-place write destroys it
         iv.CopyTo(chain);
-        for (int i = 0; i < source.Length; i += bs)
+        int i = 0;
+        for (; i + (2 * bs) <= source.Length; i += 2 * bs)
+        {
+            source.Slice(i, 2 * bs).CopyTo(saved);
+            Span<byte> pair = destination.Slice(i, 2 * bs);
+            engine.DecryptTwoBlocks(saved[..(2 * bs)], pair);
+            for (int j = 0; j < bs; j++)
+            {
+                pair[j] ^= chain[j];
+                pair[bs + j] ^= saved[j];
+            }
+
+            saved.Slice(bs, bs).CopyTo(chain);
+        }
+
+        for (; i < source.Length; i += bs)
         {
             source.Slice(i, bs).CopyTo(saved);
             Span<byte> block = destination.Slice(i, bs);
