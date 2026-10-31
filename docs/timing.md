@@ -14,8 +14,8 @@ time?" (DATE 2017). Project: `tests/Timing`. Runner: `tools/timing.sh`.
   1 − 0.5^(10(k+1)/100) of the calls), and reports the largest |t| and which crop gave it.
 - Verdict: max |t| < 4.5 passes; anything else is reported as a leak.
 - Presets: `short` (200 000 calls) for gating merges, `full` (5 000 000) for milestones, `--n` to choose.
-- Timing runs are meaningless on a loaded machine. They run as exclusive benchmark jobs (`tools/perf-run.sh`), which also
-  records CPU, cores and load before, during and after.
+- Timing runs are meaningless on a loaded machine. Publishable runs are exclusive benchmark jobs (`PERF_CLASS=bench`); day-to-day runs are indicative heavy jobs.
+  `tools/perf-run.sh` also records CPU, cores and load before, during and after.
 
 ## Writing a target
 
@@ -38,5 +38,5 @@ pass). It is the proof that the harness sees leaks on the machine it runs on.
 ## Results and publishable runs
 
 `tools/timing.sh <outdir> …` writes `timing.json`, `machine.txt`, `load.log` and `publishable.txt` under `<outdir>` (relative
-to the repository root). A run is marked `publishable: NO` when the 1-minute load average before or during it exceeds 2.0
+to the repository root). A run is marked `publishable: NO` when it was not class `bench`, or when the 1-minute load average before or during it exceeds 2.0
 (Linux) or 1.5 (macOS); set `PERF_MAX_LOAD` to change the limit. Only publishable runs count as evidence.

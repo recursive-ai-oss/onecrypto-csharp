@@ -18,10 +18,11 @@ Project: `bench/OneCrypto.Benchmarks` (BenchmarkDotNet, in-process, `MemoryDiagn
 
 ## Running
 
-`tools/bench.sh results/<name> --filter '*Sha256Rows*'` runs the selected rows as an exclusive benchmark job on the machine's
-work queue. It leaves BenchmarkDotNet's reports, `summary.json`, `machine.txt` (CPU, cores, ISA flags, runtime), `load.log`
-(load before, every 5 s during, after) and `publishable.txt` in the output folder. A run is not publishable when the 1-minute
-load average before or during it exceeds 2.0 (Linux) or 1.5 (macOS).
+`tools/bench.sh results/<name> --filter '*Sha256Rows*'` runs the selected rows as a heavy job on the machine's work queue
+(indicative numbers; the label ends in 'indicative'). `PERF_CLASS=bench` asks for an exclusive benchmark job, for the publishable
+run of a stage. `PERF_CORES` and `PERF_MAX` set the reservation and time limit. It leaves BenchmarkDotNet's reports, `summary.json`, `machine.txt` (CPU, cores, ISA flags, runtime), `load.log`
+(load before, every 5 s during, after) and `publishable.txt` in the output folder. A run is marked not publishable unless it ran as
+class `bench` and the 1-minute load average before and during it stayed at or below 2.0 (Linux) or 1.5 (macOS).
 
 ## Comparators (pinned, bench project only)
 
