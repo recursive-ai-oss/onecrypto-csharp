@@ -39,6 +39,7 @@ case "$target" in
   cms) maxlen=131072 ;;
   asn1) maxlen=16384 ;;
   pem) maxlen=16384 ;;
+  verify) maxlen=1024 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 
