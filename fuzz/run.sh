@@ -4,7 +4,7 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: cms, cmsenv, asn1, pem, x509, ocsp, verify, keys, tsa, ocspresp (see fuzz/README.md)
+# Targets: cms, cmsenv, asn1, pem, x509, ocsp, verify, keys, pkcs8, pkcs12, ssh, validate, tsa, ocspresp (see fuzz/README.md)
 #
 # Environment (nothing is baked into the script):
 #   ONECRYPTO_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.
@@ -41,6 +41,10 @@ case "$target" in
   pem) maxlen=16384 ;;
   x509) maxlen=16384 ;;
   ocsp) maxlen=16384 ;;
+  pkcs8) maxlen=16384 ;;
+  pkcs12) maxlen=65536 ;;
+  ssh) maxlen=16384 ;;
+  validate) maxlen=16384 ;;
   verify) maxlen=1024 ;;
   keys) maxlen=4096 ;;
   tsa|ocspresp) maxlen=4096 ;;

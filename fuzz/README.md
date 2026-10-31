@@ -12,6 +12,9 @@ One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. Sharp
 | `tsa` | a structure byte, then octets | the time-stamp authority handler end to end (every granted token must verify against its own request), and the time-stamp request, response and TSTInfo parsers |
 | `ocspresp` | a structure byte, then octets | the OCSP responder handler end to end, CA-signed and delegated (every successful response must verify and echo the request), and the CA's certification request path |
 | `ocsp` | a structure byte, then its encoding | OCSP requests, responses, basic responses and CertIDs, with signature checks against embedded certificates |
+| `pkcs8` | a structure byte, then bytes or PEM text | PrivateKeyInfo with every key conversion, EncryptedPrivateKeyInfo with decryption under tight cost caps, legacy and PKCS#8 PEM private keys |
+| `pkcs12` | a PFX | structure, MAC check (both kinds), decryption of every safe, every bag type |
+| `ssh` | a structure byte, then bytes or text | OpenSSH public keys (blob, authorized_keys line, RFC 4716 text), certificates with signature check, private key files with a bcrypt round cap |
 | `keys` | a serialised two-phase signing state | `PreparedSignature` decode, re-encode identity and signature checks against whatever decodes |
 | `verify` | a case byte, then a signature or a public key | the verify-only managed RSA (PKCS#1 v1.5, PSS) and ECDSA (P-256 and Brainpool, DER and fixed-width) verifiers, and their public-key validation |
 
