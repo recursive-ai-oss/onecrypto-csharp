@@ -1,5 +1,7 @@
 using System.Linq;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Policy;
+using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Pem;
 using RecursiveAI.OneCrypto.X509;
 
@@ -246,6 +248,17 @@ public sealed class CertificateSigningRequestOptions
 /// <summary>Creates PKCS #10 requests.</summary>
 public static class CertificateSigningRequestBuilder
 {
+    /// <summary>Phase one of creating a request in two steps: returns the state to sign with the key that <paramref name="signerKey"/> describes (the requested key).</summary>
+    public static PreparedSignature Prepare(CertificateSigningRequestOptions options, PublicKeyInfo signerKey, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at) =>
+        X509TwoPhase.Prepare(PurposeRequest, signerKey, spec, policy, at, s => Create(options, s));
+
+    /// <summary>Phase two: checks the signature and returns the request.</summary>
+    /// <exception cref="InvalidSignatureException">The signature does not verify.</exception>
+    public static CertificateSigningRequest Complete(PreparedSignature prepared, ReadOnlySpan<byte> signature) =>
+        CertificateSigningRequest.Parse(X509TwoPhase.Complete(prepared, PurposeRequest, signature));
+
+    private const string PurposeRequest = "x509.request";
+
     /// <summary>Creates a request for the signer's own public key, signed with it.</summary>
     public static CertificateSigningRequest Create(CertificateSigningRequestOptions options, X509Signer signer)
     {

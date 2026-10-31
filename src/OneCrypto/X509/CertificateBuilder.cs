@@ -1,5 +1,7 @@
 using System.Linq;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Policy;
+using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto;
@@ -57,6 +59,28 @@ public static class CertificateBuilder
 
         return Build(options, issuer.Subject, issuer.PublicKey, issuer, signer);
     }
+
+    /// <summary>
+    /// Phase one of issuing a self-signed certificate in two steps: builds the to-be-signed certificate and returns the state to sign. Phase two is
+    /// <see cref="Complete"/>. <paramref name="signerKey"/> is the certificate's own key.
+    /// </summary>
+    /// <exception cref="PolicyViolationException">The policy rejects the signature hash or the key at <paramref name="at"/>.</exception>
+    public static PreparedSignature PrepareSelfSigned(CertificateOptions options, PublicKeyInfo signerKey, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at) =>
+        X509TwoPhase.Prepare(PurposeCertificate, signerKey, spec, policy, at, s => CreateSelfSigned(options, s));
+
+    /// <summary>Phase one of issuing a certificate signed by <paramref name="issuer"/>'s key in two steps; see <see cref="PrepareSelfSigned"/>.</summary>
+    public static PreparedSignature Prepare(CertificateOptions options, Certificate issuer, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(issuer);
+        return X509TwoPhase.Prepare(PurposeCertificate, issuer.PublicKey, spec, policy, at, s => Create(options, issuer, s));
+    }
+
+    /// <summary>Phase two: checks <paramref name="signature"/> against the issuer's key and returns the certificate.</summary>
+    /// <exception cref="InvalidSignatureException">The signature does not verify.</exception>
+    public static Certificate Complete(PreparedSignature prepared, ReadOnlySpan<byte> signature) =>
+        Certificate.Parse(X509TwoPhase.Complete(prepared, PurposeCertificate, signature));
+
+    private const string PurposeCertificate = "x509.certificate";
 
     private static Certificate Build(CertificateOptions o, DistinguishedName issuerName, PublicKeyInfo issuerKey, Certificate? issuer, X509Signer signer)
     {

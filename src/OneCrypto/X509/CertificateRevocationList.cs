@@ -2,6 +2,8 @@ using System.Collections;
 using System.Linq;
 using System.Numerics;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Policy;
+using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Pem;
 using RecursiveAI.OneCrypto.X509;
 
@@ -449,6 +451,17 @@ public sealed class RevocationListOptions
 /// <summary>Issues CRLs and delta CRLs (RFC 5280 §5).</summary>
 public static class RevocationListBuilder
 {
+    /// <summary>Phase one of issuing a list in two steps; see <see cref="CertificateBuilder.PrepareSelfSigned"/>.</summary>
+    public static PreparedSignature Prepare(RevocationListOptions options, PublicKeyInfo signerKey, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at, Certificate? issuer = null) =>
+        X509TwoPhase.Prepare(PurposeList, signerKey, spec, policy, at, s => Create(options, s, issuer));
+
+    /// <summary>Phase two: checks the signature and returns the list.</summary>
+    /// <exception cref="InvalidSignatureException">The signature does not verify.</exception>
+    public static CertificateRevocationList Complete(PreparedSignature prepared, ReadOnlySpan<byte> signature) =>
+        CertificateRevocationList.Parse(X509TwoPhase.Complete(prepared, PurposeList, signature));
+
+    private const string PurposeList = "x509.crl";
+
     /// <summary>Issues a list signed by <paramref name="signer"/>. With <paramref name="issuer"/> the issuer name and authorityKeyIdentifier come from that certificate.</summary>
     /// <exception cref="ArgumentException">Neither the options nor an issuer certificate give an issuer name.</exception>
     public static CertificateRevocationList Create(RevocationListOptions options, X509Signer signer, Certificate? issuer = null)

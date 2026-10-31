@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
 
 namespace OneCrypto.Tests.Tsp;
 
@@ -57,29 +56,5 @@ public class TimestampDerTests
         Assert.False(BerToDer.TryConvert(new byte[] { 0x30, 0x80, 0x02, 0x01, 0x05 }, out _));
         Assert.False(BerToDer.TryConvert(new byte[] { 0x02, 0x01, 0x05, 0x00 }, out _));
         Assert.False(BerToDer.TryConvert(new byte[] { 0x30, 0x05, 0x02 }, out _));
-    }
-
-    [Fact]
-    public void TokenWithIndefiniteLengthsIsEmbeddedAsDerAndTheSignatureStaysValid()
-    {
-        var tsa = new CmsFixture.TestTsa { BareToken = true };
-        byte[] seen = [];
-        byte[] Callback(CmsTimestampRequest r)
-        {
-            byte[] der = tsa.Answer(r);
-            seen = der;
-            return Indefinite(der, 3);
-        }
-
-        var signer = CmsSigner.Create(CmsFixture.Credential(TestPki.Shared.RsaSigner), HashAlgorithmName.SHA256, CmsRsaPadding.Pkcs1, cades: true);
-        byte[] digest = CryptographicOperations.HashData(HashAlgorithmName.SHA256, CmsFixture.Content);
-        byte[] cms = signer.Build(digest, DateTimeOffset.UtcNow, Callback, CancellationToken.None);
-        Assert.NotEqual(seen, Indefinite(seen, 3));
-        CmsSignerResult v = CmsFixture.VerifyOne(cms);
-        Assert.True(v.IsValid, CmsFixture.WarningsOf(v));
-        Assert.NotNull(v.Timestamp);
-
-        // The embedded SignedData holds the token as definite-length DER: the stamped bytes are found verbatim.
-        Assert.Contains(Convert.ToHexString(seen), Convert.ToHexString(cms), StringComparison.OrdinalIgnoreCase);
     }
 }

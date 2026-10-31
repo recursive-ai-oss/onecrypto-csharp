@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using RecursiveAI.OneCrypto.Cms;
 
 namespace OneCrypto.Tests.Support;
 
@@ -167,8 +166,6 @@ internal sealed class TestPki
 
     /// <summary>The root as a public-only certificate, for use as a trust anchor.</summary>
     public X509Certificate2 RootAnchor => X509CertificateLoader.LoadCertificate(Root.RawData);
-
-    public CmsVerifyOptions Trusting() => new() { TrustAnchors = [RootAnchor] };
 
     private enum Usage
     {

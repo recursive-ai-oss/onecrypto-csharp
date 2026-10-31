@@ -1,31 +1,32 @@
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
+using RecursiveAI.OneCrypto;
+using RecursiveAI.OneCrypto.Wire.Cms;
 using RecursiveAI.OneCrypto.Tsp;
 
 // A detached SignedData with one signer and no certificates, written with the DER writer: enough to exercise parsing, which needs
 // no public-key operations. Signature verification needs RSA or ECDSA, which the browser runtime does not offer.
-byte[] sha256 = DerWriter.Sequence(DerWriter.Oid(Oids.Sha256));
+byte[] sha256 = DerWriter.Sequence(DerWriter.Oid(KnownOids.Sha256));
 byte[] signerInfo = DerWriter.Sequence(
     DerWriter.SignedInteger(1),
     DerWriter.Sequence(DerWriter.Sequence(DerWriter.Set(DerWriter.Sequence(DerWriter.Oid("2.5.4.3"), DerWriter.Tlv(0x0C, "smoke"u8.ToArray())))), DerWriter.SignedInteger(7)),
     sha256,
-    DerWriter.Sequence(DerWriter.Oid(Oids.Sha256WithRsa), DerWriter.Null()),
+    DerWriter.Sequence(DerWriter.Oid(KnownOids.Sha256WithRsa), DerWriter.Null()),
     DerWriter.OctetString(new byte[256]));
 byte[] signedData = DerWriter.Sequence(
     DerWriter.SignedInteger(1),
     DerWriter.Set(sha256),
-    DerWriter.Sequence(DerWriter.Oid(Oids.Data)),
+    DerWriter.Sequence(DerWriter.Oid(CmsOids.Data)),
     DerWriter.Set(signerInfo));
-byte[] cms = DerWriter.Sequence(DerWriter.Oid(Oids.SignedData), DerWriter.Context(0, signedData));
+byte[] cms = DerWriter.Sequence(DerWriter.Oid(CmsOids.SignedData), DerWriter.Context(0, signedData));
 
-if (!CmsSignedData.TryParse(cms, out CmsSignedData? sd, out string? error) || sd is null || sd.Signers.Count != 1)
+if (!SignedData.TryParse(cms, out SignedData? sd) || sd is null || sd.Signers.Count != 1)
 {
-    Console.Error.WriteLine("CMS did not parse: " + error);
+    Console.Error.WriteLine("CMS did not parse");
     return 1;
 }
 
-if (Oids.HashFor(sd.Signers[0].DigestAlgorithm.Oid) != HashAlgorithmName.SHA256)
+if (sd.Signers[0].DigestAlgorithm.Oid != KnownOids.Sha256)
 {
     Console.Error.WriteLine("digest algorithm not recognised");
     return 1;
@@ -58,6 +59,29 @@ using (var xb4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
         Console.Error.WriteLine("curve primitives failed");
         return 1;
     }
+}
+
+// Camellia (RFC 3713 Appendix A) and the decrypt-only legacy ciphers (RFC 2144 B.1 for CAST5, the published Twofish known answer).
+using (var cam = new RecursiveAI.OneCrypto.Primitives.Camellia(Convert.FromHexString("0123456789abcdeffedcba9876543210")))
+using (var cast = new RecursiveAI.OneCrypto.Primitives.Cast5(Convert.FromHexString("0123456712345678234567893456789A")))
+using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
+{
+    byte[] camPlain = Convert.FromHexString("0123456789abcdeffedcba9876543210");
+    byte[] camOut = new byte[16], castOut = new byte[8], twoOut = new byte[16];
+    cam.EncryptEcb(camPlain, camOut);
+    cast.DecryptEcb(Convert.FromHexString("238B4FE5847E44B2"), castOut);
+    two.DecryptEcb(Convert.FromHexString("9F589F5CF6122C32B6BFEC2F2AE8C35A"), twoOut);
+    if (Convert.ToHexString(camOut) != "67673138549669730857065648EABE43" || Convert.ToHexString(castOut) != "0123456789ABCDEF" || twoOut.AsSpan().ContainsAnyExcept((byte)0))
+    {
+        Console.Error.WriteLine("block ciphers gave a wrong result");
+        return 1;
+    }
+}
+
+if (!OneCrypto.Smoke.FallbackSmoke.Run())
+{
+    Console.Error.WriteLine("platform-gap code failed");
+    return 1;
 }
 
 Console.WriteLine("OneCrypto WASM smoke: ok");

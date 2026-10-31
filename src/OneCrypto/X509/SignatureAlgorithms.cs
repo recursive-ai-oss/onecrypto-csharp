@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -263,9 +264,9 @@ internal static class SignatureAlgorithms
         }
 
         PssParameters p = PssParameters.Parse(alg.Parameters);
-        if (p.TrailerField != 1 || p.HashOid != p.MgfHashOid || !TryHash(p.HashOid, out HashAlgorithmName hash))
+        if (p.TrailerField != 1 || !TryHash(p.HashOid, out HashAlgorithmName hash))
         {
-            return new(SignatureStatus.AlgorithmNotSupported, name, "RSASSA-PSS needs a trailer of 1, MGF1 on the signature hash, and a hash the library knows.", "RFC 4055 §3.1");
+            return new(SignatureStatus.AlgorithmNotSupported, name, "RSASSA-PSS needs a trailer of 1 and a hash the library knows.", "RFC 4055 §3.1");
         }
 
         // A key that carries PSS parameters pins the hash and a minimum salt (RFC 4055 §1.2).
@@ -278,14 +279,27 @@ internal static class SignatureAlgorithms
             }
         }
 
-        int digest = hash.Name switch { "SHA1" => 20, "SHA256" or "SHA3-256" => 32, "SHA384" or "SHA3-384" => 48, _ => 64 };
-        if (p.SaltLength != digest)
+        // RFC 4055 section 3.1: the salt length and the MGF1 hash come from the parameters. The platform's PSS fixes both, so any other set goes
+        // through the verify-only verifier (public data only).
+        if (!TryHash(p.MgfHashOid, out HashAlgorithmName mgfHash))
         {
-            // The platform's PSS check uses a salt as long as the digest only.
-            return new(SignatureStatus.AlgorithmNotSupported, name, $"RSASSA-PSS with a {p.SaltLength}-octet salt on a {digest}-octet hash is not available on {RuntimeInformation.OSDescription}.", "RFC 4055 §3.1");
+            return new(SignatureStatus.AlgorithmNotSupported, name, "RSASSA-PSS needs a mask generation hash the library knows.", "RFC 4055 §3.1");
         }
 
-        return VerifyRsa(key, new SignatureScheme("pss", hash, p.HashOid, p), RSASignaturePadding.Pss, data, sig, name);
+        byte[]? digest = PlatformHash.Digest(hash, data);
+        if (digest is null)
+        {
+            return new(SignatureStatus.AlgorithmNotSupported, name, $"{hash.Name} is not available for RSASSA-PSS.", "RFC 4055 §3.1");
+        }
+
+        var kr = new Asn1Reader(key.KeyBits.Span, Asn1Rules.Ber);
+        Asn1Reader ks = kr.ReadSequence();
+        ReadOnlySpan<byte> modulus = ks.ReadUnsignedIntegerBytes();
+        ReadOnlySpan<byte> exponent = ks.ReadUnsignedIntegerBytes();
+        bool ok = PlatformSignatures.RsaVerifyPss(modulus, exponent, hash, mgfHash, p.SaltLength, digest, sig);
+        return ok
+            ? new(SignatureStatus.Valid, name, string.Empty, "RFC 8017 §8.1.2")
+            : new(SignatureStatus.Invalid, name, "The RSA signature does not verify.", "RFC 8017 §8.1.2");
     }
 }
 
