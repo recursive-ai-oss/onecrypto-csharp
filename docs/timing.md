@@ -51,3 +51,9 @@ appears on the control is the harness or the host, not the code under test; on s
 To be addressed at the quiet stage-close run: repeat each key kind several times on an idle machine, and treat a key kind as a
 leak only if it flags in more repeats than its control does.
 
+
+One result the controls do not explain: on Apple M2, the Camellia-256 key kinds flag at N=600000 (|t| 13 to 17, a mean difference of
+about 0.1 percent) in five of five runs, on both the table-shuffle and the AES-instruction S-box paths, while the A/A control for the
+same cipher stays clean (|t| 0.9 and 3.2) and Camellia-128 does not flag. The code reads the same memory for every key. Whether
+this is a microarchitectural effect of 128 identical key objects (256-bit schedules are about 40 percent larger) or something in the
+code is open; check it on the quiet run, with other pool sizes.
