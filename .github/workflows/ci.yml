@@ -44,7 +44,10 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang zlib1g-dev
       - name: Publish AOT smoke app (warnings are errors)
-        run: dotnet publish tests/AotSmoke -c Release -r ${{ matrix.rid }} -o ${{ runner.temp }}/smoke -warnaserror
+        # Trim and AOT analysis warnings are errors everywhere through TreatWarningsAsErrors (Directory.Build.props).
+        # On macOS the system linker warns about the runner's missing clang module cache, which -warnaserror would
+        # turn into a failure, so that switch is left off there.
+        run: dotnet publish tests/AotSmoke -c Release -r ${{ matrix.rid }} -o ${{ runner.temp }}/smoke ${{ runner.os != 'macOS' && '-warnaserror' || '' }}
       - name: Run AOT smoke app
         shell: bash
         run: '"$RUNNER_TEMP/smoke/OneCrypto.AotSmoke"'
