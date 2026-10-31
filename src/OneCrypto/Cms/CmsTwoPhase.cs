@@ -284,6 +284,7 @@ public sealed class PreparedSignedData
                 }
 
                 digests[digestOid] = d.ReadOctetStringBytes();
+                d.ThrowIfNotEmpty();
             }
 
             var signers = new List<SignerState>();

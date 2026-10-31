@@ -522,4 +522,13 @@ public class KeyInterfaceCmsTests
         Assert.True(response.BasicResponse!.VerifySignature(key.PublicKey).IsValid);
         Assert.Throws<ArgumentException>(() => OcspResponseBuilder.Complete(prepared, new byte[8]));
     }
+
+    /// <summary>A fuzz finding: a state whose digest entry carried bytes after the digest used to decode and then re-encode to something shorter.</summary>
+    [Fact]
+    public void PreparedStateWithTrailingBytesInADigestEntryIsRefused()
+    {
+        byte[] state = File.ReadAllBytes(Path.Combine(TestFiles.TestData, "fuzz", "prepared-signeddata-digest-trailing-bytes.bin"));
+        Assert.False(PreparedSignedData.TryDecode(state, out _, out string? error));
+        Assert.False(string.IsNullOrEmpty(error));
+    }
 }
