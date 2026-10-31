@@ -23,11 +23,8 @@ internal static class Rfc3161
     /// <c>TimeStampReq ::= SEQUENCE { version 1, messageImprint, nonce, certReq TRUE }</c> (RFC 3161 §2.4.1). The certificate is
     /// requested so the token is self-contained.
     /// </summary>
-    public static byte[] BuildRequest(HashAlgorithmName hash, ReadOnlySpan<byte> imprint, ReadOnlySpan<byte> nonce)
-    {
-        byte[] messageImprint = DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(HashOid(hash))), DerWriter.OctetString(imprint));
-        return DerWriter.Sequence(DerWriter.SignedInteger(1), messageImprint, DerWriter.UnsignedInteger(nonce), DerWriter.Boolean(true));
-    }
+    public static byte[] BuildRequest(HashAlgorithmName hash, ReadOnlySpan<byte> imprint, ReadOnlySpan<byte> nonce) =>
+        TimeStampRequest.Create(new TimeStampRequestOptions { Hash = hash, MessageImprint = imprint.ToArray(), Nonce = nonce.ToArray(), CertReq = true }).Encoded.ToArray();
 
     /// <summary>
     /// Checks a response or token and returns the token (a CMS ContentInfo, as DER). Fails with a message when the status is not granted,

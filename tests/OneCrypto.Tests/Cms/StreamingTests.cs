@@ -325,4 +325,16 @@ public class StreamingTests
         File.AppendAllText(BigFile("result.txt"), $"stream-check size={size} start-ws={start >> 20}MiB peak-ws={peak >> 20}MiB gc-heap-after={GC.GetTotalMemory(true) >> 20}MiB{Environment.NewLine}");
         Assert.True(peak - start < 200L << 20, $"working set grew by {(peak - start) >> 20} MiB");
     }
+
+    /// <summary>A fuzz finding: a deflate block the inflater rejects as an unsupported method used to leak InvalidDataException from the one-shot decompressor.</summary>
+    [Fact]
+    public async Task DamagedDeflateDataIsACmsParseErrorOnEveryDecompressPath()
+    {
+        byte[] file = File.ReadAllBytes(Path.Combine(TestFiles.TestData, "fuzz", "compresseddata-unsupported-deflate-method.bin"));
+        byte[] message = file[1..]; // the first byte only selected the fuzz target
+        CompressedData cd = CompressedData.Parse(message);
+        Assert.Throws<CmsParseException>(() => cd.Decompress());
+        Assert.Throws<CmsParseException>(() => CompressedData.DecompressStream(new MemoryStream(message), Stream.Null));
+        await Assert.ThrowsAsync<CmsParseException>(() => CompressedData.DecompressStreamAsync(new MemoryStream(message), Stream.Null));
+    }
 }

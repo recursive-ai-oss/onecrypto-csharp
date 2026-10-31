@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Internal;
 using RecursiveAI.OneCrypto.Wire.Cms;
 
 namespace RecursiveAI.OneCrypto;
@@ -157,11 +158,13 @@ internal static class CmsCiphers
         tag = new byte[tagBytes];
         if (c.Kind == CipherKind.Gcm)
         {
+            Platform.RequireAesGcm();
             using var gcm = new AesGcm(key, tagBytes);
             gcm.Encrypt(nonce, plaintext, ct, tag, aad);
         }
         else
         {
+            Platform.RequireAesCcm();
             using var ccm = new AesCcm(key);
             ccm.Encrypt(nonce, plaintext, ct, tag, aad);
         }
@@ -178,11 +181,13 @@ internal static class CmsCiphers
             byte[] pt = new byte[ciphertext.Length];
             if (c.Kind == CipherKind.Gcm)
             {
+                Platform.RequireAesGcm();
                 using var gcm = new AesGcm(key, tag.Length);
                 gcm.Decrypt(nonce, ciphertext, tag, pt, aad);
             }
             else
             {
+                Platform.RequireAesCcm();
                 using var ccm = new AesCcm(key);
                 ccm.Decrypt(nonce, ciphertext, tag, pt, aad);
             }

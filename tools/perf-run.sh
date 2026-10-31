@@ -32,6 +32,12 @@ if [[ "${1:-}" == "--inner" ]]; then
 
   load() { uptime | sed 's/.*load average[s]*: //'; }
   echo "before: $(load)" > "$outdir/load.log"
+  # macOS keeps a 1-minute load average near 2 with nothing running, so there the gate is the idle share of the CPU just
+  # before the run (second sample of top, which measures over its interval).
+  if [[ ! -r /proc/cpuinfo ]]; then
+    idle=$(top -l 2 -n 0 -s 2 2>/dev/null | grep 'CPU usage' | tail -1 | sed -E 's/.* ([0-9.]+)% idle.*/\1/')
+    echo "idle-before: ${idle:-unknown}" >> "$outdir/load.log"
+  fi
   ( while true; do echo "during: $(date -u +%T) $(load)" >> "$outdir/load.log"; sleep 5; done ) &
   sampler=$!
   disown "$sampler"
@@ -43,13 +49,20 @@ if [[ "${1:-}" == "--inner" ]]; then
   kill "$sampler" 2>/dev/null || true
   echo "after: $(load)" >> "$outdir/load.log"
 
-  # A timing taken beside other work is not a measurement. The run is flagged when the 1-minute load average before or during
-  # it exceeds a threshold (2.0 on Linux, 1.5 on macOS; PERF_MAX_LOAD overrides). Publish only runs marked "publishable: yes".
-  if [[ -n "${PERF_MAX_LOAD:-}" ]]; then limit=$PERF_MAX_LOAD; elif [[ -r /proc/cpuinfo ]]; then limit=2.0; else limit=1.5; fi
+  # A timing taken beside other work is not a measurement. On Linux the run is flagged when the 1-minute load average before or
+  # during it exceeds 2.0 (PERF_MAX_LOAD overrides); on macOS when the CPU is less than 90% idle just before it (PERF_MIN_IDLE).
+  # Publish only runs marked "publishable: yes".
   peak=$(grep -E '^(before|during):' "$outdir/load.log" | sed -E 's/^(before:|during: [0-9:]+) *//' | tr -d ',' | awk '{print $1}' | sort -g | tail -1)
-  if [[ "${PERF_CLASS:-heavy}" != bench ]]; then verdict="NO (indicative: ran as class ${PERF_CLASS:-heavy}, beside other work)"
-  elif awk -v p="$peak" -v l="$limit" 'BEGIN{exit !(p<=l)}'; then verdict=yes; else verdict=NO; fi
-  echo "publishable: $verdict (highest 1-minute load before/during: $peak, limit $limit)" | tee "$outdir/publishable.txt"
+  if [[ "${PERF_CLASS:-heavy}" != bench ]]; then
+    verdict="NO (indicative: ran as class ${PERF_CLASS:-heavy}, beside other work)"; basis="highest 1-minute load before/during: $peak"
+  elif [[ -r /proc/cpuinfo ]]; then
+    limit=${PERF_MAX_LOAD:-2.0}; basis="highest 1-minute load before/during: $peak, limit $limit"
+    if awk -v p="$peak" -v l="$limit" 'BEGIN{exit !(p<=l)}'; then verdict=yes; else verdict=NO; fi
+  else
+    min=${PERF_MIN_IDLE:-90}; basis="CPU idle before start: ${idle:-unknown}%, minimum $min%"
+    if [[ -n "${idle:-}" ]] && awk -v i="$idle" -v m="$min" 'BEGIN{exit !(i>=m)}'; then verdict=yes; else verdict=NO; fi
+  fi
+  echo "publishable: $verdict ($basis)" | tee "$outdir/publishable.txt"
   exit "$rc"
 fi
 

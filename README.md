@@ -2,7 +2,13 @@
 
 Cryptography (not cryptocurrency) for .NET: message formats, certificates and the primitives the platform lacks, written from the specifications on the base class library alone. OneCrypto is unaffiliated with other products named OneCrypto.
 
-**Status: early preview, not yet independently audited.** Nothing in this repository is published as a stable release, the public API is still being designed, and the only code so far is the internal ASN.1, CMS and RFC 3161 foundation that the first packages are built from.
+**Status: preview (0.1), not yet independently audited.** The API may still change between previews. What is tested, against what, and where the library deviates is in [docs/conformance.md](docs/conformance.md); behaviour is specified in [docs/](docs/README.md).
+
+```csharp
+using RecursiveAI.OneCrypto;
+
+using LoadedItems file = Crypto.Load("server.pfx", _ => password);   // any key or certificate file
+```
 
 ## Packages
 
@@ -10,7 +16,7 @@ All packages share one version.
 
 | Package | Contents | Status |
 |---|---|---|
-| `RecursiveAI.OneCrypto` | ASN.1, CMS, RFC 3161, X.509, primitives the platform lacks; depends on nothing but the base class library | in progress |
+| `RecursiveAI.OneCrypto` | ASN.1 and PEM, X.509/CSR/CRL/OCSP, CMS, RFC 3161, PKCS#8/#12, OpenSSH keys, `CryptoPolicy`, key interfaces with two-phase signing, CA/TSA/OCSP-responder handlers, `Crypto.Load`, the primitives the platform lacks (Ed25519/Ed448, X25519/X448, OCB, EAX, AES-KW, Argon2, scrypt, bcrypt-pbkdf, Camellia, legacy decrypt-only ciphers); path validation as a preview. Depends on nothing but the base class library | preview |
 | `RecursiveAI.OneCrypto.OpenPgp` | OpenPGP (RFC 9580, RFC 4880, LibrePGP) | planned |
 | `RecursiveAI.OneCrypto.Online` | network clients behind a pluggable, guarded transport | planned |
 | `RecursiveAI.OneCrypto.Keys` | PKCS#11, gpg-agent and ssh-agent key backends | planned |

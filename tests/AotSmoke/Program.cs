@@ -280,6 +280,38 @@ using (var pkey = RecursiveAI.OneCrypto.Keys.PrivateKey.FromECDsa(pk))
     }
 }
 
+// The issuer side: a CA issues a time-stamping certificate and a leaf, the authority stamps and the client verifies, the responder answers and a CRL is issued.
+using (var caKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+using (var tsaKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+using (var leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+{
+    DateTimeOffset at = new(2026, 6, 1, 12, 0, 0, TimeSpan.Zero);
+    var ca = RecursiveAI.OneCrypto.Issuance.CertificateAuthority.CreateRoot(DistinguishedName.FromString("CN=Smoke CA"), X509Signer.FromECDsa(caKey), at.AddDays(-1), TimeSpan.FromDays(365));
+    Certificate tsaCert = ca.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(tsaKey), DistinguishedName.FromString("CN=Smoke TSA"),
+        new RecursiveAI.OneCrypto.Issuance.CertificateIssueOptions { Profile = RecursiveAI.OneCrypto.Issuance.CertificateProfile.TimeStamping, NotBefore = at });
+    Certificate leafCert = ca.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(leafKey), DistinguishedName.FromString("CN=Smoke Leaf"),
+        new RecursiveAI.OneCrypto.Issuance.CertificateIssueOptions { Profile = RecursiveAI.OneCrypto.Issuance.CertificateProfile.CodeSigning, NotBefore = at });
+    var tsa = new TimeStampAuthority(new TimeStampAuthorityOptions { Certificate = tsaCert, Signer = X509Signer.FromECDsa(tsaKey), DefaultPolicy = "1.2.3.4.1" }, new CounterTimeStampSerialSource());
+    TimeStampRequest tsReq = TimeStampRequest.Create(new TimeStampRequestOptions { Hash = HashAlgorithmName.SHA256, MessageImprint = SHA256.HashData("smoke"u8), Nonce = TimeStampRequest.NewNonce() });
+    TimeStampResponse tsResp = tsa.Handle(tsReq.Encoded, at);
+    TimeStampReport tsReport = TimeStampVerifier.Verify(tsReq, tsResp.Encoded);
+    var source = new RecursiveAI.OneCrypto.Issuance.InMemoryRevocationSource(TimeSpan.FromHours(1));
+    source.SetRevoked(leafCert.SerialNumber.Span, at, RevocationReason.KeyCompromise);
+    var responder = new RecursiveAI.OneCrypto.Issuance.OcspResponder(new RecursiveAI.OneCrypto.Issuance.OcspResponderOptions { Issuer = ca.Certificate, ResponderCertificate = ca.Certificate, Signer = X509Signer.FromECDsa(caKey), Source = source });
+    OcspRequest oReq = OcspRequestBuilder.Create(new OcspRequestOptions { Requests = [OcspCertId.Create(leafCert, ca.Certificate)], Nonce = new byte[] { 9, 8, 7, 6 } });
+    OcspResponse oResp = responder.Handle(oReq.Encoded, at);
+    CertificateRevocationList issuedCrl = ca.IssueCrl(new RecursiveAI.OneCrypto.Issuance.CrlIssueOptions { ThisUpdate = at, NextUpdate = at.AddDays(1), Number = 1, Revoked = [new RevokedCertificateInfo(leafCert.SerialNumberValue, at)] });
+    if (!tsReport.IsValid || tsResp.Token is null || !leafCert.VerifySignature(ca.Certificate).IsValid || !issuedCrl.VerifySignature(ca.Certificate).IsValid
+        || oResp.Status != OcspResponseStatus.Successful || oResp.BasicResponse!.Responses[0].Status != OcspCertStatus.Revoked
+        || !oResp.BasicResponse.VerifySignature(ca.Certificate.PublicKey).IsValid
+        || tsa.Handle(new byte[] { 0x30, 0x80 }, at).FailureInfo != TimeStampFailure.BadDataFormat
+        || responder.Handle(new byte[] { 0x30, 0x80 }, at).Status != OcspResponseStatus.MalformedRequest)
+    {
+        Console.Error.WriteLine("issuer side failed");
+        return 1;
+    }
+}
+
 // The curves the platform lacks: sign and verify with each, and agree a secret both ways.
 using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
 using (var ed4 = RecursiveAI.OneCrypto.Primitives.Ed448PrivateKey.Generate())

@@ -327,7 +327,7 @@ public class SignedDataChainTests
     [Fact]
     public void OpenSslSignaturesWithChainsAreValidatedAndAgree()
     {
-        OpenSslTool.RequireOrSkip();
+        OpenSslTool.RequireOrSkip(3, 5, "cms -verify takes -certfile as untrusted chain certificates");
         using var pki = new Pki();
         using var other = RNode.Make("OtherRoot", null, true);
         string dir = OpenSslSignedDataTests.Dir("chain");

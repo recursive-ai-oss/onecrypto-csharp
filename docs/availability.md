@@ -51,6 +51,8 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 | ECDSA verify brainpoolP384r1 | platform | verify-only managed fallback where the platform cannot |
 | ECDSA verify brainpoolP512r1 | platform | verify-only managed fallback where the platform cannot |
 | AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | platform |  |
+| AES-GCM (CMS AuthEnvelopedData, PKCS #8 and OpenSSH keys) | platform |  |
+| AES-CCM (CMS AuthEnvelopedData when asked for) | platform |  |
 | RSA sign, decrypt | platform | no fallback: private-key operations are never done in managed code |
 | ECDSA, ECDH sign and agree | platform | no fallback: private-key operations are never done in managed code |
 | ML-KEM | not supported | no fallback |
@@ -76,6 +78,8 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 | ECDSA verify brainpoolP384r1 | platform | verify-only managed fallback where the platform cannot |
 | ECDSA verify brainpoolP512r1 | platform | verify-only managed fallback where the platform cannot |
 | AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | platform |  |
+| AES-GCM (CMS AuthEnvelopedData, PKCS #8 and OpenSSH keys) | platform |  |
+| AES-CCM (CMS AuthEnvelopedData when asked for) | platform |  |
 | RSA sign, decrypt | platform | no fallback: private-key operations are never done in managed code |
 | ECDSA, ECDH sign and agree | platform | no fallback: private-key operations are never done in managed code |
 | ML-KEM | platform | no fallback |
@@ -101,6 +105,8 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 | ECDSA verify brainpoolP384r1 | managed fallback | verify-only managed fallback where the platform cannot |
 | ECDSA verify brainpoolP512r1 | managed fallback | verify-only managed fallback where the platform cannot |
 | AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | platform |  |
+| AES-GCM (CMS AuthEnvelopedData, PKCS #8 and OpenSSH keys) | platform |  |
+| AES-CCM (CMS AuthEnvelopedData when asked for) | not supported |  |
 | RSA sign, decrypt | platform | no fallback: private-key operations are never done in managed code |
 | ECDSA, ECDH sign and agree | platform | no fallback: private-key operations are never done in managed code |
 | ML-KEM | not supported | no fallback |
@@ -126,6 +132,8 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 | ECDSA verify brainpoolP384r1 | managed fallback | verify-only managed fallback where the platform cannot |
 | ECDSA verify brainpoolP512r1 | managed fallback | verify-only managed fallback where the platform cannot |
 | AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | not supported |  |
+| AES-GCM (CMS AuthEnvelopedData, PKCS #8 and OpenSSH keys) | not supported |  |
+| AES-CCM (CMS AuthEnvelopedData when asked for) | not supported |  |
 | RSA sign, decrypt | not supported | no fallback: private-key operations are never done in managed code |
 | ECDSA, ECDH sign and agree | not supported | no fallback: private-key operations are never done in managed code |
 | ML-KEM | not supported | no fallback |

@@ -19,6 +19,29 @@ internal static class OpenSslTool
 
     public static void RequireOrSkip() => Assert.SkipUnless(Available, "openssl is not installed");
 
+    private static readonly Lazy<(int Major, int Minor)?> Parsed = new(() =>
+    {
+        if (!Available)
+        {
+            return null;
+        }
+
+        // "OpenSSL 3.5.9 ..."; LibreSSL and other builds do not match and count as unknown.
+        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(Version, @"^OpenSSL (\d+)\.(\d+)");
+        return m.Success ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : null;
+    });
+
+    /// <summary>True when the binary is OpenSSL of at least this version. LibreSSL and unrecognised builds are not.</summary>
+    public static bool AtLeast(int major, int minor) => Parsed.Value is { } v && (v.Major, v.Minor).CompareTo((major, minor)) >= 0;
+
+    /// <summary>Skips the test, naming the version found, unless the binary is OpenSSL at least this version. The tests that call it
+    /// compare against behaviour first present in that release; a failure on a capable binary still fails.</summary>
+    public static void RequireOrSkip(int major, int minor, string needs)
+    {
+        RequireOrSkip();
+        Assert.SkipUnless(AtLeast(major, minor), $"needs OpenSSL {major}.{minor} or later ({needs}); found {Version}");
+    }
+
     private static string? Find()
     {
         string? explicitPath = Environment.GetEnvironmentVariable("ONECRYPTO_OPENSSL");

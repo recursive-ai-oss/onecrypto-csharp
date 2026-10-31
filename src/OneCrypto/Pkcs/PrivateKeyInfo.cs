@@ -350,6 +350,11 @@ public sealed class PrivateKeyInfo : IDisposable
             k.ImportPkcs8PrivateKey(Encoded, out _);
             return k;
         }
+        catch (PlatformNotSupportedException e)
+        {
+            k.Dispose();
+            throw Platform.CurveNotSupported("EC private key import", e);
+        }
         catch
         {
             k.Dispose();
@@ -367,6 +372,11 @@ public sealed class PrivateKeyInfo : IDisposable
             k.ImportPkcs8PrivateKey(Encoded, out _);
             return k;
         }
+        catch (PlatformNotSupportedException e)
+        {
+            k.Dispose();
+            throw Platform.CurveNotSupported("EC private key import", e);
+        }
         catch
         {
             k.Dispose();
@@ -375,18 +385,20 @@ public sealed class PrivateKeyInfo : IDisposable
     }
 
     /// <summary>The key as an <see cref="MLDsa"/> object, from the seed, expanded or both-form of RFC 9881 §6 as the platform allows. Preview: the platform marks its PKCS#8 support for ML-DSA experimental.</summary>
-    /// <exception cref="PlatformNotSupportedException">The platform has no ML-DSA.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform has no ML-DSA.</exception>
     public MLDsa ToMLDsa()
     {
         Require(KeyAlgorithm.MlDsa);
+        Platform.RequireMlDsa();
         return PqKeys.ImportMLDsa(Encoded);
     }
 
     /// <summary>The key as an <see cref="MLKem"/> object. Preview: the platform marks its PKCS#8 support for ML-KEM experimental.</summary>
-    /// <exception cref="PlatformNotSupportedException">The platform has no ML-KEM.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform has no ML-KEM.</exception>
     public MLKem ToMLKem()
     {
         Require(KeyAlgorithm.MlKem);
+        Platform.RequireMlKem();
         return PqKeys.ImportMLKem(Encoded);
     }
 

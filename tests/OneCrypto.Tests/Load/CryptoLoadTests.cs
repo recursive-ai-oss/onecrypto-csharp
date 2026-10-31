@@ -64,7 +64,7 @@ public class CryptoLoadTests
             // The platform has no such key: the answer is a typed refusal that names the algorithm and platform, never a partial load.
             CryptoLoadException refused = Assert.Throws<CryptoLoadException>(() => Crypto.Load(c.Data, d => Pw(c.Password, d)));
             Assert.Equal(CryptoLoadError.Unsupported, refused.Error);
-            Assert.Contains("not supported on this platform", refused.Message, StringComparison.Ordinal);
+            Assert.Contains(c.Algorithm == KeyAlgorithm.MlDsa ? "ML-DSA is not supported on " : "ML-KEM is not supported on ", refused.Message, StringComparison.Ordinal);
             PlatformGaps++;
             return;
         }
