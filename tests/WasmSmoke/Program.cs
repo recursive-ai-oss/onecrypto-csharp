@@ -78,6 +78,12 @@ using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
     }
 }
 
+if (!OneCrypto.Smoke.LoadSmoke.Run(false))
+{
+    Console.Error.WriteLine("Crypto.Load gave a wrong result");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.FallbackSmoke.Run())
 {
     Console.Error.WriteLine("platform-gap code failed");

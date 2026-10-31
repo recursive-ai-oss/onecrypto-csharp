@@ -33,6 +33,7 @@ internal static class Program
         ["verify"] = VerifyTarget.Run,
         ["validate"] = ValidateTarget.Run,
         ["keys"] = KeysTarget.Run,
+        ["load"] = LoadTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -49,6 +50,7 @@ internal static class Program
         "verify" => VerifyTarget.Seeds(),
         "validate" => ValidateTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
+        "load" => LoadTarget.Seeds(),
         _ => [],
     };
 
