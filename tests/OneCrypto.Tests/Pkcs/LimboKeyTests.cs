@@ -42,9 +42,9 @@ public class LimboKeyTests
                             matched++;
                         }
                     }
-                    catch (PlatformNotSupportedException)
+                    catch (Exception ex) when (ex is PlatformNotSupportedException or NotSupportedException)
                     {
-                        platformLacks++; // a post-quantum key on a platform without that algorithm
+                        platformLacks++; // a post-quantum key on a platform without that algorithm, or an algorithm (DSA) with no public-key derivation
                     }
                 }
                 else
