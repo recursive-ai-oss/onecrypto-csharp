@@ -34,3 +34,9 @@ cannot remove the call.
 
 `timing selfcheck` runs an early-exit byte compare (must be flagged) and `CryptographicOperations.FixedTimeEquals` (must
 pass). It is the proof that the harness sees leaks on the machine it runs on.
+
+## Results and publishable runs
+
+`tools/timing.sh <outdir> …` writes `timing.json`, `machine.txt`, `load.log` and `publishable.txt` under `<outdir>` (relative
+to the repository root). A run is marked `publishable: NO` when the 1-minute load average before or during it exceeds 2.0
+(Linux) or 1.5 (macOS); set `PERF_MAX_LOAD` to change the limit. Only publishable runs count as evidence.
