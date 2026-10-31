@@ -9,4 +9,5 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 out="${1:?usage: run.sh <output dir>}"
 dotnet publish "$here/OneCrypto.WasmSmoke.csproj" -c Release -v quiet -clp:NoSummary -o "$out"
 cp "$here/main.mjs" "$out/wwwroot/main.mjs"
-(cd "$out/wwwroot" && node main.mjs)
+(cd "$out/wwwroot" && node main.mjs) | tee "$out/smoke.log"
+"$here/../../tools/check-availability.sh" "$out/smoke.log"

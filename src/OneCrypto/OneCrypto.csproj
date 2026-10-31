@@ -9,6 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="$(LibName).Tests" />
     <InternalsVisibleTo Include="$(LibName).Benchmarks" />
+    <InternalsVisibleTo Include="$(LibName).Timing" />
     <InternalsVisibleTo Include="$(LibName).AotSmoke" />
     <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />

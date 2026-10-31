@@ -17,6 +17,11 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "peak-kdf")
+        {
+            return KdfPeak.Run(args[1..]);
+        }
+
         bool quick = false;
         string? summaryFile = null;
         var rest = new List<string>();

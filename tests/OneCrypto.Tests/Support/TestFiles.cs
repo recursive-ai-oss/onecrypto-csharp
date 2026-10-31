@@ -33,4 +33,19 @@ internal static class TestFiles
 
         return path;
     }
+
+    /// <summary>The repository's <c>docs</c> folder.</summary>
+    public static string Docs => Path.GetFullPath(Path.Combine(Here, "..", "..", "..", "docs"));
+
+    /// <summary>The path of a NIST CAVP SHA-3/SHAKE response file, or skips the calling test when the vectors have not been fetched.</summary>
+    public static string Cavp(string file)
+    {
+        string path = Path.Combine(Vectors, "cavp-sha3", file);
+        if (!File.Exists(path))
+        {
+            Assert.Skip($"CAVP SHA-3 vectors are not fetched ({path}); run tools/fetch-cavp-sha3.sh");
+        }
+
+        return path;
+    }
 }

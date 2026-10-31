@@ -38,7 +38,7 @@ public sealed class AesKeyWrap : IDisposable
     /// <summary>Creates a key-wrap instance for a key-encryption key.</summary>
     /// <param name="keyEncryptionKey">An AES key of 16, 24 or 32 bytes. It is copied; the caller still owns, and should zero, its own copy.</param>
     /// <exception cref="ArgumentException"><paramref name="keyEncryptionKey"/> is not a valid AES key size.</exception>
-    /// <exception cref="PlatformNotSupportedException">The platform has no AES.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform has no AES.</exception>
     public AesKeyWrap(ReadOnlySpan<byte> keyEncryptionKey)
     {
         AeadChecks.ValidateKey(keyEncryptionKey);

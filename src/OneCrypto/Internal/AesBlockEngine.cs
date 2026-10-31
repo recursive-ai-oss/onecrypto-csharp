@@ -27,9 +27,9 @@ internal sealed class AesBlockEngine : IDisposable
     public AesBlockEngine(ReadOnlySpan<byte> key, int bufferBytes, bool needDecrypt, bool needCbcEncrypt)
     {
         AeadChecks.ValidateKey(key);
-        // TODO: on a platform with no AES (the browser), Aes.Create throws PlatformNotSupportedException here and in the three mode
-        // constructors. Replace it with the library-wide AlgorithmNotSupported exception, naming the algorithm and the platform, once
-        // that exception type exists, and update the exception tags in the XML docs of AesOcb, AesEax and AesKeyWrap with it.
+        // OCB, EAX and AES key wrap are modes over the platform's AES block function; where the platform has no AES (the browser)
+        // there is nothing to run them on, and the call says so.
+        Platform.RequireAes("AES (block function for OCB, EAX and key wrap)");
         _buffer = new byte[bufferBytes];
         _aes = Aes.Create();
         try
