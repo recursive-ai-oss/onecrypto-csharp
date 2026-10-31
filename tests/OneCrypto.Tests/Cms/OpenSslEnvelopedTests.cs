@@ -81,8 +81,8 @@ public class OpenSslEnvelopedTests
     {
         Case c = All.Single(x => x.Name == name);
         OpenSslTool.RequireOrSkip();
+        Assert.SkipUnless(c.Kind is not { } k || RecipientKit.IsAvailable(k), "unavailable here");
         RecipientKit? kit = c.Kind is { } kind ? RecipientKit.Get(kind) : null;
-        Assert.SkipUnless(kit is null || RecipientKit.IsAvailable(c.Kind!.Value), "unavailable here");
         string dir = Dir("o2u-" + c.Name);
         File.WriteAllBytes(Path.Combine(dir, "pt.bin"), Content);
         string msg = Path.Combine(dir, "msg.der");
@@ -104,8 +104,8 @@ public class OpenSslEnvelopedTests
     {
         Case c = All.Single(x => x.Name == name);
         OpenSslTool.RequireOrSkip();
+        Assert.SkipUnless(c.Kind is not { } k || RecipientKit.IsAvailable(k), "unavailable here");
         RecipientKit? kit = c.Kind is { } kind ? RecipientKit.Get(kind) : null;
-        Assert.SkipUnless(kit is null || RecipientKit.IsAvailable(c.Kind!.Value), "unavailable here");
         string dir = Dir("u2o-" + c.Name);
         var options = new CmsEncryptOptions { AllowLegacy = true, ContentEncryption = c.Aead ? CmsOids.Aes256Gcm : CmsOids.Aes256Cbc };
         CmsRecipient r = c.Recipient(kit);
