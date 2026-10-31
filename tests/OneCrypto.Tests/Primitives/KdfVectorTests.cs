@@ -164,20 +164,6 @@ public class KdfVectorTests
     }
 
     [Fact]
-    public void ScryptVectorSalsaMatchesTheScalarReference()
-    {
-        for (int i = 0; i < 2000; i++)
-        {
-            uint[] block = new uint[16];
-            RandomNumberGenerator.Fill(System.Runtime.InteropServices.MemoryMarshal.AsBytes(block.AsSpan()));
-            uint[] scalar = (uint[])block.Clone();
-            Scrypt.Salsa208(scalar);
-            Scrypt.Salsa208Vector(block);
-            Assert.Equal(scalar, block);
-        }
-    }
-
-    [Fact]
     public void ScryptParametersOutsideTheLimitsRaiseTypedErrors()
     {
         // 2^21 x 8 needs 2 GiB plus, over the default limit.

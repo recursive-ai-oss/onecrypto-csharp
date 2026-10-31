@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.Numerics;
-using System.Runtime.Intrinsics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Primitives.Internal;
@@ -68,7 +67,6 @@ public static class Scrypt
         uint[] v = GC.AllocateUninitializedArray<uint>((int)(wordsPerBlock * cost), pinned: true);
         uint[] x = GC.AllocateUninitializedArray<uint>((int)wordsPerBlock, pinned: true);
         uint[] t = GC.AllocateUninitializedArray<uint>((int)wordsPerBlock, pinned: true);
-        uint[] scratch = GC.AllocateUninitializedArray<uint>(16, pinned: true);
         try
         {
             // RFC 7914 §6 steps 1-2: B = PBKDF2-HMAC-SHA256(P, S, 1, p * 128 * r).
@@ -81,7 +79,7 @@ public static class Scrypt
                     x[w] = BinaryPrimitives.ReadUInt32LittleEndian(lane[(4 * w)..]);
                 }
 
-                RoMix(x, t, v, cost, blockSize, scratch);
+                RoMix(x, t, v, cost, blockSize);
                 for (int w = 0; w < x.Length; w++)
                 {
                     BinaryPrimitives.WriteUInt32LittleEndian(lane[(4 * w)..], x[w]);
@@ -97,7 +95,6 @@ public static class Scrypt
             Wipe.Array(v);
             Wipe.Array(x);
             Wipe.Array(t);
-            Wipe.Array(scratch);
         }
     }
 
@@ -111,7 +108,7 @@ public static class Scrypt
     }
 
     // RFC 7914 §5: ROMix. x holds B on entry and the result on exit; t is a second block-sized buffer.
-    private static void RoMix(uint[] x, uint[] t, uint[] v, int n, int r, uint[] scratch)
+    private static void RoMix(uint[] x, uint[] t, uint[] v, int n, int r)
     {
         int words = 32 * r;
 
@@ -119,10 +116,10 @@ public static class Scrypt
         x.AsSpan().CopyTo(v);
         for (int i = 0; i < n - 1; i++)
         {
-            BlockMix(v.AsSpan(i * words, words), v.AsSpan((i + 1) * words, words), r, scratch);
+            BlockMix(v.AsSpan(i * words, words), v.AsSpan((i + 1) * words, words), r);
         }
 
-        BlockMix(v.AsSpan((n - 1) * words, words), x, r, scratch);
+        BlockMix(v.AsSpan((n - 1) * words, words), x, r);
 
         uint[] cur = x;
         uint[] other = t;
@@ -133,7 +130,7 @@ public static class Scrypt
             int j = (int)(cur[words - 16] & (uint)(n - 1));
             XorInto(cur, v.AsSpan(j * words, words));
 
-            BlockMix(cur, other, r, scratch);
+            BlockMix(cur, other, r);
             (cur, other) = (other, cur);
         }
 
@@ -143,114 +140,40 @@ public static class Scrypt
         }
     }
 
-    // destination ^= source over a whole number of 4-word groups (every scrypt block is a multiple of 16 words).
+    // destination ^= source, for equal-length spans (a multiple of 16 words).
     private static void XorInto(Span<uint> destination, ReadOnlySpan<uint> source)
     {
-        if (Vector128.IsHardwareAccelerated)
+        for (int w = 0; w < source.Length; w++)
         {
-            for (int w = 0; w < source.Length; w += 4)
-            {
-                (Vector128.Create<uint>(destination.Slice(w, 4)) ^ Vector128.Create(source.Slice(w, 4))).CopyTo(destination.Slice(w, 4));
-            }
-        }
-        else
-        {
-            for (int w = 0; w < source.Length; w++)
-            {
-                destination[w] ^= source[w];
-            }
+            destination[w] ^= source[w];
         }
     }
 
-    // RFC 7914 §4: BlockMix with Salsa20/8; the even outputs come first, then the odd ones.
+    // RFC 7914 §4: BlockMix with Salsa20/8; the even outputs come first, then the odd ones. X starts as the last block of the
+    // input and each Salsa20/8 reads the previous result straight from where it was written, so nothing is copied between steps.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void BlockMix(ReadOnlySpan<uint> input, Span<uint> output, int r, Span<uint> x)
+    private static void BlockMix(ReadOnlySpan<uint> input, Span<uint> output, int r)
     {
-        input.Slice(((2 * r) - 1) * 16, 16).CopyTo(x);
+        ReadOnlySpan<uint> previous = input.Slice(((2 * r) - 1) * 16, 16);
         for (int i = 0; i < 2 * r; i++)
         {
-            XorInto(x, input.Slice(i * 16, 16));
-
-            if (Vector128.IsHardwareAccelerated)
-            {
-                Salsa208Vector(x);
-            }
-            else
-            {
-                Salsa208(x);
-            }
-
             int target = (i & 1) == 0 ? i / 2 : r + (i / 2);
-            x.CopyTo(output.Slice(target * 16, 16));
+            Span<uint> destination = output.Slice(target * 16, 16);
+            Salsa208Xor(previous, input.Slice(i * 16, 16), destination);
+            previous = destination;
         }
     }
 
-    // RFC 7914 §3: the Salsa20/8 core, in place, with one 4-word vector per diagonal so a quarter-round runs on four columns at
-    // once. Between the column round and the row round the vectors are rotated by lane, as in the usual SIMD formulation of
-    // Salsa20; the scalar Salsa208 below is the reference and the fallback when 128-bit vectors are not accelerated.
-    internal static void Salsa208Vector(Span<uint> b)
-    {
-        Vector128<uint> a = Vector128.Create(b[0], b[5], b[10], b[15]);
-        Vector128<uint> v1 = Vector128.Create(b[4], b[9], b[14], b[3]);
-        Vector128<uint> v2 = Vector128.Create(b[8], b[13], b[2], b[7]);
-        Vector128<uint> v3 = Vector128.Create(b[12], b[1], b[6], b[11]);
-        Vector128<uint> a0 = a, b0 = v1, c0 = v2, d0 = v3;
-        Vector128<uint> s1 = Vector128.Create(1u, 2, 3, 0);
-        Vector128<uint> s2 = Vector128.Create(2u, 3, 0, 1);
-        Vector128<uint> s3 = Vector128.Create(3u, 0, 1, 2);
-        for (int i = 0; i < 8; i += 2)
-        {
-            // Column round: lane j is the quarter-round of column j.
-            v1 ^= RotateLeft(a + v3, 7);
-            v2 ^= RotateLeft(v1 + a, 9);
-            v3 ^= RotateLeft(v2 + v1, 13);
-            a ^= RotateLeft(v3 + v2, 18);
-
-            // Row round on the transposed diagonals.
-            Vector128<uint> rb = Vector128.Shuffle(v3, s1);
-            Vector128<uint> rc = Vector128.Shuffle(v2, s2);
-            Vector128<uint> rd = Vector128.Shuffle(v1, s3);
-            rb ^= RotateLeft(a + rd, 7);
-            rc ^= RotateLeft(rb + a, 9);
-            rd ^= RotateLeft(rc + rb, 13);
-            a ^= RotateLeft(rd + rc, 18);
-            v1 = Vector128.Shuffle(rd, s1);
-            v2 = Vector128.Shuffle(rc, s2);
-            v3 = Vector128.Shuffle(rb, s3);
-        }
-
-        a += a0;
-        v1 += b0;
-        v2 += c0;
-        v3 += d0;
-        b[0] = a[0];
-        b[5] = a[1];
-        b[10] = a[2];
-        b[15] = a[3];
-        b[4] = v1[0];
-        b[9] = v1[1];
-        b[14] = v1[2];
-        b[3] = v1[3];
-        b[8] = v2[0];
-        b[13] = v2[1];
-        b[2] = v2[2];
-        b[7] = v2[3];
-        b[12] = v3[0];
-        b[1] = v3[1];
-        b[6] = v3[2];
-        b[11] = v3[3];
-    }
-
+    // RFC 7914 §3: destination = Salsa20/8(previous xor block), the 8-round core with the feed-forward addition.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Vector128<uint> RotateLeft(Vector128<uint> v, int n) =>
-        Vector128.ShiftLeft(v, n) | Vector128.ShiftRightLogical(v, 32 - n);
-
-    // RFC 7914 §3: the Salsa20/8 core, in place (scalar reference).
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void Salsa208(Span<uint> b)
+    private static void Salsa208Xor(ReadOnlySpan<uint> previous, ReadOnlySpan<uint> block, Span<uint> destination)
     {
-        uint x0 = b[0], x1 = b[1], x2 = b[2], x3 = b[3], x4 = b[4], x5 = b[5], x6 = b[6], x7 = b[7];
-        uint x8 = b[8], x9 = b[9], x10 = b[10], x11 = b[11], x12 = b[12], x13 = b[13], x14 = b[14], x15 = b[15];
+        uint j0 = previous[0] ^ block[0], j1 = previous[1] ^ block[1], j2 = previous[2] ^ block[2], j3 = previous[3] ^ block[3];
+        uint j4 = previous[4] ^ block[4], j5 = previous[5] ^ block[5], j6 = previous[6] ^ block[6], j7 = previous[7] ^ block[7];
+        uint j8 = previous[8] ^ block[8], j9 = previous[9] ^ block[9], j10 = previous[10] ^ block[10], j11 = previous[11] ^ block[11];
+        uint j12 = previous[12] ^ block[12], j13 = previous[13] ^ block[13], j14 = previous[14] ^ block[14], j15 = previous[15] ^ block[15];
+        uint x0 = j0, x1 = j1, x2 = j2, x3 = j3, x4 = j4, x5 = j5, x6 = j6, x7 = j7;
+        uint x8 = j8, x9 = j9, x10 = j10, x11 = j11, x12 = j12, x13 = j13, x14 = j14, x15 = j15;
         for (int i = 0; i < 8; i += 2)
         {
             x4 ^= BitOperations.RotateLeft(x0 + x12, 7);
@@ -288,21 +211,21 @@ public static class Scrypt
             x15 ^= BitOperations.RotateLeft(x14 + x13, 18);
         }
 
-        b[0] += x0;
-        b[1] += x1;
-        b[2] += x2;
-        b[3] += x3;
-        b[4] += x4;
-        b[5] += x5;
-        b[6] += x6;
-        b[7] += x7;
-        b[8] += x8;
-        b[9] += x9;
-        b[10] += x10;
-        b[11] += x11;
-        b[12] += x12;
-        b[13] += x13;
-        b[14] += x14;
-        b[15] += x15;
+        destination[0] = j0 + x0;
+        destination[1] = j1 + x1;
+        destination[2] = j2 + x2;
+        destination[3] = j3 + x3;
+        destination[4] = j4 + x4;
+        destination[5] = j5 + x5;
+        destination[6] = j6 + x6;
+        destination[7] = j7 + x7;
+        destination[8] = j8 + x8;
+        destination[9] = j9 + x9;
+        destination[10] = j10 + x10;
+        destination[11] = j11 + x11;
+        destination[12] = j12 + x12;
+        destination[13] = j13 + x13;
+        destination[14] = j14 + x14;
+        destination[15] = j15 + x15;
     }
 }
