@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -253,7 +254,7 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
 
     /// <summary>The key as a BCL <see cref="ECDsa"/> (verification and key agreement use the same import).</summary>
     /// <exception cref="CryptographicException">The key is not a valid EC key.</exception>
-    /// <exception cref="NotSupportedException">The platform does not have the key's curve.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform does not have the key's curve.</exception>
     public ECDsa ToECDsa()
     {
         var ec = ECDsa.Create();
@@ -261,6 +262,11 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
         {
             ec.ImportSubjectPublicKeyInfo(Encoded.Span, out _);
             return ec;
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            ec.Dispose();
+            throw Platform.CurveNotSupported("EC public key import", e);
         }
         catch
         {

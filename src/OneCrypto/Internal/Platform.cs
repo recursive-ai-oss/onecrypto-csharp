@@ -138,6 +138,21 @@ internal static class Platform
         }
     }
 
+    /// <summary>Throws unless the platform has AES-GCM (the browser, and some older mobile platforms, do not).</summary>
+    public static void RequireAesGcm() => Require("AES-GCM", HasAes && AesGcm.IsSupported);
+
+    /// <summary>Throws unless the platform has AES-CCM (macOS and the browser do not).</summary>
+    public static void RequireAesCcm() => Require("AES-CCM", HasAes && AesCcm.IsSupported);
+
+    /// <summary>
+    /// The typed error for a named curve the platform refused (a <see cref="PlatformNotSupportedException"/> from an import or key
+    /// creation, for example Brainpool on macOS). There is no managed private-key fallback, so the operation cannot proceed.
+    /// </summary>
+    /// <param name="what">What was being done, for example <c>EC key import</c>.</param>
+    /// <param name="cause">The platform's exception, kept as the inner exception.</param>
+    public static AlgorithmNotSupportedException CurveNotSupported(string what, PlatformNotSupportedException cause) =>
+        new(what + " on this curve", Describe(), "the platform lacks the curve or its parameters; private-key operations have no managed fallback", cause);
+
     /// <summary>Throws unless the platform has ML-KEM (FIPS 203).</summary>
     public static void RequireMlKem() => Require("ML-KEM", MLKem.IsSupported);
 
@@ -217,6 +232,8 @@ internal static class Platform
             new("ECDSA verify brainpoolP384r1", EcdsaVerify(EcCurve.BrainpoolP384r1), "verify-only managed fallback where the platform cannot"),
             new("ECDSA verify brainpoolP512r1", EcdsaVerify(EcCurve.BrainpoolP512r1), "verify-only managed fallback where the platform cannot"),
             new("AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it", HasAes ? Provider.Bcl : Provider.Unsupported, string.Empty),
+            new("AES-GCM (CMS AuthEnvelopedData, PKCS #8 and OpenSSH keys)", HasAes && AesGcm.IsSupported ? Provider.Bcl : Provider.Unsupported, string.Empty),
+            new("AES-CCM (CMS AuthEnvelopedData when asked for)", HasAes && AesCcm.IsSupported ? Provider.Bcl : Provider.Unsupported, string.Empty),
             new("RSA sign, decrypt", NoFallback(!IsBrowserLike), "no fallback: private-key operations are never done in managed code"),
             new("ECDSA, ECDH sign and agree", NoFallback(!IsBrowserLike), "no fallback: private-key operations are never done in managed code"),
             new("ML-KEM", NoFallback(MLKem.IsSupported), "no fallback"),

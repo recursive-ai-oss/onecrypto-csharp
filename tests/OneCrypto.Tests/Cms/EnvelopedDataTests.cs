@@ -37,13 +37,29 @@ public class EnvelopedDataTests
     private const string Cms128 = CmsOids.Aes128Cbc;
     private const string Cms256 = CmsOids.Aes256Cbc;
 
+    // AES-CCM is not available on every platform (macOS has none). Those platforms are covered by the typed-error test below, and the
+    // GCM cases still run.
+    private static string[] WithCcmWhereAvailable(params string[] algorithms) =>
+        AesCcm.IsSupported ? algorithms : [.. algorithms.Where(a => a is not (CmsOids.Aes128Ccm or CmsOids.Aes192Ccm or CmsOids.Aes256Ccm))];
+
+    [Fact]
+    public void CcmOnAPlatformWithoutItIsATypedError()
+    {
+        Assert.SkipWhen(AesCcm.IsSupported, "this platform has AES-CCM");
+        RecipientKit kit = RecipientKit.Get(RecipKind.P256);
+        AlgorithmNotSupportedException e = Assert.Throws<AlgorithmNotSupportedException>(() =>
+            AuthEnvelopedData.Create(Content, [Recipient(RecipKind.P256, kit)], new CmsEncryptOptions { ContentEncryption = CmsOids.Aes256Ccm }));
+        Assert.Equal("AES-CCM", e.Algorithm);
+        Assert.NotEmpty(e.Platform);
+    }
+
     [Theory]
     [MemberData(nameof(Kinds))]
     public void AuthEnvelopedRoundTrips(RecipKind kind)
     {
         Assert.SkipUnless(RecipientKit.IsAvailable(kind), "unavailable here");
         RecipientKit kit = RecipientKit.Get(kind);
-        foreach (string alg in new[] { CmsOids.Aes128Gcm, CmsOids.Aes256Gcm, CmsOids.Aes256Ccm })
+        foreach (string alg in WithCcmWhereAvailable(CmsOids.Aes128Gcm, CmsOids.Aes256Gcm, CmsOids.Aes256Ccm))
         {
             AuthEnvelopedData made = AuthEnvelopedData.Create(Content, [Recipient(kind, kit)], new CmsEncryptOptions { ContentEncryption = alg });
             using CmsDecryptionKey key = kit.Key();
@@ -207,7 +223,7 @@ public class EnvelopedDataTests
     [Fact]
     public void EveryByteOfAnAuthEnvelopedMessageIsProtected()
     {
-        foreach (string alg in new[] { CmsOids.Aes256Gcm, CmsOids.Aes128Ccm })
+        foreach (string alg in WithCcmWhereAvailable(CmsOids.Aes256Gcm, CmsOids.Aes128Ccm))
         {
             RecipientKit kit = RecipientKit.Get(RecipKind.P256);
             var opts = new CmsEncryptOptions

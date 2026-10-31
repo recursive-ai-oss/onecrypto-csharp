@@ -245,7 +245,8 @@ public class KeyInterfaceCmsTests
                 Assert.True(report.IsValid, string.Join("; ", report.Signers[0].Checks.Where(c => c.Status is CmsCheckStatus.Failed).Select(c => c.Rule + ": " + c.Reason)));
                 Assert.Equal(detached, !sd.HasEncapsulatedContent);
 
-                if (OpenSslTool.Available)
+                // Older OpenSSL cannot verify an EdDSA signature over signed attributes in CMS, so that kind is checked there only by us.
+                if (OpenSslTool.Available && (kind != "ed25519" || OpenSslTool.AtLeast(3, 5)))
                 {
                     File.WriteAllBytes(Path.Combine(dir, "m.der"), sd.Encoded.ToArray());
                     File.WriteAllBytes(Path.Combine(dir, "c.bin"), Doc);

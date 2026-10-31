@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -276,6 +277,23 @@ internal static class LoadCorpus
                 // ssh-keygen cannot export Ed25519 as PKCS#8; RFC 8410 §4 gives the fixed prefix, and the key is the last 32 bytes of the blob.
                 byte[] blob = Convert.FromBase64String(File.ReadAllText(pubFile).Split(' ')[1]);
                 return [.. Convert.FromHexString("302a300506032b6570032100"), .. blob[^32..]];
+            }
+
+            if (name.Contains("ecdsa", StringComparison.Ordinal))
+            {
+                // Not ssh-keygen's PKCS#8 export: some builds (macOS) write the curve as explicit parameters instead of the named curve.
+                // The blob is the type string, the curve name and the uncompressed point (PROTOCOL, ecdsa public key format).
+                byte[] blob = Convert.FromBase64String(File.ReadAllText(pubFile).Split(' ')[1]);
+                int at = 4 + BinaryPrimitives.ReadInt32BigEndian(blob);
+                at += 4 + BinaryPrimitives.ReadInt32BigEndian(blob.AsSpan(at));
+                int qLength = BinaryPrimitives.ReadInt32BigEndian(blob.AsSpan(at));
+                ReadOnlySpan<byte> q = blob.AsSpan(at + 4, qLength);
+                using ECDsa ec = ECDsa.Create(new ECParameters
+                {
+                    Curve = qLength switch { 65 => ECCurve.NamedCurves.nistP256, 97 => ECCurve.NamedCurves.nistP384, _ => ECCurve.NamedCurves.nistP521 },
+                    Q = new ECPoint { X = q.Slice(1, (qLength - 1) / 2).ToArray(), Y = q[(1 + ((qLength - 1) / 2))..].ToArray() },
+                });
+                return ec.ExportSubjectPublicKeyInfo();
             }
 
             return PemToDer(K("-e", "-m", "PKCS8", "-f", pubFile));

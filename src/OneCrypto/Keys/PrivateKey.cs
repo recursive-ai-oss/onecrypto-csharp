@@ -284,10 +284,17 @@ public static class PrivateKey
                 throw new ArgumentException("The peer's key is not an EC key on the same curve.", nameof(peer));
             }
 
-            using ECDiffieHellman other = ECDiffieHellman.Create();
-            other.ImportSubjectPublicKeyInfo(peer.Encoded.Span, out _);
-            using ECDiffieHellmanPublicKey pub = other.PublicKey;
-            return Key.DeriveRawSecretAgreement(pub);
+            try
+            {
+                using ECDiffieHellman other = ECDiffieHellman.Create();
+                other.ImportSubjectPublicKeyInfo(peer.Encoded.Span, out _);
+                using ECDiffieHellmanPublicKey pub = other.PublicKey;
+                return Key.DeriveRawSecretAgreement(pub);
+            }
+            catch (PlatformNotSupportedException e)
+            {
+                throw Internal.Platform.CurveNotSupported("ECDH key agreement", e);
+            }
         }
     }
 

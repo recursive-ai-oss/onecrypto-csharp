@@ -314,6 +314,7 @@ public sealed class SshPrivateKey
                     default:
                         try
                         {
+                            Platform.RequireAesGcm();
                             using var g = new AesGcm(key, 16);
                             g.Decrypt(iv, _encrypted, _tag, plain.Span);
                         }
@@ -722,6 +723,7 @@ public sealed class SshPrivateKey
             else
             {
                 tag = new byte[16];
+                Platform.RequireAesGcm();
                 using var g = new AesGcm(kk, 16);
                 g.Encrypt(iv, s.Written, encrypted, tag);
             }
