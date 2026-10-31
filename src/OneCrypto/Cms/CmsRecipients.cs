@@ -197,7 +197,28 @@ public abstract class CmsDecryptionKey : IDisposable
                 }
 
                 using ECDiffieHellman peer = ECDiffieHellman.Create();
-                peer.ImportSubjectPublicKeyInfo(originator.Encoded.Span, out _);
+                if (originator.Algorithm.Parameters.IsEmpty)
+                {
+                    // RFC 5753 §3.1.1 asks for the curve parameters in originatorKey, but some senders leave them out; the curve is then the recipient's own.
+                    ReadOnlySpan<byte> point = originator.KeyBits.Span;
+                    int half = (point.Length - 1) / 2;
+                    if (point.Length < 3 || point[0] != 4 || point.Length != (2 * half) + 1)
+                    {
+                        return null;
+                    }
+
+                    ECParameters own = _key.ExportParameters(false);
+                    peer.ImportParameters(new ECParameters
+                    {
+                        Curve = own.Curve,
+                        Q = new ECPoint { X = point.Slice(1, half).ToArray(), Y = point.Slice(1 + half, half).ToArray() },
+                    });
+                }
+                else
+                {
+                    peer.ImportSubjectPublicKeyInfo(originator.Encoded.Span, out _);
+                }
+
                 return _key.DeriveRawSecretAgreement(peer.PublicKey);
             }
             catch (CryptographicException)
