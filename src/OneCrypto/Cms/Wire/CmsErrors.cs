@@ -23,6 +23,9 @@ public enum CmsError
     /// <summary>A configured limit (see <see cref="CmsLimits"/>) was exceeded.</summary>
     LimitExceeded,
 
+    /// <summary>No recipient info in the message is meant for the key.</summary>
+    NoMatchingRecipient,
+
     /// <summary>Decryption failed. The cause is deliberately not distinguished (RFC 3218 §2.3).</summary>
     DecryptionFailed,
 }
