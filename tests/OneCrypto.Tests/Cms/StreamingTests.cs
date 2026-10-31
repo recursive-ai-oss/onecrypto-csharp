@@ -72,6 +72,45 @@ public class StreamingTests
     }
 
     [Fact]
+    public void DamagedStreamsRaiseOnlyTypedErrors()
+    {
+        // A fuzz run found an algorithm identifier with a bad OID escaping as another exception type; every byte of both messages is now damaged in turn.
+        SignerKit k = CmsKeys.Get(SigKind.P256);
+        RecipientKit kit = RecipientKit.Get(RecipKind.Rsa);
+        var sign = new MemoryStream();
+        SignedData.SignStream(new MemoryStream(Content.AsSpan(0, 40).ToArray()), sign, [k.Spec()]);
+        var enc = new MemoryStream();
+        EnvelopedData.EncryptStream(new MemoryStream(Content.AsSpan(0, 40).ToArray()), enc, [CmsRecipient.KeyTransport(kit.Certificate)]);
+        using CmsDecryptionKey key = kit.Key();
+        foreach (byte value in new byte[] { 0xFF, 0x80, 0x00, 0x31 })
+        {
+            foreach (byte[] msg in new[] { sign.ToArray(), enc.ToArray() })
+            {
+                for (int i = 0; i < msg.Length; i++)
+                {
+                    byte[] bad = (byte[])msg.Clone();
+                    bad[i] = value;
+                    try
+                    {
+                        _ = SignedData.VerifyStream(new MemoryStream(bad)).IsValid;
+                    }
+                    catch (CmsParseException)
+                    {
+                    }
+
+                    try
+                    {
+                        EnvelopedData.DecryptStream(new MemoryStream(bad), Stream.Null, key);
+                    }
+                    catch (CmsParseException)
+                    {
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void TruncatedStreamsAreTypedErrors()
     {
         SignerKit k = CmsKeys.Get(SigKind.P256);

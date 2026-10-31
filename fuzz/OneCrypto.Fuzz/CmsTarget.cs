@@ -13,6 +13,8 @@ namespace OneCrypto.Fuzz;
 /// </summary>
 internal static class CmsTarget
 {
+    private static readonly RecursiveAI.OneCrypto.Wire.Cms.CmsLimits CmsLimits = new() { MaxContentBytes = 1 << 20 };
+
     private static readonly byte[] FixedImprint = new byte[32];
 
     private static readonly byte[] FixedNonce = [0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22];
@@ -42,6 +44,14 @@ internal static class CmsTarget
             _ = sd.Certificates.Count + sd.Crls.Count;
             _ = sd.Verify().IsValid;
             _ = sd.Verify(CmsFixture.Content).IsValid;
+            try
+            {
+                _ = SignedData.VerifyStream(new MemoryStream(rest), null, null, CmsLimits).IsValid;
+            }
+            catch (RecursiveAI.OneCrypto.Wire.Cms.CmsParseException)
+            {
+            }
+
             foreach (SignerInfo s in sd.Signers)
             {
                 _ = s.Countersignatures.Count;

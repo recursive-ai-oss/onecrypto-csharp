@@ -367,6 +367,10 @@ public sealed partial class SignedData
         {
             throw new CmsParseException("SignedData", e);
         }
+        catch (X509ParseException e)
+        {
+            throw new CmsParseException("SignedData", CmsError.UnexpectedStructure, e.Message);
+        }
     }
 }
 
@@ -539,6 +543,10 @@ public sealed partial class EnvelopedData
         catch (Asn1ParseException e)
         {
             throw new CmsParseException("EnvelopedData", e);
+        }
+        catch (X509ParseException e)
+        {
+            throw new CmsParseException("EnvelopedData", CmsError.UnexpectedStructure, e.Message);
         }
     }
 }
