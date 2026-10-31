@@ -2,6 +2,7 @@
 
 Normative, language-neutral notes on behaviour: verification semantics, policy presets, resource limits and the methods behind the tests and benchmarks.
 
+- [conformance.md](conformance.md): what is tested, against what, documented deviations, speed against the bar, constant-time evidence.
 - [cms.md](cms.md): CMS content types, verification rules, limits, failing closed, streaming and the openssl matrix.
 - [issuance.md](issuance.md): the certificate authority, its profiles, serial numbers, CRLs and delta CRLs, and two-phase issuing.
 - [tsp.md](tsp.md): RFC 3161 requests, responses and TSTInfo, the verifier's rules and the time-stamp authority handler.
