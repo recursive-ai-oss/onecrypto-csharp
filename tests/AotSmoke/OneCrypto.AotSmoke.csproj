@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../Common/FallbackSmoke.cs" Link="FallbackSmoke.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
   </ItemGroup>
 

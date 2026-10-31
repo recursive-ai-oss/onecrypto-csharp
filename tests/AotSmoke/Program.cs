@@ -184,5 +184,11 @@ if (Convert.ToHexString(argon) != "0D640DF58D78766C08C037A34A8B53C9D01EF0452D75B
     return 1;
 }
 
+if (!OneCrypto.Smoke.FallbackSmoke.Run())
+{
+    Console.Error.WriteLine("platform-gap code failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
