@@ -28,6 +28,7 @@ internal static class Program
         ["x509"] = X509Target.Run,
         ["ocsp"] = OcspTarget.Run,
         ["verify"] = VerifyTarget.Run,
+        ["keys"] = KeysTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -39,6 +40,7 @@ internal static class Program
         "x509" => X509Target.Seeds(),
         "ocsp" => OcspTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
+        "keys" => KeysTarget.Seeds(),
         _ => [],
     };
 

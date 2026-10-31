@@ -1,6 +1,8 @@
 using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Keys;
+using RecursiveAI.OneCrypto.Policy;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -25,68 +27,42 @@ public abstract class X509Signer
     /// <summary>Signs the octets (the encoded to-be-signed structure) and returns the signature value as it goes into the BIT STRING.</summary>
     public abstract byte[] Sign(ReadOnlySpan<byte> data);
 
-    /// <summary>Signs with an RSA key, PKCS #1 v1.5 or RSASSA-PSS (salt as long as the hash, MGF1 on the same hash). The key stays owned by the caller.</summary>
-    public static X509Signer FromRsa(RSA key, HashAlgorithmName hash, bool pss = false)
+    /// <summary>The key behind the signer when it was made from a key interface; null for a delegate signer.</summary>
+    public virtual ISigningKey? Key => null;
+
+    /// <summary>The signature spec behind the signer when it was made from a key interface; null for a delegate signer.</summary>
+    public virtual SignatureSpec? Spec => null;
+
+    /// <summary>
+    /// Signs with any key behind the key interfaces (in memory, operating system, token or remote). The spec defaults to the key's own default; its
+    /// X.509 identifier is written into the structure. The key stays owned by the caller.
+    /// </summary>
+    /// <exception cref="NotSupportedException">The key does not support the spec, or the spec has no X.509 identifier.</exception>
+    public static X509Signer FromKey(ISigningKey key, SignatureSpec? spec = null)
     {
         ArgumentNullException.ThrowIfNull(key);
-        string hashOid = HashOid(hash);
-        AlgorithmIdentifier alg;
-        if (pss)
+        SignatureSpec s = spec ?? key.DefaultSpec;
+        if (!key.Supports(s))
         {
-            int salt = DigestSize(hash);
-            byte[] hashAlg = AlgorithmIdentifier.WithNull(hashOid).Encoded.ToArray();
-            byte[] mgf = DerWriter.Sequence(DerWriter.Oid(KnownOids.Mgf1), hashAlg);
-            byte[] parameters = DerWriter.Sequence(DerWriter.Context(0, hashAlg), DerWriter.Context(1, mgf), DerWriter.Context(2, DerWriter.SignedInteger(salt)));
-            alg = AlgorithmIdentifier.Create(KnownOids.RsaPss, parameters);
-        }
-        else
-        {
-            string oid = hashOid switch
-            {
-                KnownOids.Sha1 => KnownOids.Sha1WithRsa,
-                KnownOids.Sha224 => KnownOids.Sha224WithRsa,
-                KnownOids.Sha256 => KnownOids.Sha256WithRsa,
-                KnownOids.Sha384 => KnownOids.Sha384WithRsa,
-                KnownOids.Sha512 => KnownOids.Sha512WithRsa,
-                _ => throw new ArgumentException("No PKCS #1 v1.5 signature identifier for " + hash.Name, nameof(hash)),
-            };
-            alg = AlgorithmIdentifier.WithNull(oid);
+            throw new NotSupportedException($"The key cannot sign with {s}.");
         }
 
-        return new Platform(alg, PublicKeyInfo.FromAsymmetricAlgorithm(key), d => key.SignData(d, hash, pss ? RSASignaturePadding.Pss : RSASignaturePadding.Pkcs1));
+        return new Platform(s.ToAlgorithmIdentifier(key.PublicKey), key.PublicKey, d => key.Sign(d, s), key, s);
     }
+
+    /// <summary>Signs with an RSA key, PKCS #1 v1.5 or RSASSA-PSS (salt as long as the hash, MGF1 on the same hash). The key stays owned by the caller.</summary>
+    public static X509Signer FromRsa(RSA key, HashAlgorithmName hash, bool pss = false) =>
+        FromKey(PrivateKey.FromRsa(key), pss ? SignatureSpec.RsaPss(hash) : SignatureSpec.RsaPkcs1(hash));
 
     /// <summary>Signs with an ECDSA key (DER signature, RFC 3279). The hash defaults to the one that matches the curve: SHA-256, SHA-384 or SHA-512.</summary>
     public static X509Signer FromECDsa(ECDsa key, HashAlgorithmName? hash = null)
     {
-        ArgumentNullException.ThrowIfNull(key);
-        PublicKeyInfo pub = PublicKeyInfo.FromAsymmetricAlgorithm(key);
-        HashAlgorithmName h = hash ?? (pub.KeySizeBits <= 256 ? HashAlgorithmName.SHA256 : pub.KeySizeBits <= 384 ? HashAlgorithmName.SHA384 : HashAlgorithmName.SHA512);
-        string oid = HashOid(h) switch
-        {
-            KnownOids.Sha1 => KnownOids.EcdsaSha1,
-            KnownOids.Sha224 => KnownOids.EcdsaSha224,
-            KnownOids.Sha256 => KnownOids.EcdsaSha256,
-            KnownOids.Sha384 => KnownOids.EcdsaSha384,
-            KnownOids.Sha512 => KnownOids.EcdsaSha512,
-            _ => throw new ArgumentException("No ECDSA signature identifier for " + h.Name, nameof(hash)),
-        };
-        return new Platform(AlgorithmIdentifier.Create(oid), pub, d => key.SignData(d, h, DSASignatureFormat.Rfc3279DerSequence));
+        ISigningKey k = PrivateKey.FromECDsa(key);
+        return FromKey(k, hash is { } h ? SignatureSpec.Ecdsa(h) : null);
     }
 
     /// <summary>Signs with an ML-DSA key (empty context, RFC 9881). The parameter set follows the key.</summary>
-    public static X509Signer FromMLDsa(MLDsa key)
-    {
-        ArgumentNullException.ThrowIfNull(key);
-        string oid = key.Algorithm.Name switch
-        {
-            "ML-DSA-44" => KnownOids.MlDsa44,
-            "ML-DSA-65" => KnownOids.MlDsa65,
-            _ => KnownOids.MlDsa87,
-        };
-        byte[] spki = DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(oid)), BitString(key.ExportMLDsaPublicKey()));
-        return new Platform(AlgorithmIdentifier.Create(oid), PublicKeyInfo.Parse(spki), d => key.SignData(d));
-    }
+    public static X509Signer FromMLDsa(MLDsa key) => FromKey(PrivateKey.FromMLDsa(key));
 
     /// <summary>Signs with a function the caller provides (an HSM, a remote service, an EdDSA key from another source).</summary>
     /// <param name="algorithm">The identifier to write.</param>
@@ -107,28 +83,22 @@ public abstract class X509Signer
         return DerWriter.Tlv(0x03, b);
     }
 
-    private static string HashOid(HashAlgorithmName h) => h.Name switch
-    {
-        "SHA1" => KnownOids.Sha1,
-        "SHA224" => KnownOids.Sha224,
-        "SHA256" => KnownOids.Sha256,
-        "SHA384" => KnownOids.Sha384,
-        "SHA512" => KnownOids.Sha512,
-        _ => throw new ArgumentException("Unsupported hash " + h.Name, nameof(h)),
-    };
-
-    private static int DigestSize(HashAlgorithmName h) => h.Name switch { "SHA1" => 20, "SHA224" => 28, "SHA256" => 32, "SHA384" => 48, _ => 64 };
-
     private sealed class Platform : X509Signer
     {
         private readonly Func<byte[], byte[]> _sign;
 
-        public Platform(AlgorithmIdentifier alg, PublicKeyInfo key, Func<byte[], byte[]> sign)
+        public Platform(AlgorithmIdentifier alg, PublicKeyInfo key, Func<byte[], byte[]> sign, ISigningKey? signingKey = null, SignatureSpec? spec = null)
         {
             SignatureAlgorithm = alg;
             PublicKey = key;
             _sign = sign;
+            Key = signingKey;
+            Spec = spec;
         }
+
+        public override ISigningKey? Key { get; }
+
+        public override SignatureSpec? Spec { get; }
 
         public override AlgorithmIdentifier SignatureAlgorithm { get; }
 
@@ -173,4 +143,36 @@ internal static class BuildHelpers
     public static byte[] Extensions(IEnumerable<Extension> list) => DerWriter.Sequence([.. list.Select(e => e.Encoded.ToArray())]);
 
     public static byte[] UnsignedInt(ReadOnlySpan<byte> serial) => DerWriter.UnsignedInteger(serial);
+}
+
+/// <summary>Two-phase signing of the signed structures of RFC 5280 (<c>SEQUENCE { tbs, signatureAlgorithm, signatureValue BIT STRING }</c>).</summary>
+internal static class X509TwoPhase
+{
+    /// <summary>Runs a builder with a signer that only records the octets it was asked to sign, then prepares a state over them.</summary>
+    public static PreparedSignature Prepare(string purpose, PublicKeyInfo key, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at, Action<X509Signer> build)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(spec);
+        byte[]? tbs = null;
+        X509Signer recorder = X509Signer.FromDelegate(spec.ToAlgorithmIdentifier(key), key, d =>
+        {
+            tbs = d;
+            return [0]; // placeholder; the structure built around it is discarded
+        });
+        build(recorder);
+        return PreparedSignature.Prepare(key, spec, tbs ?? throw new InvalidOperationException("The builder did not sign anything."), policy, at, purpose);
+    }
+
+    /// <summary>Checks the signature against the state and returns the finished DER.</summary>
+    public static byte[] Complete(PreparedSignature prepared, string purpose, ReadOnlySpan<byte> signature)
+    {
+        ArgumentNullException.ThrowIfNull(prepared);
+        if (prepared.Purpose != purpose)
+        {
+            throw new ArgumentException($"The prepared signature is for {prepared.Purpose}, not {purpose}.", nameof(prepared));
+        }
+
+        byte[] sig = prepared.Complete(signature);
+        return DerWriter.Sequence(prepared.Data.ToArray(), prepared.Spec.ToAlgorithmIdentifier(prepared.PublicKey).Encoded.ToArray(), X509Signer.BitString(sig));
+    }
 }

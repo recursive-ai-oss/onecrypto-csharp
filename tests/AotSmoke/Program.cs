@@ -201,6 +201,28 @@ using (var leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
     platform.Dispose();
 }
 
+// Policy decisions and a two-phase signature, in process: prepare, serialise, sign elsewhere, restore, complete.
+using (var pk = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+using (var pkey = RecursiveAI.OneCrypto.Keys.PrivateKey.FromECDsa(pk))
+{
+    DateTimeOffset at = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+    var policy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Standard;
+    var sha1 = policy.CheckHash(HashAlgorithmName.SHA1, RecursiveAI.OneCrypto.Policy.CryptoUse.Verify, at);
+    var spec = RecursiveAI.OneCrypto.Keys.SignatureSpec.Ecdsa(HashAlgorithmName.SHA256);
+    var prepared = RecursiveAI.OneCrypto.Keys.PreparedSignature.Prepare(pkey.PublicKey, spec, "smoke"u8, policy, at);
+    var restored = RecursiveAI.OneCrypto.Keys.PreparedSignature.Decode(prepared.Encode());
+    byte[] sig = pkey.SignDigest(restored.ToSign.Span, restored.Spec);
+    var tbs = RecursiveAI.OneCrypto.CertificateBuilder.PrepareSelfSigned(
+        new CertificateOptions { Subject = DistinguishedName.FromString("CN=Two Phase"), NotBefore = at, NotAfter = at.AddYears(1) }, pkey.PublicKey, spec, policy, at);
+    Certificate twoPhase = CertificateBuilder.Complete(tbs, tbs.SignWith(pkey));
+    if (sha1.Verdict != RecursiveAI.OneCrypto.Policy.PolicyVerdict.Flagged || restored.Complete(sig).Length == 0 || !twoPhase.IsSelfSigned
+        || policy.CheckHash(HashAlgorithmName.SHA1, RecursiveAI.OneCrypto.Policy.CryptoUse.Sign, at).IsAllowed)
+    {
+        Console.Error.WriteLine("policy or two-phase signing failed");
+        return 1;
+    }
+}
+
 // The curves the platform lacks: sign and verify with each, and agree a secret both ways.
 using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
 using (var ed4 = RecursiveAI.OneCrypto.Primitives.Ed448PrivateKey.Generate())
