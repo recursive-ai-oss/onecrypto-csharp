@@ -76,7 +76,30 @@ public static class X448
     /// <param name="privateKey">56 bytes.</param>
     /// <param name="publicKey">Receives 56 bytes.</param>
     /// <exception cref="ArgumentException">A span has the wrong length.</exception>
-    public static void DerivePublicKey(ReadOnlySpan<byte> privateKey, Span<byte> publicKey) =>
+    public static void DerivePublicKey(ReadOnlySpan<byte> privateKey, Span<byte> publicKey)
+    {
+        Ed448.CheckLength(privateKey, KeySize, nameof(privateKey));
+        Ed448.CheckLength(publicKey, KeySize, nameof(publicKey));
+        // Same result as ScalarMult with u = 5, but through the constant-time fixed-base table of Ed448. RFC 7748 section 4.2
+        // gives the 4-isogeny from edwards448 to Curve448, (x, y) to u = y^2 / x^2; it maps the Ed448 base point to the Curve448
+        // base point (up to sign, which u ignores), and being a group homomorphism it maps [k]B to [k]P. B has order L, so the
+        // scalar can be reduced modulo L first, which also keeps it inside the table's recoding range.
+        Span<byte> k = stackalloc byte[56]; // fixed small buffers
+        privateKey.CopyTo(k);
+        k[0] &= 252;
+        k[55] |= 128;
+        Span<ulong> r = stackalloc ulong[7];
+        Ed448Scalar.Field.ReduceWide(k, r);
+        ScalarField.Store(r, k);
+        Ge448 p = Ge448Ops.ScalarMultBase(k);
+        // X is zero only if k is a multiple of L (the single clamped value 4L); inversion of zero gives zero, as the ladder does.
+        Fe448.Mul(Fe448.Square(p.Y), Fe448.Invert(Fe448.Square(p.X))).ToBytes(publicKey);
+        CryptographicOperations.ZeroMemory(k);
+        r.Clear();
+    }
+
+    /// <summary>The same computation by the ladder with u = 5; used to cross-check <see cref="DerivePublicKey"/>.</summary>
+    internal static void DerivePublicKeyByLadder(ReadOnlySpan<byte> privateKey, Span<byte> publicKey) =>
         ScalarMult(privateKey, BasePoint, publicKey);
 
     /// <summary>

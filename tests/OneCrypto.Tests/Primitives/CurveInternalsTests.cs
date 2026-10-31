@@ -225,4 +225,20 @@ public class CurveInternalsTests
             Assert.Equal(Convert.ToHexString(b), Convert.ToHexString(a));
         }
     }
+
+    [Fact]
+    public void X448PublicKeyFromTheEdwardsTableMatchesTheLadder()
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            byte[] k = RandomNumberGenerator.GetBytes(56);
+            if (i == 0) { Array.Clear(k); }
+            if (i == 1) { Array.Fill(k, (byte)0xff); }
+            if (i == 2) { k = Bytes(L448 * 4, 56); } // the one clamped value that is a multiple of the order
+            byte[] a = new byte[56], b = new byte[56];
+            X448.DerivePublicKey(k, a);
+            X448.DerivePublicKeyByLadder(k, b);
+            Assert.Equal(Convert.ToHexString(b), Convert.ToHexString(a));
+        }
+    }
 }
