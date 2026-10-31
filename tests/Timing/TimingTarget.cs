@@ -35,6 +35,31 @@ public abstract class TimingTarget
     /// </summary>
     public abstract void Prepare(ReadOnlySpan<TimingClass> classes);
 
+    /// <summary>
+    /// Untimed hook the harness calls right before each <see cref="Run"/>, in the same index order. Targets whose secret is a key
+    /// build the key object for call <paramref name="index"/> here, so that every call, in either class, runs on a freshly built object
+    /// with the same allocation pattern and warmth and only the key value differs. The default does nothing.
+    /// </summary>
+    public virtual void Before(int index)
+    {
+    }
+
+    /// <summary>
+    /// Fills <paramref name="key"/> for a key-secret call: fresh random bytes, and for the fixed class the fixed key in their place. The
+    /// choice is a byte mask, not a branch, so both classes (and the A/A control, whose mask is always zero) execute the same instructions
+    /// with the same branch history just before the timed call, and only the key value differs.
+    /// </summary>
+    protected static void FillKey(Span<byte> key, ReadOnlySpan<byte> fixedKey, TimingClass cls, bool control)
+    {
+        RandomNumberGenerator.Fill(key);
+        byte mask = (byte)(((int)cls - 1) & 0xFF); // Fixed (0) -> 0xFF, Random (1) -> 0x00
+        mask &= (byte)(control ? 0 : 0xFF);
+        for (int i = 0; i < key.Length; i++)
+        {
+            key[i] = (byte)((key[i] & ~mask) | (fixedKey[i] & mask));
+        }
+    }
+
     /// <summary>Runs the operation on the input prepared for index <paramref name="index"/>. This is the timed call.</summary>
     public abstract void Run(int index);
 
