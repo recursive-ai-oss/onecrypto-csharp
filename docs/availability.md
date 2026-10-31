@@ -82,3 +82,53 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 | ML-DSA | platform | no fallback |
 | SLH-DSA | platform | no fallback; the platform's API is a preview |
 <!-- end -->
+
+<!-- platform: osx-arm64 -->
+### osx-arm64
+
+| Algorithm | Provided by | Note |
+| --- | --- | --- |
+| SHA3-224 | managed fallback | the platform has no SHA3-224 at all |
+| SHA3-256 | managed fallback |  |
+| SHA3-384 | managed fallback |  |
+| SHA3-512 | managed fallback |  |
+| SHAKE128 | managed fallback |  |
+| SHAKE256 | managed fallback |  |
+| ChaCha20-Poly1305 | platform |  |
+| RSA verify (PKCS#1 v1.5, PSS) | platform | verify-only managed fallback where the platform cannot |
+| ECDSA verify P-256, P-384, P-521 | platform | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP256r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP384r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP512r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | platform |  |
+| RSA sign, decrypt | platform | no fallback: private-key operations are never done in managed code |
+| ECDSA, ECDH sign and agree | platform | no fallback: private-key operations are never done in managed code |
+| ML-KEM | not supported | no fallback |
+| ML-DSA | not supported | no fallback |
+| SLH-DSA | not supported | no fallback; the platform's API is a preview |
+<!-- end -->
+
+<!-- platform: browser-wasm -->
+### browser-wasm
+
+| Algorithm | Provided by | Note |
+| --- | --- | --- |
+| SHA3-224 | managed fallback | the platform has no SHA3-224 at all |
+| SHA3-256 | managed fallback |  |
+| SHA3-384 | managed fallback |  |
+| SHA3-512 | managed fallback |  |
+| SHAKE128 | managed fallback |  |
+| SHAKE256 | managed fallback |  |
+| ChaCha20-Poly1305 | managed fallback |  |
+| RSA verify (PKCS#1 v1.5, PSS) | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify P-256, P-384, P-521 | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP256r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP384r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| ECDSA verify brainpoolP512r1 | managed fallback | verify-only managed fallback where the platform cannot |
+| AES (ECB, CBC, GCM), and OCB, EAX and key wrap over it | not supported |  |
+| RSA sign, decrypt | not supported | no fallback: private-key operations are never done in managed code |
+| ECDSA, ECDH sign and agree | not supported | no fallback: private-key operations are never done in managed code |
+| ML-KEM | not supported | no fallback |
+| ML-DSA | not supported | no fallback |
+| SLH-DSA | not supported | no fallback; the platform's API is a preview |
+<!-- end -->
