@@ -164,6 +164,27 @@ public class KdfVectorTests
     }
 
     [Fact]
+    public void Argon2VectorCompressionMatchesTheScalarReference()
+    {
+        Assert.SkipUnless(Argon2Avx2.IsSupported, "needs AVX2");
+        foreach (bool xorDestination in new[] { false, true })
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                ulong[] x = new ulong[128], y = new ulong[128], old = new ulong[128];
+                RandomNumberGenerator.Fill(System.Runtime.InteropServices.MemoryMarshal.AsBytes(x.AsSpan()));
+                RandomNumberGenerator.Fill(System.Runtime.InteropServices.MemoryMarshal.AsBytes(y.AsSpan()));
+                RandomNumberGenerator.Fill(System.Runtime.InteropServices.MemoryMarshal.AsBytes(old.AsSpan()));
+                ulong[] scalar = (ulong[])old.Clone();
+                ulong[] vector = (ulong[])old.Clone();
+                Argon2.CompressBlockScalar(x, y, scalar, new ulong[128], new ulong[128], xorDestination);
+                Argon2Avx2.Compress(x, y, vector, new ulong[128], new ulong[128], xorDestination);
+                Assert.Equal(scalar, vector);
+            }
+        }
+    }
+
+    [Fact]
     public void ScryptParametersOutsideTheLimitsRaiseTypedErrors()
     {
         // 2^21 x 8 needs 2 GiB plus, over the default limit.

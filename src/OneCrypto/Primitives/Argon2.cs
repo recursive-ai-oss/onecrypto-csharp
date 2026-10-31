@@ -400,8 +400,21 @@ public static class Argon2
     }
 
     // RFC 9106 §3.5: G(X, Y) = P-columns(P-rows(X xor Y)) xor (X xor Y), and XORed into the old value on later passes.
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CompressBlock(ReadOnlySpan<ulong> x, ReadOnlySpan<ulong> y, Span<ulong> destination, Span<ulong> r, Span<ulong> scratch, bool xorDestination)
+    {
+        if (Argon2Avx2.IsSupported)
+        {
+            Argon2Avx2.Compress(x, y, destination, r, scratch, xorDestination);
+        }
+        else
+        {
+            CompressBlockScalar(x, y, destination, r, scratch, xorDestination);
+        }
+    }
+
+    // The portable reference; the vector version must give the same output.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void CompressBlockScalar(ReadOnlySpan<ulong> x, ReadOnlySpan<ulong> y, Span<ulong> destination, Span<ulong> r, Span<ulong> scratch, bool xorDestination)
     {
         for (int i = 0; i < BlockWords; i++)
         {
