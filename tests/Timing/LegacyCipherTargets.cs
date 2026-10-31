@@ -8,7 +8,7 @@ namespace OneCrypto.Timing;
 /// <list type="bullet">
 /// <item>data: the key is fixed and the input blocks are the secret (the fixed class reuses one block set, the random class draws a new one);</item>
 /// <item>key: the input blocks are fixed and the key is the secret. Building a key object is not timed, so each class draws an object from
-/// its own half of a pool of 2 x <see cref="PoolSize"/> objects, interleaved slot by slot, which keeps the two classes equally cold;</item>
+/// its own half of a pool of 2 x <see cref="PoolSize"/> objects, the halves placed at random slots each batch, which keeps the two classes equally cold and at no particular addresses;</item>
 /// <item>key setup: the key schedule itself, with the key as the secret (it allocates, which the percentile cropping absorbs).</item>
 /// </list>
 /// The operation is ECB over a few blocks: the cost and the secret-dependent accesses are in the block function, and the modes only
@@ -59,7 +59,9 @@ internal static class LegacyCipherTargets
         }
 
         // A/A control: both classes use distinct random keys, so a flagged difference is the harness or the machine.
-        yield return new KeyTarget(Ciphers()[0], "control-key", Ciphers()[0].Decrypting, control: true);
+        Cipher[] all = Ciphers();
+        yield return new KeyTarget(all[0], "control-key", all[0].Decrypting, control: true);
+        yield return new KeyTarget(all[4], "control-key", all[4].Decrypting, control: true);
     }
 
     private sealed class DataTarget(Cipher c, string operation, Func<byte[], Op> create) : TimingTarget
@@ -106,6 +108,7 @@ internal static class LegacyCipherTargets
         private readonly byte[] _fixedKey = RandomNumberGenerator.GetBytes(c.KeyLength);
         private readonly byte[] _out = new byte[Blocks * c.BlockSize];
         private readonly Op?[] _ops = new Op?[2 * PoolSize];
+        private readonly int[][] _slotsOf = [new int[PoolSize], new int[PoolSize]];
         private int[] _pick = [];
 
         public override string Primitive => c.Name;
@@ -114,10 +117,22 @@ internal static class LegacyCipherTargets
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
         {
-            for (int k = 0; k < _ops.Length; k++)
+            // Which slots hold the fixed key is drawn afresh each batch. With a fixed even/odd split, objects of one class would always
+            // sit at one parity of addresses, and an address effect (cache sets, page offsets) would show up as a difference between
+            // the classes; the A/A control exposed exactly that for Blowfish, whose key objects are large.
+            Span<int> order = stackalloc int[2 * PoolSize];
+            for (int k = 0; k < order.Length; k++)
             {
-                _ops[k]?.Dispose();
-                _ops[k] = create(k % 2 == 0 && !control ? _fixedKey : RandomNumberGenerator.GetBytes(c.KeyLength));
+                order[k] = k;
+            }
+
+            RandomNumberGenerator.Shuffle(order);
+            for (int k = 0; k < order.Length; k++)
+            {
+                int slot = order[k];
+                _ops[slot]?.Dispose();
+                _ops[slot] = create(k < PoolSize && !control ? _fixedKey : RandomNumberGenerator.GetBytes(c.KeyLength));
+                _slotsOf[k < PoolSize ? 0 : 1][k % PoolSize] = slot;
             }
 
             if (_pick.Length < classes.Length)
@@ -127,7 +142,7 @@ internal static class LegacyCipherTargets
 
             for (int i = 0; i < classes.Length; i++)
             {
-                _pick[i] = (2 * RandomNumberGenerator.GetInt32(PoolSize)) + (classes[i] == TimingClass.Fixed ? 0 : 1);
+                _pick[i] = _slotsOf[classes[i] == TimingClass.Fixed ? 0 : 1][RandomNumberGenerator.GetInt32(PoolSize)];
             }
         }
 
