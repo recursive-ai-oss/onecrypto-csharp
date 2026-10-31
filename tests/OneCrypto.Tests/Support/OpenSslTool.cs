@@ -8,6 +8,13 @@ internal static class OpenSslTool
 {
     private static readonly Lazy<string?> Exe = new(Find);
 
+    private static readonly Lazy<string> EmptyConfig = new(() =>
+    {
+        string path = Path.Combine(TempDir("conf"), "openssl.cnf");
+        File.WriteAllText(path, "[req]\ndistinguished_name = dn\n[dn]\n");
+        return path;
+    });
+
     public static bool Available => Exe.Value is not null;
 
     public static void RequireOrSkip() => Assert.SkipUnless(Available, "openssl is not installed");
@@ -44,6 +51,12 @@ internal static class OpenSslTool
         {
             psi.Environment["LD_LIBRARY_PATH"] = lib;
             psi.Environment["DYLD_LIBRARY_PATH"] = lib;
+        }
+
+        if (Environment.GetEnvironmentVariable("OPENSSL_CONF") is null)
+        {
+            // A user-local build has no system configuration file; an empty one is what the commands here need.
+            psi.Environment["OPENSSL_CONF"] = EmptyConfig.Value;
         }
 
         foreach (string a in args)

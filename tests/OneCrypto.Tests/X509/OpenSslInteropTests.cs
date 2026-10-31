@@ -19,6 +19,8 @@ public class OpenSslInteropTests
 
     public static IEnumerable<object[]> OurKinds() => Enum.GetValues<KeyKind>().Where(TestKey.IsAvailable).Select(k => new object[] { k });
 
+    private static bool NeedsPlatformSupport(string alg) => alg.StartsWith("ed", StringComparison.Ordinal) || (alg.StartsWith("ML-DSA", StringComparison.Ordinal) && !MLDsa.IsSupported);
+
     private static bool CanDo(KeyKind k) => k != KeyKind.MlDsa65 || OpenSslTool.Has("ML-DSA-65");
 
     [Theory]
@@ -91,7 +93,7 @@ public class OpenSslInteropTests
         Assert.Equal("CN=ossl.example.test,O=Ossl Org,C=US", csr.Subject.ToString());
         Assert.Equal(["DNS:ossl.example.test", "IP:192.0.2.9"], csr.RequestedExtensions.Get<SubjectAlternativeName>()!.Names.Select(n => n.ToString()));
         SignatureVerification v = csr.VerifySignature();
-        Assert.True(v.IsValid || (alg.StartsWith("ed", StringComparison.Ordinal) && v.Status == SignatureStatus.AlgorithmNotSupported), v.Status + " " + v.Reason);
+        Assert.True(v.IsValid || (NeedsPlatformSupport(alg) && v.Status == SignatureStatus.AlgorithmNotSupported), v.Status + " " + v.Reason);
 
         string certPath = Path.Combine(dir, tag + ".pem");
         Ok(OpenSslTool.Run("req", "-x509", "-new", "-key", key, "-days", "30", "-subj", "/CN=ossl.example.test", "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=keyCertSign,cRLSign", "-out", certPath), "req -x509");
@@ -101,7 +103,7 @@ public class OpenSslInteropTests
         Assert.True(cert.BasicConstraints!.IsCA);
         Assert.Equal(KeyUsages.KeyCertSign | KeyUsages.CrlSign, cert.KeyUsage!.Usages);
         SignatureVerification sv = cert.VerifySignature(cert.PublicKey);
-        Assert.True(sv.IsValid || (alg.StartsWith("ed", StringComparison.Ordinal) && sv.Status == SignatureStatus.AlgorithmNotSupported), sv.Status + " " + sv.Reason);
+        Assert.True(sv.IsValid || (NeedsPlatformSupport(alg) && sv.Status == SignatureStatus.AlgorithmNotSupported), sv.Status + " " + sv.Reason);
         if (cert.TryToX509Certificate2(out X509Certificate2? bcl))
         {
             using (bcl)
