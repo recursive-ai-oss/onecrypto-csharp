@@ -52,7 +52,7 @@ public readonly struct Asn1Token
 /// Reads BER, CER or DER from a <see cref="Stream"/> as a sequence of tokens, in constant memory whatever the size of the
 /// document. Primitive content is not buffered: read it in pieces with <see cref="Read(Span{byte})"/>, copy it out with
 /// <see cref="ReadContent"/> within <see cref="Asn1Limits.MaxCopiedLength"/>, or let the next token skip it. A multi-gigabyte
-/// constructed OCTET STRING (a CMS signed-data payload) is consumed as a <see cref="Stream"/> from <see cref="OpenOctetString"/>.
+/// constructed OCTET STRING (a CMS signed-data payload) is consumed as a <see cref="Stream"/> from <see cref="OpenOctetString(Asn1Token)"/>.
 /// </summary>
 /// <remarks>
 /// The same header rules apply as for <see cref="Asn1Reader"/>; the stream is checked as it goes, so a child that overruns its
@@ -311,6 +311,22 @@ public sealed class Asn1StreamReader
         if (start.Kind != Asn1TokenKind.StartConstructed || start.Tag != new Asn1Tag(Asn1Tags.OctetString))
         {
             throw new ArgumentException("The token is not the start of a constructed OCTET STRING.", nameof(start));
+        }
+
+        return new SegmentStream(this, _frames.Count);
+    }
+
+    /// <summary>
+    /// Like <see cref="OpenOctetString(Asn1Token)"/> for a constructed string under another tag: an implicitly tagged OCTET STRING such as
+    /// the <c>[0]</c> of CMS <c>EncryptedContentInfo</c>. The segments inside are still universal OCTET STRINGs.
+    /// </summary>
+    /// <param name="start">The start token of the constructed element.</param>
+    /// <param name="outerTag">The tag the element must have.</param>
+    public Stream OpenOctetString(Asn1Token start, Asn1Tag outerTag)
+    {
+        if (start.Kind != Asn1TokenKind.StartConstructed || start.Tag.TagClass != outerTag.TagClass || start.Tag.TagNumber != outerTag.TagNumber)
+        {
+            throw new ArgumentException("The token is not the start of the expected constructed element.", nameof(start));
         }
 
         return new SegmentStream(this, _frames.Count);

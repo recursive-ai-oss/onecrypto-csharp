@@ -31,6 +31,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+    <!-- The second process of the two-phase signing tests. -->
+    <ProjectReference Include="../TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
   </ItemGroup>
 
 </Project>

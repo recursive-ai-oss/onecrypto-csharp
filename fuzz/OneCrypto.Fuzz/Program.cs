@@ -22,23 +22,27 @@ internal static class Program
     {
         ["noop"] = static data => _ = data.Length,
         ["cms"] = CmsTarget.Run,
+        ["cmsenv"] = CmsEnvelopedTarget.Run,
         ["asn1"] = Asn1Target.Run,
         ["pem"] = PemTarget.Run,
         ["x509"] = X509Target.Run,
         ["ocsp"] = OcspTarget.Run,
         ["verify"] = VerifyTarget.Run,
         ["validate"] = ValidateTarget.Run,
+        ["keys"] = KeysTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
     {
         "cms" => CmsTarget.Seeds(),
+        "cmsenv" => CmsEnvelopedTarget.Seeds(),
         "asn1" => Asn1Target.Seeds(),
         "pem" => PemTarget.Seeds(),
         "x509" => X509Target.Seeds(),
         "ocsp" => OcspTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
         "validate" => ValidateTarget.Seeds(),
+        "keys" => KeysTarget.Seeds(),
         _ => [],
     };
 
