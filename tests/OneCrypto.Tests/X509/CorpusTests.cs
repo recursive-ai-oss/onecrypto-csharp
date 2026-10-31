@@ -171,9 +171,21 @@ public class CorpusTests
                     {
                         c = Certificate.Parse(new ReadOnlyMemory<byte>(der));
                     }
-                    catch (X509ParseException)
+                    catch (X509ParseException e)
                     {
                         certTyped++;
+                        bool platformLoads;
+                        try
+                        {
+                            X509CertificateLoader.LoadCertificate(der).Dispose();
+                            platformLoads = true;
+                        }
+                        catch (CryptographicException)
+                        {
+                            platformLoads = false;
+                        }
+
+                        Report($"  rejected {tc.GetProperty("id").GetString()}: {e.Message} (platform loads it: {platformLoads})");
                         continue;
                     }
 
