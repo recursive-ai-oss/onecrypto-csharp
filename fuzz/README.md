@@ -6,11 +6,11 @@ One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. Sharp
 |---|---|---|
 | `asn1` | a rules/mode byte, then ASN.1 bytes | the span reader over every type, the element model, the stream reader and its OCTET STRING stream, BER-to-DER |
 | `pem` | a mode byte, then text | strict and lax PEM parsing and write/parse round trip |
-| `cms` | a mode byte, then a CMS blob (or, with mode bits `10`, a time-stamp response) | BER-to-DER conversion, CMS SignedData parsing, signer verification with chain building, time-stamp response checks |
+| `cms` | a mode byte, then a CMS blob (or, with mode bits `10`, a time-stamp response) | BER-to-DER conversion, CMS SignedData parsing, signer verification with chain building, streamed verification and streaming decompression with their async twins, time-stamp response checks |
 | `x509` | a structure byte, then its encoding | certificates, CRLs and their entries, certification requests, attribute certificates, every typed extension value (parse, encode, parse again), names, general names, public keys with signature checks |
-| `cmsenv` | a content-type byte, then a ContentInfo | EnvelopedData, AuthEnvelopedData, AuthenticatedData, EncryptedData, DigestedData and CompressedData parsed and opened with fixed keys; streamed decryption and verification |
+| `cmsenv` | a content-type byte, then a ContentInfo | EnvelopedData, AuthEnvelopedData, AuthenticatedData, EncryptedData, DigestedData and CompressedData parsed and opened with fixed keys; streamed decryption and verification, each with its async twin required to reach the same verdict and the same plaintext |
 | `ocsp` | a structure byte, then its encoding | OCSP requests, responses, basic responses and CertIDs, with signature checks against embedded certificates |
-| `keys` | a serialised two-phase signing state | `PreparedSignature` decode, re-encode identity and signature checks against whatever decodes |
+| `keys` | a serialised two-phase signing state | `PreparedSignature` and `PreparedSignedData` decode, re-encode identity and signature checks against whatever decodes |
 | `verify` | a case byte, then a signature or a public key | the verify-only managed RSA (PKCS#1 v1.5, PSS) and ECDSA (P-256 and Brainpool, DER and fixed-width) verifiers, and their public-key validation |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.
