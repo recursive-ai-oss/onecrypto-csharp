@@ -1,0 +1,52 @@
+<Project>
+
+  <PropertyGroup Label="Name">
+    <!-- The one place the project name lives. Project folders and assembly names are $(LibName) plus the add-on. -->
+    <LibName>OneCrypto</LibName>
+    <!-- NuGet package IDs and assembly names carry the publisher prefix; this is the only place it is written. -->
+    <PackagePrefix>RecursiveAI.</PackagePrefix>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Output">
+    <!-- Build output stays out of the source folders. Set ONECRYPTO_ARTIFACTS to choose where; the default is artifacts/ at the
+         repository root, which .gitignore covers. -->
+    <ArtifactsPath Condition="'$(ONECRYPTO_ARTIFACTS)' != ''">$(ONECRYPTO_ARTIFACTS)</ArtifactsPath>
+    <ArtifactsPath Condition="'$(ONECRYPTO_ARTIFACTS)' == ''">$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Language and analysis">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Safe, bounds-checked C# throughout: no pointers. -->
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package metadata">
+    <Authors>Recursive AI, LLC</Authors>
+    <Company>Recursive AI, LLC</Company>
+    <Copyright>Copyright (c) Recursive AI, LLC</Copyright>
+    <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <!-- The one place the package version lives. Every package shares it. -->
+    <Version>0.1.0-preview.1</Version>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/recursive-ai-oss/onecrypto-csharp</RepositoryUrl>
+    <PackageProjectUrl>https://recursiveai.org/onecrypto/</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup Label="Global usings">
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+</Project>

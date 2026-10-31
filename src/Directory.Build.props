@@ -1,0 +1,43 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Everything under src/ is a shipped package (or the tool): AOT and trim clean, documented, symbols and Source Link, one naming scheme. -->
+  <PropertyGroup Label="Names">
+    <AssemblyName>$(PackagePrefix)$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace>$(PackagePrefix)$(MSBuildProjectName)</RootNamespace>
+    <PackageId>$(PackagePrefix)$(MSBuildProjectName)</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Library settings">
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Packages that have content opt in with IsPackable=true; the rest stay empty until they do. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Reproducible packages">
+    <!-- Path mapping applies to src/ only. Test projects keep real paths: some tests locate test data from [CallerFilePath], which
+         a mapped path would break on CI. -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Packaging">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- No baseline until the first release is published; the check then guards every later one. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)../LICENSE-MIT" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)../LICENSE-APACHE" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)PACKAGE.md" Pack="true" PackagePath="/README.md" />
+  </ItemGroup>
+
+</Project>
