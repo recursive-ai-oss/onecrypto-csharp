@@ -7,5 +7,8 @@
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="SharpFuzz" Version="2.2.0" />
+    <!-- Comparators for the benchmark project only: run as black boxes, never read. -->
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageVersion Include="NSec.Cryptography" Version="25.4.0" />
   </ItemGroup>
 </Project>
