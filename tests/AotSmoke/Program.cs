@@ -2,36 +2,86 @@ using System.Security.Cryptography;
 using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
 using RecursiveAI.OneCrypto.Pem;
 using RecursiveAI.OneCrypto.Primitives;
 using RecursiveAI.OneCrypto.Tsp;
 using RecursiveAI.OneCrypto.X509;
 
 // Exercises the library from a NativeAOT-published app; grows as the library does.
-TestPki pki = TestPki.Shared;
-byte[] cms = CmsFixture.KitSign(pki.RsaSigner, new CmsSpec { Cades = true, Timestamp = true });
+byte[] cms = CmsFixture.KitSign(TestPki.Shared.RsaSigner, new CmsSpec { Cades = true });
 
-if (!CmsSignedData.TryParse(cms, out CmsSignedData? sd, out string? error) || sd is null || sd.Signers.Count != 1)
+if (!SignedData.TryParse(cms, out SignedData? sd) || sd is null || sd.Signers.Count != 1 || !sd.Verify(CmsFixture.Content).IsValid)
 {
-    Console.Error.WriteLine("CMS did not parse: " + error);
+    Console.Error.WriteLine("hand-built CMS did not parse and verify");
     return 1;
 }
 
-CmsSignerResult verdict = CmsFixture.VerifyOne(cms);
-if (!verdict.IsValid)
-{
-    Console.Error.WriteLine("CMS did not verify: " + CmsFixture.WarningsOf(verdict));
-    return 1;
-}
-
-// The library's own signer, with a time-stamp from the in-process authority.
-var tsa = new CmsFixture.TestTsa();
-var signer = CmsSigner.Create(CmsFixture.Credential(pki.EcSigner), HashAlgorithmName.SHA256, CmsRsaPadding.Pkcs1, cades: true);
-byte[] own = signer.Build(SHA256.HashData(CmsFixture.Content), DateTimeOffset.UtcNow, tsa.Callback, CancellationToken.None);
-if (!CmsFixture.VerifyOne(own).IsValid || tsa.Calls != 1)
+// The library's own signer: attached, two signers (RSA and ECDSA), a countersignature, then read back.
+SignerKit rsa = CmsKeys.Get(SigKind.Rsa);
+SignerKit ec = CmsKeys.Get(SigKind.P256);
+SignedData own = SignedData.Create(CmsFixture.Content, [rsa.Spec(), ec.Spec()]);
+own = own.WithUnsignedAttribute(0, SignedData.CreateCountersignature(own.Signers[0], ec.Spec()));
+SignedDataReport report = SignedData.Parse(own.Encoded).Verify();
+if (!report.IsValid || report.Signers.Count != 2 || report.Signers[0].Countersignatures.Count != 1)
 {
     Console.Error.WriteLine("own signature did not verify");
+    return 1;
+}
+
+// Encrypted CMS: key transport, key agreement (P-256 and X25519), a shared key and a password, then authenticated, streamed and compressed forms.
+byte[] secret = CmsFixture.Content;
+byte[] kek = new byte[32];
+RecipientKit rsaRecipient = RecipientKit.Get(RecipKind.Rsa);
+RecipientKit ecRecipient = RecipientKit.Get(RecipKind.P256);
+RecipientKit xRecipient = RecipientKit.Get(RecipKind.X25519);
+EnvelopedData env = EnvelopedData.Parse(EnvelopedData.Create(secret,
+    [CmsRecipient.KeyTransport(rsaRecipient.Certificate), CmsRecipient.KeyAgreement(ecRecipient.Certificate), CmsRecipient.KeyAgreement(xRecipient.Certificate),
+     CmsRecipient.KeyEncryptionKey(kek, "k"u8, padded: true), CmsRecipient.Password("pw", 1000)]).Encoded);
+foreach (CmsDecryptionKey key in new[] { rsaRecipient.Key(), ecRecipient.Key(), xRecipient.Key(), CmsDecryptionKey.FromKeyEncryptionKey(kek, "k"u8), CmsDecryptionKey.FromPassword("pw") })
+{
+    using (key)
+    {
+        if (!env.Decrypt(key).AsSpan().SequenceEqual(secret))
+        {
+            Console.Error.WriteLine("enveloped data did not decrypt");
+            return 1;
+        }
+    }
+}
+
+using (CmsDecryptionKey key = rsaRecipient.Key())
+{
+    if (!AuthEnvelopedData.Parse(AuthEnvelopedData.Create(secret, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]).Encoded).Decrypt(key).AsSpan().SequenceEqual(secret))
+    {
+        Console.Error.WriteLine("authenticated enveloped data did not decrypt");
+        return 1;
+    }
+
+    var streamed = new MemoryStream();
+    EnvelopedData.EncryptStream(new MemoryStream(secret), streamed, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]);
+    var back = new MemoryStream();
+    EnvelopedData.DecryptStream(new MemoryStream(streamed.ToArray()), back, key);
+    if (!back.ToArray().AsSpan().SequenceEqual(secret))
+    {
+        Console.Error.WriteLine("streamed enveloped data did not decrypt");
+        return 1;
+    }
+}
+
+var signedStream = new MemoryStream();
+SignedData.SignStream(new MemoryStream(secret), signedStream, [ec.Spec()]);
+if (!SignedData.VerifyStream(new MemoryStream(signedStream.ToArray())).IsValid)
+{
+    Console.Error.WriteLine("streamed signature did not verify");
+    return 1;
+}
+
+if (!CompressedData.Parse(CompressedData.Create(secret).Encoded).Decompress().AsSpan().SequenceEqual(secret)
+    || !AuthenticatedData.Parse(AuthenticatedData.Create(secret, [CmsRecipient.KeyEncryptionKey(kek, "k"u8)]).Encoded).Verify(CmsDecryptionKey.FromKeyEncryptionKey(kek, "k"u8)).IsValid
+    || !DigestedData.Parse(DigestedData.Create(secret).Encoded).Verify().IsValid
+    || !EncryptedData.Parse(EncryptedData.Create(secret, kek).Encoded).Decrypt(kek).AsSpan().SequenceEqual(secret))
+{
+    Console.Error.WriteLine("a simple content type failed");
     return 1;
 }
 
@@ -204,6 +254,23 @@ if (Convert.ToHexString(argon) != "0D640DF58D78766C08C037A34A8B53C9D01EF0452D75B
 {
     Console.Error.WriteLine("key derivation gave the wrong answer");
     return 1;
+}
+
+// Camellia (RFC 3713 Appendix A) and the decrypt-only legacy ciphers (RFC 2144 B.1 for CAST5, the published Twofish known answer).
+using (var cam = new RecursiveAI.OneCrypto.Primitives.Camellia(Convert.FromHexString("0123456789abcdeffedcba9876543210")))
+using (var cast = new RecursiveAI.OneCrypto.Primitives.Cast5(Convert.FromHexString("0123456712345678234567893456789A")))
+using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
+{
+    byte[] camPlain = Convert.FromHexString("0123456789abcdeffedcba9876543210");
+    byte[] camOut = new byte[16], castOut = new byte[8], twoOut = new byte[16];
+    cam.EncryptEcb(camPlain, camOut);
+    cast.DecryptEcb(Convert.FromHexString("238B4FE5847E44B2"), castOut);
+    two.DecryptEcb(Convert.FromHexString("9F589F5CF6122C32B6BFEC2F2AE8C35A"), twoOut);
+    if (Convert.ToHexString(camOut) != "67673138549669730857065648EABE43" || Convert.ToHexString(castOut) != "0123456789ABCDEF" || twoOut.AsSpan().ContainsAnyExcept((byte)0))
+    {
+        Console.Error.WriteLine("block ciphers gave a wrong result");
+        return 1;
+    }
 }
 
 if (!OneCrypto.Smoke.FallbackSmoke.Run())
