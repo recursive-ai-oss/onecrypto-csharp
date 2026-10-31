@@ -47,11 +47,24 @@ Raise a limit by passing your own `KdfLimits`; the memory check also refuses siz
 - The timing tests (`tests/Timing/KdfTargets.cs`) check Argon2i and Argon2id with one pass and 64 KiB against a fixed and a
   random password.
 
-## Threads
+## Threads and vectors
 
 Argon2 with more than one lane runs the lanes of a slice in parallel when a segment is at least 256 blocks (1 MiB of memory per
 lane); smaller work runs on the calling thread. Results do not depend on the thread count. scrypt and bcrypt-pbkdf are
 single-threaded.
+
+Argon2's compression function has a scalar version (the reference, used everywhere AVX2 is missing) and an AVX2 version
+(`Argon2Avx2`, chosen once from `Avx2.IsSupported`) that computes one round on four 64-bit lanes at a time. A test runs both on
+random blocks and requires identical output. scrypt's Salsa20/8 stays scalar: a 128-bit vector version was measured 1.8 times
+slower than the scalar one on arm64, because the rotates are single instructions there and the vector round is a longer
+dependency chain.
+
+## Benchmarks
+
+Rows live in `bench/OneCrypto.Benchmarks/Rows/Argon2Rows.cs` and `ScryptRows.cs`: Argon2id (m = 64 MiB, t = 3, p = 4 and
+m = 19 MiB, t = 2, p = 1) and scrypt (N = 2^14 and 2^17, r = 8, p = 1), 32-byte outputs, against BouncyCastle, Konscious and
+Isopoh (managed, gating) and the libsodium behind NSec (native, reported). `peak-kdf` in the same project prints the peak working
+set of one derivation per implementation, each in its own process.
 
 ## Tests
 
