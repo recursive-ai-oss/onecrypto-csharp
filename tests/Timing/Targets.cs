@@ -12,6 +12,7 @@ internal static class Targets
     [
         .. SelfCheck.Targets(),
         .. CurveTargets.Targets(),
+        .. AesModesTargets.Targets(),
     ];
 }
 
