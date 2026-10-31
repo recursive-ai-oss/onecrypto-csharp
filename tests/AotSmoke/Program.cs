@@ -2,34 +2,27 @@ using System.Security.Cryptography;
 using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
 using RecursiveAI.OneCrypto.Pem;
 using RecursiveAI.OneCrypto.Primitives;
 using RecursiveAI.OneCrypto.Tsp;
 using RecursiveAI.OneCrypto.X509;
 
 // Exercises the library from a NativeAOT-published app; grows as the library does.
-TestPki pki = TestPki.Shared;
-byte[] cms = CmsFixture.KitSign(pki.RsaSigner, new CmsSpec { Cades = true, Timestamp = true });
+byte[] cms = CmsFixture.KitSign(TestPki.Shared.RsaSigner, new CmsSpec { Cades = true });
 
-if (!CmsSignedData.TryParse(cms, out CmsSignedData? sd, out string? error) || sd is null || sd.Signers.Count != 1)
+if (!SignedData.TryParse(cms, out SignedData? sd) || sd is null || sd.Signers.Count != 1 || !sd.Verify(CmsFixture.Content).IsValid)
 {
-    Console.Error.WriteLine("CMS did not parse: " + error);
+    Console.Error.WriteLine("hand-built CMS did not parse and verify");
     return 1;
 }
 
-CmsSignerResult verdict = CmsFixture.VerifyOne(cms);
-if (!verdict.IsValid)
-{
-    Console.Error.WriteLine("CMS did not verify: " + CmsFixture.WarningsOf(verdict));
-    return 1;
-}
-
-// The library's own signer, with a time-stamp from the in-process authority.
-var tsa = new CmsFixture.TestTsa();
-var signer = CmsSigner.Create(CmsFixture.Credential(pki.EcSigner), HashAlgorithmName.SHA256, CmsRsaPadding.Pkcs1, cades: true);
-byte[] own = signer.Build(SHA256.HashData(CmsFixture.Content), DateTimeOffset.UtcNow, tsa.Callback, CancellationToken.None);
-if (!CmsFixture.VerifyOne(own).IsValid || tsa.Calls != 1)
+// The library's own signer: attached, two signers (RSA and ECDSA), a countersignature, then read back.
+SignerKit rsa = CmsKeys.Get(SigKind.Rsa);
+SignerKit ec = CmsKeys.Get(SigKind.P256);
+SignedData own = SignedData.Create(CmsFixture.Content, [rsa.Spec(), ec.Spec()]);
+own = own.WithUnsignedAttribute(0, SignedData.CreateCountersignature(own.Signers[0], ec.Spec()));
+SignedDataReport report = SignedData.Parse(own.Encoded).Verify();
+if (!report.IsValid || report.Signers.Count != 2 || report.Signers[0].Countersignatures.Count != 1)
 {
     Console.Error.WriteLine("own signature did not verify");
     return 1;

@@ -1,5 +1,6 @@
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
+using RecursiveAI.OneCrypto;
+using RecursiveAI.OneCrypto.Wire.Cms;
 
 namespace OneCrypto.Tests.Asn1;
 
@@ -18,7 +19,7 @@ public class HostileInputTests
 
         Assert.False(Asn1Element.TryRead(data, out _, out _, out string? error));
         Assert.NotNull(error);
-        Assert.False(CmsSignedData.TryParse(data, out _, out _));
+        Assert.False(SignedData.TryParse(data, out _));
     }
 
     [Theory]
@@ -33,7 +34,7 @@ public class HostileInputTests
     public void MalformedElementsFailWithoutAllocatingOrThrowing(byte[] data)
     {
         Assert.False(Asn1Element.TryRead(data, out _, out _, out _));
-        Assert.False(CmsSignedData.TryParse(data, out _, out _));
+        Assert.False(SignedData.TryParse(data, out _));
     }
 
     [Fact]

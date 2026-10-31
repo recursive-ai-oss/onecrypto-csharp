@@ -1,5 +1,6 @@
 using RecursiveAI.OneCrypto.Asn1;
-using RecursiveAI.OneCrypto.Cms;
+using RecursiveAI.OneCrypto;
+using RecursiveAI.OneCrypto.Wire.Cms;
 using RecursiveAI.OneCrypto.Tsp;
 
 namespace OneCrypto.Tests.Asn1;
@@ -81,8 +82,8 @@ public class DerWriterTests
             [0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF],
             [0x30, 0x03, 0x02, 0x01, 0x00],
             DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(0))),
-            DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(0)), DerWriter.Sequence(DerWriter.Oid(Oids.SignedData), DerWriter.Context(0))),
-            DerWriter.Sequence(DerWriter.Oid(Oids.SignedData)),
+            DerWriter.Sequence(DerWriter.Sequence(DerWriter.SignedInteger(0)), DerWriter.Sequence(DerWriter.Oid(CmsOids.SignedData), DerWriter.Context(0))),
+            DerWriter.Sequence(DerWriter.Oid(CmsOids.SignedData)),
             new byte[2 << 20],
         ];
         foreach (byte[] data in hostile)
