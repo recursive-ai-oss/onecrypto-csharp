@@ -49,6 +49,9 @@ internal sealed partial class Engine
         }
     }
 
+    // The purpose every certificate's extKeyUsage must allow: the caller's, or serverAuth under the server-authentication profile (RFC 5280 §4.2.1.12).
+    private string? RequiredEku => _o.RequiredExtendedKeyUsage ?? (_o.WebPki is { RequireServerAuth: true } ? KnownOids.ServerAuth : null);
+
     public DateTimeOffset RefTime => _o.ReferenceTime;
 
     // Certificate times have whole-second granularity (RFC 5280 §4.1.2.5), so the reference time is compared to them at that granularity.

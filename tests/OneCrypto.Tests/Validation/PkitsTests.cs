@@ -36,6 +36,10 @@ public class PkitsTests
             }
         }
 
+        // Every run whose verdict differs from the PKITS expectation is a documented deviation (docs/validation.md, "NIST PKITS").
+        string[] differing = [.. lines.Select(l => l.Split('	')).Where(f => f[1] != f[2]).Select(f => f[0]).Where(id => id is not ("4.1.4#1" or "4.1.5#1")).Order(StringComparer.Ordinal)];
+        Assert.True(differing.Length == 0, "undocumented differences: " + string.Join(", ", differing));
+
         string? outPath = Environment.GetEnvironmentVariable("ONECRYPTO_PKITS_RESULTS");
         if (!string.IsNullOrEmpty(outPath))
         {

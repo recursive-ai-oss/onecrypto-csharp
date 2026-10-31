@@ -190,15 +190,15 @@ internal sealed partial class Engine
                 r.Fail(ValidationRule.CriticalExtension, $"critical extension {crit} is not recognised", "RFC 5280 §4.2; §6.1.4 (o)");
             }
 
-            if (!string.IsNullOrEmpty(_o.RequiredExtendedKeyUsage) && v.ExtendedKeyUsage is { } eku)
+            if (!string.IsNullOrEmpty(RequiredEku) && v.ExtendedKeyUsage is { } eku)
             {
-                if (eku.Allows(_o.RequiredExtendedKeyUsage))
+                if (eku.Allows(RequiredEku))
                 {
                     r.Pass(ValidationRule.ExtendedKeyUsage, "extKeyUsage allows the required purpose", "RFC 5280 §4.2.1.12");
                 }
                 else
                 {
-                    r.Fail(ValidationRule.ExtendedKeyUsage, $"extKeyUsage does not allow {_o.RequiredExtendedKeyUsage}", "RFC 5280 §4.2.1.12");
+                    r.Fail(ValidationRule.ExtendedKeyUsage, $"extKeyUsage does not allow {RequiredEku}", "RFC 5280 §4.2.1.12");
                 }
             }
 

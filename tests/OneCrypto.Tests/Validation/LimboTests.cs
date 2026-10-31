@@ -30,12 +30,34 @@ public class LimboTests
 
         var lines = new ConcurrentBag<string>();
         Parallel.ForEach(cases, new ParallelOptions { MaxDegreeOfParallelism = 8 }, tc => lines.Add(Run(tc)));
+        // ML-DSA certificates need a platform with ML-DSA (OpenSSL 3.5 or newer); without it those testcases cannot verify.
+        bool mlDsa = System.Security.Cryptography.MLDsa.IsSupported;
+        // Every testcase whose verdict differs from the published expectation is a documented deviation (docs/validation.md).
+        if (string.IsNullOrEmpty(only))
+        {
+            string[] differing = [.. lines
+                .Select(l => l.Split('	'))
+                .Where(f => !((f[1] == "SUCCESS") == (f[2] == "Valid")))
+                .Select(f => f[0])
+                .Where(id => !Documented.ContainsKey(id) && (mlDsa || !id.StartsWith("rfc9881::", StringComparison.Ordinal)))
+                .Order(StringComparer.Ordinal)];
+            Assert.True(differing.Length == 0, "undocumented differences: " + string.Join(", ", differing));
+        }
+
         string? outPath = Environment.GetEnvironmentVariable("ONECRYPTO_LIMBO_RESULTS");
         if (!string.IsNullOrEmpty(outPath))
         {
             File.WriteAllLines(outPath, lines.OrderBy(l => l, StringComparer.Ordinal));
         }
     }
+
+    /// <summary>The testcases where the validator deliberately differs from limbo's expected result, with the reason (docs/validation.md, "x509-limbo").</summary>
+    private static readonly Dictionary<string, string> Documented = new(StringComparer.Ordinal)
+    {
+        ["rfc5280::aki::cross-signed-root-missing-aki"] = "A trust anchor is trusted for its name and key (RFC 5937); its authorityKeyIdentifier is not required, so a cross-signed anchor without one is accepted.",
+        ["webpki::san::public-suffix-multi-label-wildcard-san"] = "Needs the Public Suffix List; the validator carries none and refuses only wildcards with a single label under them.",
+        ["webpki::san::public-suffix-private-namespace-wildcard-san"] = "Needs the Public Suffix List (private section); see above.",
+    };
 
     internal static ValidationOptions? Options(JsonElement tc, out Certificate? target, out string? error)
     {
