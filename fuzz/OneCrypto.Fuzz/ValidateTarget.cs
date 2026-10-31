@@ -70,7 +70,7 @@ internal static class ValidateTarget
             Revocation = crls.Count > 0 ? new RevocationData { Crls = crls } : null,
             RevocationRequired = crls.Count > 0 ? RevocationScope.AllCertificates : RevocationScope.None,
             Limits = limits,
-            AlgorithmCheck = AlgorithmChecks.Rfc5280Only,
+            Policy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Permissive,
             WebPki = data.Length % 2 == 0 ? new WebPkiProfile { ServerName = "seed.example.test" } : null,
         });
         if (r.Verdict == ValidationVerdict.Valid && (r.SelectedPath is null || !r.SelectedPath.Target.Equals(target)))

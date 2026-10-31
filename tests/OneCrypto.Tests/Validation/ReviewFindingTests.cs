@@ -14,7 +14,7 @@ public class ReviewFindingTests
     private static readonly DateTimeOffset Now = RNode.Now;
 
     // R1: an untrusted pool can fill the validated-path budget with paths that fail, so a valid path is never reached and the verdict is Invalid.
-    [Fact(Skip = "review finding R1")]
+    [Fact]
     public void R1DecoyIssuersCannotCrowdOutTheValidPath()
     {
         using var root = RNode.Make("Root", null, true);
@@ -34,7 +34,7 @@ public class ReviewFindingTests
 
     // R2: RFC 5280 §6.3.3 (f): the CRL issuer's path must end at the trust anchor of the certificate's own path. A CRL "signed by the CA" with a key that
     // a different trusted root certified for the CA's name is accepted today, so any root can vouch "not revoked" for any CA.
-    [Fact(Skip = "review finding R2")]
+    [Fact]
     public void R2CrlSignerMustChainToTheSameAnchorAsTheCertificate()
     {
         using var rootA = RNode.Make("RootA", null, true);
@@ -64,7 +64,7 @@ public class ReviewFindingTests
 
     // R3: RFC 5280 §6.3.3 (j): a certificate found on the CRL takes the entry's reason; the CRL's reason scope only decides which reasons the CRL
     // covers, not whether a listed entry counts. Today an entry whose reason is outside onlySomeReasons is read as "good".
-    [Fact(Skip = "review finding R3")]
+    [Fact]
     public void R3ListedEntryOutsideTheCrlReasonScopeIsStillRevoked()
     {
         using var root = RNode.Make("Root", null, true);
@@ -85,7 +85,7 @@ public class ReviewFindingTests
     }
 
     // R4: RFC 5280 §5.3: a CRL with a critical entry extension the application does not process must not be used for any certificate.
-    [Fact(Skip = "review finding R4")]
+    [Fact]
     public void R4CrlWithAnUnknownCriticalEntryExtensionIsNotUsed()
     {
         using var root = RNode.Make("Root", null, true);
@@ -103,7 +103,7 @@ public class ReviewFindingTests
     }
 
     // R5: RFC 8398 §6: rfc822Name constraints apply to SmtpUTF8Mailbox subject alternative names.
-    [Fact(Skip = "review finding R5")]
+    [Fact]
     public void R5Rfc822ExclusionAppliesToSmtpUtf8Mailbox()
     {
         using var root = RNode.Make("Root", null, true);
@@ -118,7 +118,7 @@ public class ReviewFindingTests
     }
 
     // R6: a URI host written as a fully qualified name ("example.test.") is the same host; the exclusion of example.test must cover it.
-    [Fact(Skip = "review finding R6")]
+    [Fact]
     public void R6TrailingDotUriHostIsInsideTheExcludedSubtree()
     {
         using var root = RNode.Make("Root", null, true);
@@ -132,7 +132,7 @@ public class ReviewFindingTests
     }
 
     // R7: RequiredExtendedKeyUsage is skipped for a target that is itself a trust anchor.
-    [Fact(Skip = "review finding R7")]
+    [Fact]
     public void R7RequiredPurposeAppliesWhenTheTargetIsAnAnchor()
     {
         using var self = RNode.Make("Self", null, false);
@@ -148,7 +148,7 @@ public class ReviewFindingTests
     }
 
     // R8: RFC 9525 §6.3 forbids a partial wildcard inside an IDN label; a whole-label "*" still matches an A-label host.
-    [Fact(Skip = "review finding R8")]
+    [Fact]
     public void R8WildcardMatchesAnAceLabelHost()
     {
         using var root = RNode.Make("Root", null, true);

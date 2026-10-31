@@ -33,7 +33,7 @@ Defaults of the builder: signed attributes on (content-type, message-digest, ESS
 
 ### Verification rules
 
-The verifier takes no clock and builds no chain; the reference time and the path are the validator's. It checks every signer.
+By default the verifier takes no clock and builds no chain: the report says the signature is sound for the certificate's key and exposes the certificates, and trust is the path validator's question. With `SignedDataVerifyOptions.Chain` set (see Signer chains below) each signer is also path-validated. It checks every signer.
 
 | Rule | Passes when | Reference |
 |---|---|---|
@@ -48,9 +48,20 @@ The verifier takes no clock and builds no chain; the reference time and the path
 | `key-usage` | a signer certificate with a keyUsage extension has at least one of `AnyOfKeyUsages` (default digitalSignature or nonRepudiation; set to `None` to skip), and, when `RequiredExtendedKeyUsage` is given, that extended key usage; nothing else is assumed (for example PDF signing EKUs are the caller's to ask for) | RFC 5280 §4.2.1.3 |
 | `key-strength` | RSA of 2048 bits or more (a warning below) | CryptoPolicy |
 | `signing-certificate` | ESS signing-certificate or -v2 names the signer certificate by hash | RFC 2634 §5, RFC 5035 |
+| `chain` | only with `Chain` options: the signer's certificate validates to a trust anchor at the options' reference time (`Passed`; `Warning` when valid but revocation stayed unknown; `Unsupported` when the validator could not decide, for example required revocation data is missing; `Failed` otherwise) | RFC 5280 §6 |
 | `countersignatures` | each countersignature verifies over the signature value of its target, to `MaxCountersignatureDepth` | §11.4 |
 
 `Verify(content)`, `Verify(Stream)` and `VerifyStream` hash with every digest algorithm the signers use in one pass. A detached message with no content supplied fails the `content` rule.
+
+### Signer chains
+
+`SignedDataVerifyOptions.Chain` takes a `ValidationOptions` (`docs/validation.md`): trust anchors, the reference time, the `CryptoPolicy`, revocation data and limits. Each signer and each countersigner whose certificate was found is validated with it, and the report gets a `chain` check and `SignerReport.Chain`, the validator's full `ValidationReport` (paths, per-rule results, revocation findings). The signer is valid only if the chain check passes or warns; the message is valid only if every signer is.
+
+* The certificates in the message and in `ExtraCertificates` join the options' `Intermediates` as an untrusted pool. The CRLs in the message, and OCSP responses carried in its revocation set as `id-ri-ocsp-response`, join the options' revocation data. Being in the message confers no trust; only the anchors do.
+* With no CRL or OCSP response anywhere, the validator is given no revocation data, so a chain with `RevocationRequired = None` reports nothing unknown. With `RevocationRequired` set and no usable data the chain is undecided (`Unsupported`) unless the options set `UnknownRevocationIsFatal = false`.
+* **Time.** The reference time is the options'. The signing-time attribute is the signer's own claim and is never used as the reference time. A signer whose certificate has expired is `Failed` at "now" and valid at an instant inside its validity: to validate as of the signature, pass a time that is proven (a time-stamp token's `genTime`, from a verified token) and, for revocation, `RevocationModel.PastTime` with the data time. The long-term-validation choice of that instant is the AdES validator's.
+* The signing-certificate (ESS) check is independent: a substituted certificate that chains correctly but is not the one the signer named still fails it.
+* RFC 3161 tokens are CMS SignedData and use the same option; `TimeStampVerifyOptions` also takes anchors directly and reports the same validation as its `trust` check.
 
 ### Streaming
 

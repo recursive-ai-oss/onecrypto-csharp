@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Collections.Immutable;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.Validation;
@@ -103,73 +104,6 @@ public enum RevocationModel
     PastTime,
 }
 
-/// <summary>What an algorithm check is asked about.</summary>
-/// <param name="SignatureAlgorithm">The signature algorithm of a certificate, CRL or OCSP response.</param>
-/// <param name="IssuerKey">The public key that verifies it.</param>
-/// <param name="ReferenceTime">The validation instant, so a check can have dated cutoffs.</param>
-public sealed record AlgorithmQuery(AlgorithmIdentifier SignatureAlgorithm, PublicKeyInfo IssuerKey, DateTimeOffset ReferenceTime);
-
-/// <summary>The answer of an algorithm check.</summary>
-/// <param name="Outcome"><see cref="RuleOutcome.Pass"/>, <see cref="RuleOutcome.Warning"/> or <see cref="RuleOutcome.Fail"/>.</param>
-/// <param name="Reason">The reason, in plain words.</param>
-public sealed record AlgorithmDecision(RuleOutcome Outcome, string Reason)
-{
-    /// <summary>The algorithm is acceptable.</summary>
-    public static AlgorithmDecision Accept { get; } = new(RuleOutcome.Pass, "algorithm accepted");
-}
-
-/// <summary>Ready-made algorithm checks.</summary>
-public static class AlgorithmChecks
-{
-    /// <summary>Accepts everything the library can verify: the checks RFC 5280 itself makes.</summary>
-    public static AlgorithmDecision Rfc5280Only(AlgorithmQuery query)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        return AlgorithmDecision.Accept;
-    }
-
-    /// <summary>
-    /// The default. MD2/MD4/MD5 signatures fail; SHA-1 signatures are a warning before 2017-01-01 and fail from then on
-    /// (the date public CAs stopped issuing and browsers stopped trusting them); RSA keys under 1024 bits fail,
-    /// under 2048 bits warn before 2014-01-01 and fail from then on (the date the Baseline Requirements set 2048 as the minimum).
-    /// </summary>
-    public static AlgorithmDecision Standard(AlgorithmQuery query)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        string oid = query.SignatureAlgorithm.Oid;
-        if (oid == KnownOids.Md5WithRsa)
-        {
-            return new(RuleOutcome.Fail, "MD5 signatures are not acceptable");
-        }
-
-        bool sha1 = oid == KnownOids.Sha1WithRsa || oid == KnownOids.EcdsaSha1;
-        if (sha1)
-        {
-            return query.ReferenceTime >= new DateTimeOffset(2017, 1, 1, 0, 0, 0, TimeSpan.Zero)
-                ? new(RuleOutcome.Fail, "SHA-1 signatures are not acceptable at or after 2017-01-01")
-                : new(RuleOutcome.Warning, "SHA-1 signature accepted for data before 2017-01-01");
-        }
-
-        if (query.IssuerKey.KeyAlgorithm is KeyAlgorithm.Rsa or KeyAlgorithm.RsaPss)
-        {
-            int bits = query.IssuerKey.KeySizeBits;
-            if (bits > 0 && bits < 1024)
-            {
-                return new(RuleOutcome.Fail, $"RSA key of {bits} bits is too small");
-            }
-
-            if (bits > 0 && bits < 2048)
-            {
-                return query.ReferenceTime >= new DateTimeOffset(2014, 1, 1, 0, 0, 0, TimeSpan.Zero)
-                    ? new(RuleOutcome.Fail, $"RSA key of {bits} bits is below 2048 bits, not acceptable at or after 2014-01-01")
-                    : new(RuleOutcome.Warning, $"RSA key of {bits} bits accepted for data before 2014-01-01");
-            }
-        }
-
-        return AlgorithmDecision.Accept;
-    }
-}
-
 /// <summary>The server-authentication profile (opt-in): the extra rules WebPKI clients apply on top of RFC 5280. It is a layer of rules over the same validation, not a separate validator.</summary>
 public sealed class WebPkiProfile
 {
@@ -214,8 +148,12 @@ public sealed class ValidationOptions
     /// <summary>Which certificates need revocation data (default <see cref="RevocationScope.None"/>).</summary>
     public RevocationScope RevocationRequired { get; init; } = RevocationScope.None;
 
-    /// <summary>Whether missing revocation data for a required certificate makes the verdict <see cref="ValidationVerdict.Indeterminate"/> (default false: it is reported, the verdict stays valid).</summary>
-    public bool UnknownRevocationIsFatal { get; init; }
+    /// <summary>
+    /// Whether missing revocation data for a certificate that <see cref="RevocationRequired"/> covers makes the verdict <see cref="ValidationVerdict.Indeterminate"/>
+    /// (default true: when you ask for revocation checking, a path nothing has shown to be unrevoked is not reported valid). Set false to report the
+    /// <see cref="RevocationStatus.Unknown"/> status and keep the verdict valid.
+    /// </summary>
+    public bool UnknownRevocationIsFatal { get; init; } = true;
 
     /// <summary>How revocation after the reference time counts (default <see cref="RevocationModel.Current"/>).</summary>
     public RevocationModel RevocationModel { get; init; } = RevocationModel.Current;
@@ -223,8 +161,13 @@ public sealed class ValidationOptions
     /// <summary>OCSP responses are fresh for this long after thisUpdate when they carry no nextUpdate (default 7 days).</summary>
     public TimeSpan OcspMaxAge { get; init; } = TimeSpan.FromDays(7);
 
-    /// <summary>The check applied to every signature algorithm and key (default <see cref="AlgorithmChecks.Standard"/>).</summary>
-    public Func<AlgorithmQuery, AlgorithmDecision> AlgorithmCheck { get; init; } = AlgorithmChecks.Standard;
+    /// <summary>
+    /// The algorithm policy (default <see cref="CryptoPolicy.Standard"/>). Every certificate signature in the path is checked against it, hash and issuer key,
+    /// at <see cref="ReferenceTime"/>: a <see cref="PolicyVerdict.Rejected"/> decision fails the <see cref="ValidationRule.Algorithm"/> rule and a
+    /// <see cref="PolicyVerdict.Flagged"/> one is a warning. Each decision is listed in the certificate's results with its policy rule id.
+    /// <see cref="CryptoPolicy.Permissive"/> accepts every algorithm the library can verify.
+    /// </summary>
+    public CryptoPolicy Policy { get; init; } = CryptoPolicy.Standard;
 
     /// <summary>The purpose the target must be usable for, as an extended-key-usage OID (for example <see cref="KnownOids.ServerAuth"/>); null does not check. Intermediates that carry an extKeyUsage must allow it too.</summary>
     public string? RequiredExtendedKeyUsage { get; init; }

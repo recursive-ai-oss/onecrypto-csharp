@@ -118,7 +118,8 @@ internal sealed partial class Engine
         return string.Create(CultureInfo.InvariantCulture, $"no dNSName entry matches {name}");
     }
 
-    // RFC 9525 §6.3: a wildcard is only the whole left-most label and stands for exactly one label.
+    // RFC 9525 §6.3: a wildcard is only the whole left-most label and stands for exactly one label. That label may be an A-label host:
+    // only a wildcard INSIDE an IDN label ("xn--*", "b*cher") is forbidden, and such patterns never reach here because only a leading "*." is a wildcard.
     internal static bool DnsMatches(string pattern, string host)
     {
         pattern = pattern.TrimEnd('.');
@@ -144,6 +145,6 @@ internal sealed partial class Engine
             return false;
         }
 
-        return host[dot..] == suffix && !host.StartsWith("xn--", StringComparison.Ordinal);
+        return host[dot..] == suffix;
     }
 }

@@ -59,7 +59,7 @@ public enum ValidationRule
     /// <summary>The certificate is well formed in the ways RFC 5280 requires beyond ASN.1 (§4.1, §4.2).</summary>
     Structure,
 
-    /// <summary>The algorithm is acceptable under the caller's algorithm check.</summary>
+    /// <summary>The signature hash and the issuer key are acceptable under the caller's <see cref="Policy.CryptoPolicy"/>.</summary>
     Algorithm,
 
     /// <summary>The trust anchor itself (§6.1.1 (d), RFC 5937).</summary>
@@ -102,7 +102,8 @@ public enum RuleOutcome
 /// <param name="Outcome">The outcome.</param>
 /// <param name="Reason">A short reason in plain words.</param>
 /// <param name="Clause">The RFC clause, for example <c>RFC 5280 §6.1.3 (a)(2)</c>.</param>
-public sealed record RuleResult(ValidationRule Rule, RuleOutcome Outcome, string Reason, string Clause)
+/// <param name="PolicyRule">For an algorithm decision of the <see cref="Policy.CryptoPolicy"/>, its stable rule id (for example <c>hash.sha-1.rejected-from</c>); otherwise null.</param>
+public sealed record RuleResult(ValidationRule Rule, RuleOutcome Outcome, string Reason, string Clause, string? PolicyRule = null)
 {
     /// <inheritdoc/>
     public override string ToString() => $"{Rule}: {Outcome} ({Reason}; {Clause})";
@@ -280,7 +281,9 @@ public sealed class ValidationReport
     public PathReport? SelectedPath { get; }
 
     /// <summary>The rule that decided a failed or indeterminate verdict, or null for a valid one.</summary>
-    public RuleResult? DecidingRule => Verdict == ValidationVerdict.Valid ? null : SelectedPath?.DecidingResult ?? TargetResults.FirstOrDefault(r => r.Outcome is RuleOutcome.Fail or RuleOutcome.Indeterminate);
+    public RuleResult? DecidingRule => Verdict == ValidationVerdict.Valid ? null
+        : Verdict == ValidationVerdict.Indeterminate && TargetResults.FirstOrDefault(r => r.Rule == ValidationRule.Limit && r.Outcome == RuleOutcome.Indeterminate) is { } limit ? limit
+        : SelectedPath?.DecidingResult ?? TargetResults.FirstOrDefault(r => r.Outcome is RuleOutcome.Fail or RuleOutcome.Indeterminate);
 
     /// <summary>Every path the builder completed or abandoned, in the order tried (at most <see cref="ValidationLimits.MaxReportedPaths"/>).</summary>
     public ImmutableArray<PathReport> Paths { get; }

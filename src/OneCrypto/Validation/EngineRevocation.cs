@@ -11,7 +11,7 @@ internal sealed partial class Engine
 {
     private const RevocationReasons AllReasons = (RevocationReasons)0x1FE;
 
-    private readonly Dictionary<Certificate, string?> _signerCache = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<(Certificate Signer, TrustAnchor Anchor), string?> _signerCache = new();
 
     private sealed record Finding(RevocationStatus Status, string Reason, string Clause, string? Source, DateTimeOffset? Time = null, RevocationReason? RevReason = null);
 
@@ -342,6 +342,12 @@ internal sealed partial class Engine
             return false;
         }
 
+        if (CriticalEntryExtension(crl) is { } entryExt)
+        {
+            why = entryExt;
+            return false;
+        }
+
         if (_o.StrictStructure)
         {
             // RFC 5280 §5.2.3: cRLNumber is mandatory and never critical. §5.3: a serial number is listed once.
@@ -409,7 +415,10 @@ internal sealed partial class Engine
         var candidates = new List<Certificate>();
         candidates.AddRange(_pool.Select(p => p.Cert));
         candidates.AddRange(path);
-        candidates.AddRange(_o.TrustAnchors.Select(a => a.Certificate).Where(c => c is not null)!);
+        if (anchor.Certificate is not null)
+        {
+            candidates.Add(anchor.Certificate);
+        }
         foreach (Certificate c in candidates)
         {
             if (!c.Subject.Matches(crl.Issuer))
@@ -429,7 +438,7 @@ internal sealed partial class Engine
                 continue;
             }
 
-            string? bad = ValidateSigner(c);
+            string? bad = ValidateSigner(c, anchor);
             if (bad is null)
             {
                 signerKey = c.PublicKey;
@@ -443,20 +452,46 @@ internal sealed partial class Engine
         return false;
     }
 
-    private string? ValidateSigner(Certificate signer)
+    // RFC 5280 §5.3: a CRL with a critical entry extension the application cannot process must not be used for any certificate, listed or not.
+    private static string? CriticalEntryExtension(CertificateRevocationList crl)
     {
-        if (_signerCache.TryGetValue(signer, out string? cached))
+        try
+        {
+            foreach (RevokedCertificate entry in crl.Entries)
+            {
+                foreach (Extension e in entry.Extensions)
+                {
+                    if (e.Critical && e.Oid is not (KnownOids.CrlReason or KnownOids.InvalidityDate or KnownOids.CertificateIssuer))
+                    {
+                        return $"critical CRL entry extension {e.Oid} is not recognised";
+                    }
+                }
+            }
+        }
+        catch (X509ParseException)
+        {
+            return "a CRL entry is malformed";
+        }
+
+        return null;
+    }
+
+    // RFC 5280 §6.3.3 (f): the CRL signer's path must end at the trust anchor of the certificate's own path, so the sub-validation trusts that anchor alone.
+    // Otherwise any other trusted root could certify a key for the CA's name and vouch for the CA's certificates.
+    private string? ValidateSigner(Certificate signer, TrustAnchor anchor)
+    {
+        if (_signerCache.TryGetValue((signer, anchor), out string? cached))
         {
             return cached;
         }
 
-        _signerCache[signer] = "validation of this signer is in progress";
+        _signerCache[(signer, anchor)] = "validation of this signer is in progress";
         var sub = new ValidationOptions
         {
-            TrustAnchors = _o.TrustAnchors,
+            TrustAnchors = [anchor],
             Intermediates = _o.Intermediates,
             ReferenceTime = _o.ReferenceTime,
-            AlgorithmCheck = _o.AlgorithmCheck,
+            Policy = _o.Policy,
             ApplyAnchorNameConstraints = _o.ApplyAnchorNameConstraints,
             CheckAnchorValidity = _o.CheckAnchorValidity,
             StrictStructure = false,
@@ -470,7 +505,7 @@ internal sealed partial class Engine
         };
         ValidationReport rep = new Engine(sub, _depth + 1).Run(signer);
         string? result = rep.IsValid ? null : rep.DecidingRule?.Reason ?? "no path to a trust anchor";
-        _signerCache[signer] = result;
+        _signerCache[(signer, anchor)] = result;
         return result;
     }
 
@@ -505,7 +540,7 @@ internal sealed partial class Engine
                 continue;
             }
 
-            if (d.Extensions.Any(e => e.Critical && !KnownCrlExtensions.Contains(e.Oid)) || !VerifyCrl(d, signerKey).IsValid)
+            if (d.Extensions.Any(e => e.Critical && !KnownCrlExtensions.Contains(e.Oid)) || CriticalEntryExtension(d) is not null || !VerifyCrl(d, signerKey).IsValid)
             {
                 notes.Add("a delta CRL failed its checks");
                 continue;
@@ -536,13 +571,9 @@ internal sealed partial class Engine
             return new Finding(RevocationStatus.Good, "not listed", "RFC 5280 §6.3.3", src);
         }
 
+        // RFC 5280 §6.3.3 (i)-(j): a certificate found on the CRL takes the entry's status whatever its reason. The CRL's reason scope
+        // (onlySomeReasons) only decides which reasons the CRL speaks for when it does NOT list the certificate.
         RevocationReason? reason = entry.Reason;
-        if (reason is not null and not RevocationReason.Unspecified && (BitOf(reason) & coverage) == 0)
-        {
-            // The entry's reason is outside what this CRL is scoped to; it does not speak for the certificate (§6.3.3 (a)).
-            return new Finding(RevocationStatus.Good, "listed with a reason outside the CRL's scope", "RFC 5280 §6.3.3", src);
-        }
-
         DateTimeOffset when = entry.RevocationDate;
         if (_o.RevocationModel == RevocationModel.PastTime && when > _o.ReferenceTime && !CompromiseReason(reason))
         {

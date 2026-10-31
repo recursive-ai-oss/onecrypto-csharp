@@ -150,6 +150,7 @@ public sealed record CryptoPolicy
 {
     private static readonly DateTimeOffset s_2009 = new(2009, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset s_2011 = new(2011, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset s_2017 = new(2017, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset s_2014 = new(2014, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset s_2031 = new(2031, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -180,6 +181,39 @@ public sealed record CryptoPolicy
         MinEcBits = 256,
         LegacyCiphers = LegacyCipherMode.Reject,
         MinPbkdf2Iterations = 100_000,
+        FlagAsRejected = true,
+    };
+
+    /// <summary>
+    /// Accepts every algorithm and key size the library can verify, with no dated cutoffs: what RFC 5280 itself requires and nothing more. For conformance
+    /// suites and for reading old data; not a policy to trust new material under.
+    /// </summary>
+    public static CryptoPolicy Permissive { get; } = new()
+    {
+        Name = "Permissive",
+        HashRules = [],
+        MinRsaBitsNew = 0,
+        MinRsaBitsVerify = 0,
+        RsaWeakFrom = DateTimeOffset.MaxValue,
+        MinEcBits = 0,
+        LegacyCiphers = LegacyCipherMode.DecryptOnly,
+        MinPbkdf2Iterations = 1,
+    };
+
+    /// <summary>
+    /// What WebPKI clients accept in certificate signatures: SHA-1 rejected from 2017-01-01 (public CAs stopped issuing it in 2016 and browsers stopped trusting it
+    /// in 2017; CA/Browser Forum Baseline Requirements §7.1.3.2), MD5 as in <see cref="Standard"/>, and RSA keys under 2048 bits rejected from 2014-01-01 (Baseline
+    /// Requirements §6.1.5). The path validator applies it besides its own policy when the server-authentication profile is on.
+    /// </summary>
+    public static CryptoPolicy WebPki { get; } = new()
+    {
+        Name = "WebPki",
+        HashRules =
+        [
+            new("MD5", s_2009 - TimeSpan.FromDays(3650), s_2009, true, "RFC 6151 §2"),
+            new("SHA-1", null, s_2017, true, "CA/Browser Forum Baseline Requirements §7.1.3.2"),
+        ],
+        RsaWeakFrom = s_2014,
         FlagAsRejected = true,
     };
 

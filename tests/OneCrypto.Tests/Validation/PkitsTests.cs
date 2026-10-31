@@ -80,7 +80,7 @@ public class PkitsTests
                 Revocation = new RevocationData { Crls = crls },
                 RevocationRequired = RevocationScope.AllCertificates,
                 UnknownRevocationIsFatal = true,
-                AlgorithmCheck = AlgorithmChecks.Rfc5280Only,
+                Policy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Permissive,
                 InitialPolicySet = policies,
                 InitialExplicitPolicy = s.TryGetProperty("explicit", out _),
                 InitialPolicyMappingInhibit = s.TryGetProperty("inhibitMapping", out _),

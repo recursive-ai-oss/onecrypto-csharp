@@ -3,6 +3,8 @@ using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Tsp;
+using RecursiveAI.OneCrypto.Validation;
+using RecursiveAI.OneCrypto.X509;
 
 namespace OneCrypto.Fuzz;
 
@@ -14,6 +16,15 @@ namespace OneCrypto.Fuzz;
 internal static class CmsTarget
 {
     private static readonly RecursiveAI.OneCrypto.Wire.Cms.CmsLimits CmsLimits = new() { MaxContentBytes = 1 << 20 };
+
+    // The chain step of verification: the test kit's root is the only anchor, so the seeds reach the validator and mutations exercise its inputs.
+    private static readonly ValidationOptions Chain = new()
+    {
+        TrustAnchors = [TrustAnchor.FromCertificate(Certificate.Parse(TestPki.Shared.Root.RawData))],
+        ReferenceTime = DateTimeOffset.UtcNow,
+        RevocationRequired = RevocationScope.AllCertificates,
+        Limits = new ValidationLimits { MaxSearchSteps = 500, MaxSignatureChecks = 64, MaxPathsValidated = 8, MaxPolicyNodes = 500 },
+    };
 
     private static readonly byte[] FixedImprint = new byte[32];
 
@@ -70,6 +81,7 @@ internal static class CmsTarget
             _ = sd.Certificates.Count + sd.Crls.Count;
             _ = sd.Verify().IsValid;
             _ = sd.Verify(CmsFixture.Content).IsValid;
+            _ = sd.Verify(new SignedDataVerifyOptions { Chain = Chain }).IsValid;
             bool? sync = null;
             try
             {

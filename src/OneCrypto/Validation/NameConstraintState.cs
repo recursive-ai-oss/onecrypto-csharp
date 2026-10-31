@@ -104,6 +104,12 @@ internal sealed class NameConstraintState
                 }
 
                 return dn is null ? null : CheckDirectoryName(dn, "subjectAltName directoryName");
+            case GeneralNameKind.OtherName when n.OtherNameType == SmtpUtf8MailboxOid:
+                // RFC 8398 §6: rfc822Name constraints apply to an SmtpUTF8Mailbox exactly as to an rfc822Name.
+                string? mailbox = SmtpUtf8Mailbox(n.OtherNameValue.Span);
+                return mailbox is null
+                    ? "SmtpUTF8Mailbox in subjectAltName is malformed"
+                    : CheckSimple(GeneralNameKind.Rfc822Name, mailbox, "subjectAltName SmtpUTF8Mailbox");
             default:
                 // A form we cannot compare. A critical constraint of that form makes the answer unknowable, so it fails (§4.2.1.10).
                 foreach ((NameConstraints c, bool critical) in _sets)
@@ -115,6 +121,50 @@ internal sealed class NameConstraintState
                 }
 
                 return null;
+        }
+    }
+
+    private const string SmtpUtf8MailboxOid = "1.3.6.1.5.5.7.8.9";
+
+    // The otherName value is a UTF8String (RFC 8398 ¦3); anything else, or trailing bytes, is malformed.
+    private static string? SmtpUtf8Mailbox(ReadOnlySpan<byte> der)
+    {
+        if (der.Length < 2 || der[0] != 0x0C)
+        {
+            return null;
+        }
+
+        int len = der[1];
+        int off = 2;
+        if (len >= 0x80)
+        {
+            int nb = len & 0x7F;
+            if (nb is 0 or > 3 || der.Length < 2 + nb)
+            {
+                return null;
+            }
+
+            len = 0;
+            for (int i = 0; i < nb; i++)
+            {
+                len = (len << 8) | der[2 + i];
+            }
+
+            off = 2 + nb;
+        }
+
+        if (der.Length - off != len)
+        {
+            return null;
+        }
+
+        try
+        {
+            return new UTF8Encoding(false, true).GetString(der[off..]);
+        }
+        catch (ArgumentException)
+        {
+            return null;
         }
     }
 
@@ -329,6 +379,13 @@ internal sealed class NameConstraintState
         // RFC 5280 §4.2.1.10: "host.example.com" is within "example.com"; a constraint with a leading dot matches subdomains only.
         string c = constraint.ToLowerInvariant();
         string n = name.ToLowerInvariant();
+
+        // A fully qualified name ("example.test.") is the same host as "example.test" (RFC 3986 §3.2.2): one trailing dot must not leave the subtree.
+        if (n.Length > 1 && n[^1] == '.')
+        {
+            n = n[..^1];
+        }
+
         if (c.Length == 0)
         {
             return true;
@@ -388,6 +445,24 @@ internal sealed class NameConstraintState
         if (host is null || LooksLikeIp(host))
         {
             return false;
+        }
+
+        // RFC 3986 §2.1/§3.2.2: a reg-name may be percent-encoded and written fully qualified; compare the host it names.
+        if (host.Contains('%', StringComparison.Ordinal))
+        {
+            try
+            {
+                host = Uri.UnescapeDataString(host);
+            }
+            catch (UriFormatException)
+            {
+                return false;
+            }
+        }
+
+        if (host.Length > 1 && host[^1] == '.')
+        {
+            host = host[..^1];
         }
 
         // RFC 5280 §4.2.1.10: for a URI, "example.com" names that one host and ".example.com" the hosts below it.
