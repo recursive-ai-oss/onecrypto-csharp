@@ -23,7 +23,7 @@ public sealed class AesKeyWrap : IDisposable
     // RFC 3394 §2.2.3.1: the default initial value.
     private static ReadOnlySpan<byte> DefaultIv => [0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6];
 
-    private readonly Aes _aes;
+    private readonly AesBlockEngine _aes;
     private bool _disposed;
 
     /// <summary>The smallest key data that can be wrapped, in bytes (two 64-bit blocks, RFC 3394 §2).</summary>
@@ -42,16 +42,7 @@ public sealed class AesKeyWrap : IDisposable
     public AesKeyWrap(ReadOnlySpan<byte> keyEncryptionKey)
     {
         AeadChecks.ValidateKey(keyEncryptionKey);
-        _aes = Aes.Create();
-        try
-        {
-            _aes.SetKey(keyEncryptionKey);
-        }
-        catch
-        {
-            _aes.Dispose();
-            throw;
-        }
+        _aes = new AesBlockEngine(keyEncryptionKey, 2 * Half, needDecrypt: true, needCbcEncrypt: false);
     }
 
     /// <summary>Wraps key data (RFC 3394 §2.2.1).</summary>
@@ -80,7 +71,7 @@ public sealed class AesKeyWrap : IDisposable
         int n = keyData.Length / Half;
         DefaultIv.CopyTo(wrapped);
         keyData.CopyTo(wrapped[Half..]);
-        Span<byte> block = stackalloc byte[2 * Half]; // fixed 16-byte buffer
+        Span<byte> block = _aes.Buffer;
         // For j = 0..5, i = 1..n: B = AES(A | R[i]); A = MSB64(B) xor t; R[i] = LSB64(B), with t = n*j + i (RFC 3394 §2.2.1)
         for (int j = 0; j < 6; j++)
         {
@@ -89,7 +80,7 @@ public sealed class AesKeyWrap : IDisposable
                 Span<byte> r = wrapped.Slice(i * Half, Half);
                 wrapped[..Half].CopyTo(block);
                 r.CopyTo(block[Half..]);
-                _aes.EncryptEcb(block, block, PaddingMode.None);
+                _aes.Encrypt(2 * Half);
                 ulong t = (ulong)((n * j) + i);
                 BinaryPrimitives.WriteUInt64BigEndian(wrapped, BinaryPrimitives.ReadUInt64BigEndian(block) ^ t);
                 block[Half..].CopyTo(r);
@@ -136,8 +127,8 @@ public sealed class AesKeyWrap : IDisposable
         }
 
         int n = keyData.Length / Half;
-        Span<byte> a = stackalloc byte[Half]; // fixed buffers
-        Span<byte> block = stackalloc byte[2 * Half];
+        Span<byte> a = stackalloc byte[Half]; // fixed 8-byte buffer
+        Span<byte> block = _aes.Buffer;
         wrapped[..Half].CopyTo(a);
         wrapped[Half..].CopyTo(keyData);
         // For j = 5..0, i = n..1: B = AES^-1((A xor t) | R[i]); A = MSB64(B); R[i] = LSB64(B) (RFC 3394 §2.2.2)
@@ -149,7 +140,7 @@ public sealed class AesKeyWrap : IDisposable
                 ulong t = (ulong)((n * j) + i);
                 BinaryPrimitives.WriteUInt64BigEndian(block, BinaryPrimitives.ReadUInt64BigEndian(a) ^ t);
                 r.CopyTo(block[Half..]);
-                _aes.DecryptEcb(block, block, PaddingMode.None);
+                _aes.Decrypt(2 * Half);
                 block[..Half].CopyTo(a);
                 block[Half..].CopyTo(r);
             }

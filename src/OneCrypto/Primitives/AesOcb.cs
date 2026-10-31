@@ -32,7 +32,7 @@ public sealed class AesOcb : IDisposable
     private const int LDollar = 1;
     private const int LFirst = 2;
 
-    private readonly Aes _aes;
+    private readonly AesBlockEngine _aes;
     private readonly PinnedSecret _l;
     private readonly int _tagSize;
     private bool _disposed;
@@ -61,14 +61,16 @@ public sealed class AesOcb : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(tagSizeInBytes, MinTagSize);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(tagSizeInBytes, MaxTagSize);
         _tagSize = tagSizeInBytes;
-        _aes = Aes.Create();
+        _aes = new AesBlockEngine(key, (ChunkBlocks + 2) * BlockSize, needDecrypt: true, needCbcEncrypt: false);
         _l = new PinnedSecret((LFirst + LCount) * BlockSize);
         try
         {
-            _aes.SetKey(key);
             // RFC 7253 §4.2: L_* = ENCIPHER(K, zeros(128)); L_$ = double(L_*); L_0 = double(L_$); L_i = double(L_{i-1})
             Span<byte> table = _l.Span;
-            _aes.EncryptEcb(table[..BlockSize], table[..BlockSize], PaddingMode.None);
+            _aes.Buffer[..BlockSize].Clear();
+            _aes.Encrypt(BlockSize);
+            _aes.Buffer[..BlockSize].CopyTo(table);
+            CryptographicOperations.ZeroMemory(_aes.Buffer[..BlockSize]);
             for (int i = LDollar; i < LFirst + LCount; i++)
             {
                 Block128.Double(table.Slice((i - 1) * BlockSize, BlockSize), table.Slice(i * BlockSize, BlockSize));
@@ -181,8 +183,11 @@ public sealed class AesOcb : IDisposable
     }
 
     /// <summary>
-    /// RFC 7253 §4.2 and §4.3 in one pass. Writes the output and leaves the full 16-byte tag in <paramref name="fullTag"/>.
+    /// RFC 7253 §4.2 and §4.3. Writes the output and leaves the full 16-byte tag in <paramref name="fullTag"/>.
     /// All lengths are public, so branching on them is fine; the data and key-derived blocks are only ever XORed and passed to AES.
+    /// The platform is called as few times as the dependencies allow: once for the nonce block and the associated data together; then,
+    /// when encrypting, once for the data, the final partial block's pad and the tag together (all their inputs are known up front);
+    /// when decrypting, once for the data, then one each for the pad and the tag, which depend on the recovered plaintext.
     /// </summary>
     private void Process(
         bool encrypt,
@@ -193,183 +198,226 @@ public sealed class AesOcb : IDisposable
         ReadOnlySpan<byte> associatedData)
     {
         ReadOnlySpan<byte> table = _l.ReadOnlySpan;
-        Vector128<byte> hash = Hash(associatedData, table);
-        Vector128<byte> offset = InitialOffset(nonce);
+        Span<byte> buf = _aes.Buffer;
+        Vector128<byte> hash = HashAndInitialOffset(nonce, associatedData, table, out Vector128<byte> offset);
         Vector128<byte> checksum = Vector128<byte>.Zero;
+        Vector128<byte> lStar = Block128.Load(table[(LStar * BlockSize)..]);
+        Vector128<byte> lDollar = Block128.Load(table[(LDollar * BlockSize)..]);
 
         int fullBlocks = input.Length / BlockSize;
+        int rest = input.Length - (fullBlocks * BlockSize);
         uint blockIndex = 0;
         int done = 0;
         Span<byte> offsets = stackalloc byte[Math.Min(fullBlocks, ChunkBlocks) * BlockSize]; // at most 2 KiB
-        while (done < fullBlocks)
+        Span<byte> work = stackalloc byte[BlockSize]; // fixed 16-byte buffer
+        do
         {
             int n = Math.Min(fullBlocks - done, ChunkBlocks);
-            ReadOnlySpan<byte> inChunk = input.Slice(done * BlockSize, n * BlockSize);
-            Span<byte> outChunk = output.Slice(done * BlockSize, n * BlockSize);
+            bool last = done + n == fullBlocks;
             for (int j = 0; j < n; j++)
             {
                 // RFC 7253 §4.2: Offset_i = Offset_{i-1} xor L_{ntz(i)}; the block counter is public.
                 blockIndex++;
                 offset ^= Block128.Load(table[((LFirst + BitOperations.TrailingZeroCount(blockIndex)) * BlockSize)..]);
                 offset.CopyTo(offsets.Slice(j * BlockSize, BlockSize));
-                Vector128<byte> block = Block128.Load(inChunk[(j * BlockSize)..]);
+                Vector128<byte> block = Block128.Load(input[((done + j) * BlockSize)..]);
                 if (encrypt)
                 {
                     checksum ^= block;
                 }
 
-                (block ^ offset).CopyTo(outChunk.Slice(j * BlockSize, BlockSize));
+                (block ^ offset).CopyTo(buf.Slice(j * BlockSize, BlockSize));
             }
 
             if (encrypt)
             {
-                _aes.EncryptEcb(outChunk, outChunk, PaddingMode.None);
+                int count = n;
+                int padSlot = -1;
+                int tagSlot = -1;
+                if (last)
+                {
+                    if (rest > 0)
+                    {
+                        // Offset_* = Offset_m xor L_*; Pad = ENCIPHER(K, Offset_*)
+                        offset ^= lStar;
+                        offset.CopyTo(buf.Slice(count * BlockSize, BlockSize));
+                        padSlot = count++;
+                        // Checksum_* = Checksum_m xor (P_* || 1 || zeros): the one-bit is the 0x80 byte.
+                        work.Clear();
+                        input[(fullBlocks * BlockSize)..].CopyTo(work);
+                        work[rest] = 0x80;
+                        checksum ^= Block128.Load(work);
+                    }
+
+                    // Tag = ENCIPHER(K, Checksum xor Offset xor L_$) xor HASH(K, A)
+                    (checksum ^ offset ^ lDollar).CopyTo(buf.Slice(count * BlockSize, BlockSize));
+                    tagSlot = count++;
+                }
+
+                _aes.Encrypt(count * BlockSize);
+                for (int j = 0; j < n; j++)
+                {
+                    (Block128.Load(buf[(j * BlockSize)..]) ^ Block128.Load(offsets[(j * BlockSize)..])).CopyTo(output[((done + j) * BlockSize)..]);
+                }
+
+                if (padSlot >= 0)
+                {
+                    // C_* = P_* xor Pad[1..bitlen(P_*)]
+                    for (int i = 0; i < rest; i++)
+                    {
+                        output[(fullBlocks * BlockSize) + i] = (byte)(input[(fullBlocks * BlockSize) + i] ^ buf[(padSlot * BlockSize) + i]);
+                    }
+                }
+
+                if (tagSlot >= 0)
+                {
+                    (Block128.Load(buf[(tagSlot * BlockSize)..]) ^ hash).CopyTo(fullTag);
+                }
             }
             else
             {
-                _aes.DecryptEcb(outChunk, outChunk, PaddingMode.None);
-            }
-
-            for (int j = 0; j < n; j++)
-            {
-                Span<byte> slot = outChunk.Slice(j * BlockSize, BlockSize);
-                Vector128<byte> result = Block128.Load(slot) ^ Block128.Load(offsets[(j * BlockSize)..]);
-                result.CopyTo(slot);
-                if (!encrypt)
+                if (n > 0)
                 {
+                    _aes.Decrypt(n * BlockSize);
+                }
+
+                for (int j = 0; j < n; j++)
+                {
+                    Vector128<byte> result = Block128.Load(buf[(j * BlockSize)..]) ^ Block128.Load(offsets[(j * BlockSize)..]);
+                    result.CopyTo(output[((done + j) * BlockSize)..]);
                     checksum ^= result;
+                }
+
+                if (last)
+                {
+                    if (rest > 0)
+                    {
+                        offset ^= lStar;
+                        offset.CopyTo(buf[..BlockSize]);
+                        _aes.Encrypt(BlockSize);
+                        for (int i = 0; i < rest; i++)
+                        {
+                            output[(fullBlocks * BlockSize) + i] = (byte)(input[(fullBlocks * BlockSize) + i] ^ buf[i]);
+                        }
+
+                        work.Clear();
+                        output[(fullBlocks * BlockSize)..].CopyTo(work);
+                        work[rest] = 0x80;
+                        checksum ^= Block128.Load(work);
+                    }
+
+                    (checksum ^ offset ^ lDollar).CopyTo(buf[..BlockSize]);
+                    _aes.Encrypt(BlockSize);
+                    (Block128.Load(buf) ^ hash).CopyTo(fullTag);
                 }
             }
 
             done += n;
         }
+        while (done < fullBlocks);
 
+        CryptographicOperations.ZeroMemory(buf);
         CryptographicOperations.ZeroMemory(offsets);
-
-        int rest = input.Length - (fullBlocks * BlockSize);
-        Span<byte> work = stackalloc byte[BlockSize]; // fixed 16-byte buffer
-        if (rest > 0)
-        {
-            // RFC 7253 §4.2: Offset_* = Offset_m xor L_*; Pad = ENCIPHER(K, Offset_*); C_* = P_* xor Pad[1..bitlen(P_*)]
-            offset ^= Block128.Load(table[(LStar * BlockSize)..]);
-            offset.CopyTo(work);
-            _aes.EncryptEcb(work, work, PaddingMode.None);
-            ReadOnlySpan<byte> inTail = input[(fullBlocks * BlockSize)..];
-            Span<byte> outTail = output[(fullBlocks * BlockSize)..];
-            Span<byte> padded = stackalloc byte[BlockSize]; // fixed 16-byte buffer
-            if (encrypt)
-            {
-                // Checksum_* = Checksum_m xor (P_* || 1 || zeros): the one-bit is the 0x80 byte.
-                inTail.CopyTo(padded);
-                padded[rest] = 0x80;
-                checksum ^= Block128.Load(padded);
-            }
-
-            for (int i = 0; i < rest; i++)
-            {
-                outTail[i] = (byte)(inTail[i] ^ work[i]);
-            }
-
-            if (!encrypt)
-            {
-                padded.Clear();
-                outTail.CopyTo(padded);
-                padded[rest] = 0x80;
-                checksum ^= Block128.Load(padded);
-            }
-
-            CryptographicOperations.ZeroMemory(padded);
-        }
-
-        // Tag = ENCIPHER(K, Checksum xor Offset xor L_$) xor HASH(K, A)
-        (checksum ^ offset ^ Block128.Load(table[(LDollar * BlockSize)..])).CopyTo(work);
-        _aes.EncryptEcb(work, work, PaddingMode.None);
-        (Block128.Load(work) ^ hash).CopyTo(fullTag);
         CryptographicOperations.ZeroMemory(work);
     }
 
-    /// <summary>RFC 7253 §4.1 HASH(K, A): the associated data processed as offset-codebook blocks with their own offset chain.</summary>
-    private Vector128<byte> Hash(ReadOnlySpan<byte> associatedData, ReadOnlySpan<byte> table)
+    /// <summary>
+    /// RFC 7253 §4.1 HASH(K, A) (the associated data as offset-codebook blocks with their own offset chain) and §4.2 nonce setup,
+    /// in one platform call per batch: the nonce block rides with the first batch of associated data. Offset_0 is a 128-bit window, at a
+    /// bit position taken from the nonce, of the stretched output of that AES call. The nonce is public, so the window position may
+    /// select bytes.
+    /// </summary>
+    private Vector128<byte> HashAndInitialOffset(
+        ReadOnlySpan<byte> nonce,
+        ReadOnlySpan<byte> associatedData,
+        ReadOnlySpan<byte> table,
+        out Vector128<byte> initialOffset)
     {
+        Span<byte> buf = _aes.Buffer;
+        // Nonce = num2str(TAGLEN mod 128, 7) || zeros(120 - bitlen(N)) || 1 || N; bottom = str2num(Nonce[123..128])
+        buf[..BlockSize].Clear();
+        buf[0] = (byte)(((_tagSize * 8) % 128) << 1);
+        buf[BlockSize - 1 - nonce.Length] |= 1;
+        nonce.CopyTo(buf[(BlockSize - nonce.Length)..]);
+        int bottom = buf[BlockSize - 1] & 0x3F;
+        buf[BlockSize - 1] &= 0xC0;
+
+        int fullBlocks = associatedData.Length / BlockSize;
+        int rest = associatedData.Length - (fullBlocks * BlockSize);
+        int total = fullBlocks + (rest > 0 ? 1 : 0);
         Vector128<byte> sum = Vector128<byte>.Zero;
         Vector128<byte> offset = Vector128<byte>.Zero;
-        int fullBlocks = associatedData.Length / BlockSize;
+        Vector128<byte> lStar = Block128.Load(table[(LStar * BlockSize)..]);
         uint blockIndex = 0;
         int done = 0;
-        Span<byte> scratch = stackalloc byte[Math.Min(fullBlocks, ChunkBlocks) * BlockSize]; // at most 2 KiB
-        while (done < fullBlocks)
+        bool first = true;
+        initialOffset = default;
+        do
         {
-            int n = Math.Min(fullBlocks - done, ChunkBlocks);
-            ReadOnlySpan<byte> chunk = associatedData.Slice(done * BlockSize, n * BlockSize);
-            Span<byte> work = scratch[..(n * BlockSize)];
+            int n = Math.Min(total - done, ChunkBlocks);
+            int firstSlot = first ? 1 : 0; // slot 0 of the first call holds the nonce block
             for (int j = 0; j < n; j++)
             {
-                blockIndex++;
-                offset ^= Block128.Load(table[((LFirst + BitOperations.TrailingZeroCount(blockIndex)) * BlockSize)..]);
-                (Block128.Load(chunk[(j * BlockSize)..]) ^ offset).CopyTo(work.Slice(j * BlockSize, BlockSize));
+                int item = done + j;
+                Span<byte> slot = buf.Slice((firstSlot + j) * BlockSize, BlockSize);
+                if (item < fullBlocks)
+                {
+                    blockIndex++;
+                    offset ^= Block128.Load(table[((LFirst + BitOperations.TrailingZeroCount(blockIndex)) * BlockSize)..]);
+                    (Block128.Load(associatedData[(item * BlockSize)..]) ^ offset).CopyTo(slot);
+                }
+                else
+                {
+                    // A final partial block is padded with a one-bit and zeros and uses Offset_* (RFC 7253 §4.1).
+                    slot.Clear();
+                    associatedData[(fullBlocks * BlockSize)..].CopyTo(slot);
+                    slot[rest] = 0x80;
+                    offset ^= lStar;
+                    (Block128.Load(slot) ^ offset).CopyTo(slot);
+                }
             }
 
-            _aes.EncryptEcb(work, work, PaddingMode.None);
+            _aes.Encrypt((firstSlot + n) * BlockSize);
+            if (first)
+            {
+                initialOffset = StretchWindow(buf[..BlockSize], bottom);
+            }
+
             for (int j = 0; j < n; j++)
             {
-                sum ^= Block128.Load(work[(j * BlockSize)..]);
+                sum ^= Block128.Load(buf[((firstSlot + j) * BlockSize)..]);
             }
 
             done += n;
+            first = false;
         }
+        while (done < total);
 
-        CryptographicOperations.ZeroMemory(scratch);
-
-        int rest = associatedData.Length - (fullBlocks * BlockSize);
-        if (rest > 0)
-        {
-            Span<byte> last = stackalloc byte[BlockSize]; // fixed 16-byte buffer
-            associatedData[(fullBlocks * BlockSize)..].CopyTo(last);
-            last[rest] = 0x80;
-            offset ^= Block128.Load(table[(LStar * BlockSize)..]);
-            (Block128.Load(last) ^ offset).CopyTo(last);
-            _aes.EncryptEcb(last, last, PaddingMode.None);
-            sum ^= Block128.Load(last);
-            CryptographicOperations.ZeroMemory(last);
-        }
-
+        CryptographicOperations.ZeroMemory(buf);
         return sum;
     }
 
-    /// <summary>
-    /// RFC 7253 §4.2 nonce-dependent setup: Offset_0 is a 128-bit window, at a bit position taken from the nonce, of the stretched
-    /// output of one AES call. The nonce is public, so the window position may select bytes.
-    /// </summary>
-    private Vector128<byte> InitialOffset(ReadOnlySpan<byte> nonce)
+    /// <summary>Stretch = Ktop || (Ktop[1..64] xor Ktop[9..72]); Offset_0 = Stretch[1+bottom..128+bottom] (RFC 7253 §4.2).</summary>
+    private static Vector128<byte> StretchWindow(ReadOnlySpan<byte> ktop, int bottom)
     {
-        Span<byte> block = stackalloc byte[BlockSize]; // fixed 16-byte buffer
-        block.Clear();
-        // Nonce = num2str(TAGLEN mod 128, 7) || zeros(120 - bitlen(N)) || 1 || N
-        block[0] = (byte)(((_tagSize * 8) % 128) << 1);
-        block[BlockSize - 1 - nonce.Length] |= 1;
-        nonce.CopyTo(block[(BlockSize - nonce.Length)..]);
-        int bottom = block[BlockSize - 1] & 0x3F;
-        block[BlockSize - 1] &= 0xC0;
-        _aes.EncryptEcb(block, block, PaddingMode.None); // Ktop
-
-        // Stretch = Ktop || (Ktop[1..64] xor Ktop[9..72]); Offset_0 = Stretch[1+bottom..128+bottom]
         Span<byte> stretch = stackalloc byte[24]; // fixed 24-byte buffer
-        block.CopyTo(stretch);
+        ktop.CopyTo(stretch);
         for (int i = 0; i < 8; i++)
         {
-            stretch[16 + i] = (byte)(block[i] ^ block[i + 1]);
+            stretch[16 + i] = (byte)(ktop[i] ^ ktop[i + 1]);
         }
 
         int byteShift = bottom >> 3;
         int bitShift = bottom & 7;
+        Span<byte> window = stackalloc byte[BlockSize]; // fixed 16-byte buffer
         for (int i = 0; i < BlockSize; i++)
         {
-            block[i] = (byte)((stretch[i + byteShift] << bitShift) | (stretch[i + byteShift + 1] >> (8 - bitShift)));
+            window[i] = (byte)((stretch[i + byteShift] << bitShift) | (stretch[i + byteShift + 1] >> (8 - bitShift)));
         }
 
-        Vector128<byte> offset = Block128.Load(block);
-        CryptographicOperations.ZeroMemory(block);
+        Vector128<byte> result = Block128.Load(window);
         CryptographicOperations.ZeroMemory(stretch);
-        return offset;
+        CryptographicOperations.ZeroMemory(window);
+        return result;
     }
 }

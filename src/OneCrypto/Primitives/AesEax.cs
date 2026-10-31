@@ -16,7 +16,7 @@ namespace RecursiveAI.OneCrypto.Primitives;
 /// before it produces any plaintext. If the check fails, the destination is zeroed and <see cref="AuthenticationTagMismatchException"/>
 /// is thrown.</para>
 /// <para>Buffers may be the same span (in place) or must not overlap. An instance is not safe for concurrent use. The key-dependent
-/// subkeys are held in a pinned buffer that <see cref="Dispose"/> zeroes; the platform AES key stays inside its own handle.</para>
+/// state (CMAC subkeys and precomputed blocks) is held in a pinned buffer that <see cref="Dispose"/> zeroes; the platform AES key stays inside its own handle.</para>
 /// </remarks>
 public sealed class AesEax : IDisposable
 {
@@ -25,8 +25,20 @@ public sealed class AesEax : IDisposable
     // Bytes handed to the platform per call: a multiple of 16, small enough for the stack.
     private const int ChunkBytes = 2048;
 
-    private readonly Aes _aes;
-    private readonly PinnedSecret _subkeys; // K1 = 2L, K2 = 4L (EAX paper Figure 1, line 40), where L = E_K(0^n)
+    // Layout of the key-dependent state, in 16-byte blocks:
+    //   K1 = 2L, K2 = 4L (EAX paper Figure 1, line 40), where L = E_K(0^n);
+    //   X_t = E_K([t]_n) for t = 0, 1, 2: the CMAC state after the tweak block, the same for every message;
+    //   Y_t = E_K([t]_n xor K1): the whole OMAC^t of the empty message, whose only block is the tweak block;
+    //   the chaining value the CBC transform currently holds (its last output block).
+    private const int K1 = 0;
+    private const int K2 = 1;
+    private const int X0 = 2;
+    private const int Y0 = 5;
+    private const int Chain = 8;
+    private const int StateBlocks = 9;
+
+    private readonly AesBlockEngine _aes;
+    private readonly PinnedSecret _state;
     private readonly int _tagSize;
     private bool _disposed;
 
@@ -48,15 +60,34 @@ public sealed class AesEax : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(tagSizeInBytes, MinTagSize);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(tagSizeInBytes, MaxTagSize);
         _tagSize = tagSizeInBytes;
-        _aes = Aes.Create();
-        _subkeys = new PinnedSecret(2 * BlockSize);
+        _aes = new AesBlockEngine(key, ChunkBytes, needDecrypt: false, needCbcEncrypt: true);
+        _state = new PinnedSecret(StateBlocks * BlockSize);
         try
         {
-            _aes.SetKey(key);
-            Span<byte> subkeys = _subkeys.Span;
-            _aes.EncryptEcb(subkeys[..BlockSize], subkeys[..BlockSize], PaddingMode.None);
-            Block128.Double(subkeys[..BlockSize], subkeys[..BlockSize]); // 2L
-            Block128.Double(subkeys[..BlockSize], subkeys[BlockSize..]); // 4L
+            Span<byte> state = _state.Span;
+            Span<byte> buf = _aes.Buffer;
+            // First call: L = E(0) and the three tweak blocks E([t]). The Y values need K1, which needs L, so they take a second call.
+            buf[..BlockSize].Clear();
+            for (int t = 0; t < 3; t++)
+            {
+                buf[((1 + t) * BlockSize) + BlockSize - 1] = (byte)t; // [t]_n: n-bit big-endian t
+            }
+
+            _aes.Encrypt(4 * BlockSize);
+            Block128.Double(buf[..BlockSize], state.Slice(K1 * BlockSize, BlockSize)); // 2L
+            Block128.Double(state.Slice(K1 * BlockSize, BlockSize), state.Slice(K2 * BlockSize, BlockSize)); // 4L
+            buf.Slice(BlockSize, 3 * BlockSize).CopyTo(state[(X0 * BlockSize)..]);
+            buf.Clear();
+            Vector128<byte> k1 = Block128.Load(state[(K1 * BlockSize)..]);
+            for (int t = 0; t < 3; t++)
+            {
+                buf[(t * BlockSize) + BlockSize - 1] = (byte)t;
+                (Block128.Load(buf[(t * BlockSize)..]) ^ k1).CopyTo(buf.Slice(t * BlockSize, BlockSize));
+            }
+
+            _aes.Encrypt(3 * BlockSize);
+            buf[..(3 * BlockSize)].CopyTo(state[(Y0 * BlockSize)..]);
+            CryptographicOperations.ZeroMemory(buf);
         }
         catch
         {
@@ -161,11 +192,11 @@ public sealed class AesEax : IDisposable
         return valid;
     }
 
-    /// <summary>Zeroes the subkeys and releases the platform key. Safe to call more than once.</summary>
+    /// <summary>Zeroes the key-dependent state and releases the platform key. Safe to call more than once.</summary>
     public void Dispose()
     {
         _disposed = true;
-        _subkeys.Dispose();
+        _state.Dispose();
         _aes.Dispose();
     }
 
@@ -188,72 +219,72 @@ public sealed class AesEax : IDisposable
     }
 
     /// <summary>
-    /// OMAC^t(M) = OMAC([t]_n || M) (EAX paper Figure 1). The block [t]_n and the message form one stream of whole blocks and a last
-    /// block of 1 to 16 bytes; that last block is XORed with K1 (full) or padded with 10* and XORed with K2 (short), and the result
-    /// is the last CBC output. The stream is assembled in a stack buffer and chained through the platform's CBC, one call per chunk.
+    /// OMAC^t(M) = OMAC([t]_n || M) (EAX paper Figure 1). The state after the tweak block is the precomputed X_t, so the CBC chain
+    /// starts from it over the blocks of M: the last block is XORed with K1 if it is full, or padded with 10* and XORed with K2 if
+    /// it is short, and the result is the last CBC output. The empty message is the precomputed Y_t. The platform's CBC transform
+    /// keeps its chaining value between calls, so the first block is XORed with X_t and with the value the transform holds, which
+    /// makes its effective input M_1 xor X_t. Chunks of up to 2 KiB are chained through the platform in one call each.
     /// </summary>
-    private void Omac(byte tweak, ReadOnlySpan<byte> message, Span<byte> result)
+    private void Omac(int tweak, ReadOnlySpan<byte> message, Span<byte> result)
     {
-        ReadOnlySpan<byte> subkeys = _subkeys.ReadOnlySpan;
-        long total = BlockSize + (long)message.Length;
-        int scratchLength = (int)Math.Min(ChunkBytes, ((total + BlockSize - 1) / BlockSize) * BlockSize);
-        Span<byte> scratch = stackalloc byte[scratchLength]; // at most 2 KiB
-        Span<byte> iv = stackalloc byte[BlockSize]; // fixed 16-byte buffer
-        iv.Clear();
+        Span<byte> state = _state.Span;
+        if (message.IsEmpty)
+        {
+            state.Slice((Y0 + tweak) * BlockSize, BlockSize).CopyTo(result);
+            return;
+        }
 
-        int consumed = 0; // bytes of `message` placed so far
+        Span<byte> buf = _aes.Buffer;
+        Vector128<byte> k1 = Block128.Load(state[(K1 * BlockSize)..]);
+        Vector128<byte> k2 = Block128.Load(state[(K2 * BlockSize)..]);
+        Vector128<byte> startMask = Block128.Load(state[((X0 + tweak) * BlockSize)..]) ^ Block128.Load(state[(Chain * BlockSize)..]);
+        int consumed = 0;
         bool first = true;
+        int filled;
         while (true)
         {
-            int filled = 0;
-            if (first)
-            {
-                scratch[..BlockSize].Clear();
-                scratch[BlockSize - 1] = tweak;
-                filled = BlockSize;
-                first = false;
-            }
-
-            int take = Math.Min(message.Length - consumed, scratch.Length - filled);
-            message.Slice(consumed, take).CopyTo(scratch[filled..]);
-            filled += take;
+            int take = Math.Min(message.Length - consumed, buf.Length);
+            message.Slice(consumed, take).CopyTo(buf);
             consumed += take;
-
+            filled = take;
             bool last = consumed == message.Length;
             if (last)
             {
-                // The last block is full when the stream length is a non-zero multiple of 16.
                 int tail = filled % BlockSize;
                 if (tail == 0)
                 {
-                    XorInto(scratch.Slice(filled - BlockSize, BlockSize), subkeys[..BlockSize]); // K1
+                    XorInto(buf.Slice(filled - BlockSize, BlockSize), k1); // the last block is full
                 }
                 else
                 {
-                    scratch[filled] = 0x80;
-                    scratch.Slice(filled + 1, BlockSize - tail - 1).Clear();
+                    buf[filled] = 0x80;
+                    buf.Slice(filled + 1, BlockSize - tail - 1).Clear();
                     filled += BlockSize - tail;
-                    XorInto(scratch.Slice(filled - BlockSize, BlockSize), subkeys[BlockSize..]); // K2
+                    XorInto(buf.Slice(filled - BlockSize, BlockSize), k2);
                 }
             }
 
-            Span<byte> chunk = scratch[..filled];
-            _aes.EncryptCbc(chunk, iv, chunk, PaddingMode.None);
-            chunk.Slice(filled - BlockSize, BlockSize).CopyTo(iv);
+            if (first)
+            {
+                XorInto(buf[..BlockSize], startMask);
+                first = false;
+            }
+
+            _aes.CbcEncrypt(filled);
+            buf.Slice(filled - BlockSize, BlockSize).CopyTo(state[(Chain * BlockSize)..]);
             if (last)
             {
                 break;
             }
         }
 
-        iv.CopyTo(result);
-        CryptographicOperations.ZeroMemory(scratch);
-        CryptographicOperations.ZeroMemory(iv);
+        state.Slice(Chain * BlockSize, BlockSize).CopyTo(result);
+        CryptographicOperations.ZeroMemory(buf);
     }
 
     /// <summary>
     /// CTR mode with a 128-bit big-endian counter starting at <paramref name="start"/> (EAX paper Figure 1, CTR): counter blocks are
-    /// built in a stack buffer, encrypted with the platform's ECB, and XORed over the data.
+    /// built in the engine buffer, encrypted with the platform's ECB, and XORed over the data.
     /// </summary>
     private void Ctr(ReadOnlySpan<byte> start, ReadOnlySpan<byte> input, Span<byte> output)
     {
@@ -264,40 +295,39 @@ public sealed class AesEax : IDisposable
 
         Span<byte> counter = stackalloc byte[BlockSize]; // fixed 16-byte buffer
         start.CopyTo(counter);
-        Span<byte> stream = stackalloc byte[Math.Min(ChunkBytes, ((input.Length + BlockSize - 1) / BlockSize) * BlockSize)]; // at most 2 KiB
+        Span<byte> buf = _aes.Buffer;
         int done = 0;
         while (done < input.Length)
         {
-            int take = Math.Min(input.Length - done, stream.Length);
+            int take = Math.Min(input.Length - done, buf.Length);
             int blocks = (take + BlockSize - 1) / BlockSize;
             for (int b = 0; b < blocks; b++)
             {
-                counter.CopyTo(stream.Slice(b * BlockSize, BlockSize));
+                counter.CopyTo(buf.Slice(b * BlockSize, BlockSize));
                 Block128.Increment(counter);
             }
 
-            Span<byte> keystream = stream[..(blocks * BlockSize)];
-            _aes.EncryptEcb(keystream, keystream, PaddingMode.None);
+            _aes.Encrypt(blocks * BlockSize);
             int whole = take / BlockSize * BlockSize;
             for (int i = 0; i < whole; i += BlockSize)
             {
-                (Block128.Load(input[(done + i)..]) ^ Block128.Load(keystream[i..])).CopyTo(output[(done + i)..]);
+                (Block128.Load(input[(done + i)..]) ^ Block128.Load(buf[i..])).CopyTo(output[(done + i)..]);
             }
 
             for (int i = whole; i < take; i++)
             {
-                output[done + i] = (byte)(input[done + i] ^ keystream[i]);
+                output[done + i] = (byte)(input[done + i] ^ buf[i]);
             }
 
             done += take;
         }
 
-        CryptographicOperations.ZeroMemory(stream);
+        CryptographicOperations.ZeroMemory(buf);
         CryptographicOperations.ZeroMemory(counter);
     }
 
-    private static void XorInto(Span<byte> block, ReadOnlySpan<byte> key)
+    private static void XorInto(Span<byte> block, Vector128<byte> mask)
     {
-        (Block128.Load(block) ^ Block128.Load(key)).CopyTo(block);
+        (Block128.Load(block) ^ mask).CopyTo(block);
     }
 }

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace RecursiveAI.OneCrypto.Internal;
@@ -19,6 +20,7 @@ internal static class Block128
     /// Doubling in GF(2^128) with the polynomial x^128 + x^7 + x^2 + x + 1 (RFC 7253 §2 <c>double</c>; the same operation scales the
     /// CMAC subkeys). The block is secret-derived, so the reduction is selected with a mask, never a branch.
     /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)] // kept out of line so the generated code can be inspected on its own
     public static void Double(ReadOnlySpan<byte> source, Span<byte> destination)
     {
         ulong hi = BinaryPrimitives.ReadUInt64BigEndian(source);
@@ -32,6 +34,7 @@ internal static class Block128
     /// Adds one to a 128-bit big-endian counter, wrapping at 2^128 (the counter of EAX's CTR mode, EAX paper §2 <c>X+t</c>).
     /// The counter is secret-derived, so the carry is computed arithmetically.
     /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)] // kept out of line so the generated code can be inspected on its own
     public static void Increment(Span<byte> counter)
     {
         ulong hi = BinaryPrimitives.ReadUInt64BigEndian(counter);
