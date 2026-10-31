@@ -11,7 +11,7 @@ byte[] signerInfo = DerWriter.Sequence(
     DerWriter.SignedInteger(1),
     DerWriter.Sequence(DerWriter.Sequence(DerWriter.Set(DerWriter.Sequence(DerWriter.Oid("2.5.4.3"), DerWriter.Tlv(0x0C, "smoke"u8.ToArray())))), DerWriter.SignedInteger(7)),
     sha256,
-    DerWriter.Sequence(DerWriter.Oid(KnownKnownOids.Sha256WithRsa), DerWriter.Null()),
+    DerWriter.Sequence(DerWriter.Oid(KnownOids.Sha256WithRsa), DerWriter.Null()),
     DerWriter.OctetString(new byte[256]));
 byte[] signedData = DerWriter.Sequence(
     DerWriter.SignedInteger(1),
