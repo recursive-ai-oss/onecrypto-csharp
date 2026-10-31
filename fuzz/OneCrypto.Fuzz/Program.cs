@@ -33,6 +33,8 @@ internal static class Program
         ["verify"] = VerifyTarget.Run,
         ["validate"] = ValidateTarget.Run,
         ["keys"] = KeysTarget.Run,
+        ["tsa"] = IssuerTarget.RunTsa,
+        ["ocspresp"] = IssuerTarget.RunOcsp,
         ["load"] = LoadTarget.Run,
     };
 
@@ -50,6 +52,8 @@ internal static class Program
         "verify" => VerifyTarget.Seeds(),
         "validate" => ValidateTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
+        "tsa" => IssuerTarget.SeedsTsa(),
+        "ocspresp" => IssuerTarget.SeedsOcsp(),
         "load" => LoadTarget.Seeds(),
         _ => [],
     };
