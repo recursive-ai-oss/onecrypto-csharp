@@ -17,6 +17,8 @@
     <!-- Builds signatures with a test CA, signer and time-stamp authority, so the smoke can verify a real signature. -->
     <Compile Include="../OneCrypto.Tests/Support/SigKit.cs" Link="Support/SigKit.cs" />
     <Compile Include="../OneCrypto.Tests/Support/CmsFixture.cs" Link="Support/CmsFixture.cs" />
+    <Compile Include="../OneCrypto.Tests/Support/CmsKeys.cs" Link="Support/CmsKeys.cs" />
+    <Compile Include="../OneCrypto.Tests/Support/RecipientKit.cs" Link="Support/RecipientKit.cs" />
   </ItemGroup>
 
   <ItemGroup>

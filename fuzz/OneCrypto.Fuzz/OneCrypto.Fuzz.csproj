@@ -16,6 +16,8 @@
     <!-- The CMS target signs its starting files with the test kit that the unit tests use. -->
     <Compile Include="../../tests/OneCrypto.Tests/Support/SigKit.cs" Link="Support/SigKit.cs" />
     <Compile Include="../../tests/OneCrypto.Tests/Support/CmsFixture.cs" Link="Support/CmsFixture.cs" />
+    <Compile Include="../../tests/OneCrypto.Tests/Support/CmsKeys.cs" Link="Support/CmsKeys.cs" />
+    <Compile Include="../../tests/OneCrypto.Tests/Support/RecipientKit.cs" Link="Support/RecipientKit.cs" />
   </ItemGroup>
 
   <ItemGroup>
