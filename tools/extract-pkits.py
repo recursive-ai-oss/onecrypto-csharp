@@ -110,9 +110,9 @@ for (i, tid, title), (j, _, _) in zip(blocks, blocks[1:]):
             runs.append({"settings": settings_of(t), "expected": exp, "note": t[:160]})
     if not runs:
         flat = " ".join(joined.split())
-        pm = re.search(r"Procedure:(.*?)Expected Result:(.*?)Certification Path", flat)
-        proc = pm.group(1) if pm else ""
-        exp_t = pm.group(2) if pm else flat
+        section = re.search(r"Procedure:(.*?)Expected Result:(.*?)Certification Path", flat)
+        proc = section.group(1) if section else ""
+        exp_t = section.group(2) if section else flat
         if "The authorities-constrained" in exp_t[:60] or "authorities-constrained" in exp_t[:80]:
             # Stated as conditions on the inputs. A rejection counts only when no condition on the user's initial-policy-set
             # or explicit-policy setting is attached to it, because the runs here use the default settings unless a numbered list says otherwise.

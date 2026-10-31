@@ -332,15 +332,15 @@ internal sealed partial class Engine
     private void PrepareForNext(CertView v, CertResults r, int i, PolicyTree tree, ref int policyMapping, ref int explicitPolicy, ref int inhibitAny, ref int maxPathLength, NameConstraintState nc, bool policyOverflow)
     {
         // 6.1.4 (a), (b)
-        if (v.Mappings is { } pm)
+        if (v.Mappings is { } policyMappings)
         {
-            if (pm.Mappings.Any(m => m.IssuerDomainPolicy == KnownOids.AnyPolicy || m.SubjectDomainPolicy == KnownOids.AnyPolicy))
+            if (policyMappings.Mappings.Any(m => m.IssuerDomainPolicy == KnownOids.AnyPolicy || m.SubjectDomainPolicy == KnownOids.AnyPolicy))
             {
                 r.Fail(ValidationRule.Policy, "a policy mapping involves anyPolicy", "RFC 5280 §4.2.1.5");
             }
             else if (!policyOverflow)
             {
-                tree.ApplyMappings(i, pm, policyMapping > 0);
+                tree.ApplyMappings(i, policyMappings, policyMapping > 0);
                 if (tree.Overflowed)
                 {
                     r.Fail(ValidationRule.Policy, $"the policy tree grew beyond {_l.MaxPolicyNodes} nodes; processing stopped", "RFC 5280 §6.1.4 (b); bounded against policy-tree explosion");
