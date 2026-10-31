@@ -13,6 +13,7 @@ internal static class SecretMod
     /// <paramref name="result"/>, which must be <paramref name="modulus"/>.Length bytes. The loop count depends only on the lengths,
     /// which are public; each step is a shift, one subtraction and a mask select.
     /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     public static void Reduce(ReadOnlySpan<byte> value, ReadOnlySpan<byte> modulus, Span<byte> result)
     {
         int limbs = ((modulus.Length + 7) / 8) + 1; // one spare limb so 2r+1 never overflows
