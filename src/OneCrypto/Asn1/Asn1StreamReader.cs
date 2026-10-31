@@ -59,7 +59,7 @@ public readonly struct Asn1Token
 /// parent, a missing end-of-contents or a truncated stream fails at the point it is found. The reader owns a read buffer of 16 KiB
 /// and never reads past what the document needs by more than that.
 /// </remarks>
-public sealed class Asn1StreamReader
+public sealed partial class Asn1StreamReader
 {
     private const int BufferSize = 16 * 1024;
 
@@ -381,35 +381,80 @@ public sealed class Asn1StreamReader
 
                 if (!_r.TryReadToken(out Asn1Token t))
                 {
-                    throw (_r.LastFailure.Error == Asn1Error.None ? new Asn1Failure(Asn1Error.Truncated, (int)Math.Min(_r._consumed, int.MaxValue)) : _r.LastFailure).ToException();
+                    throw MissingToken();
                 }
 
-                switch (t.Kind)
+                if (Step(t))
                 {
-                    case Asn1TokenKind.EndConstructed:
-                        if (_r._frames.Count < _baseDepth)
-                        {
-                            _done = true;
-                            return 0;
-                        }
-
-                        break;
-                    case Asn1TokenKind.StartConstructed:
-                        if (t.Tag != new Asn1Tag(Asn1Tags.OctetString) || _r._frames.Count - _baseDepth >= _r._limits.MaxStringNesting)
-                        {
-                            throw new Asn1ParseException(t.Tag != new Asn1Tag(Asn1Tags.OctetString) ? Asn1Error.UnexpectedTag : Asn1Error.DepthExceeded, (int)Math.Min(t.Offset, int.MaxValue));
-                        }
-
-                        break;
-                    default:
-                        if (t.Tag != new Asn1Tag(Asn1Tags.OctetString))
-                        {
-                            throw new Asn1ParseException(Asn1Error.UnexpectedTag, (int)Math.Min(t.Offset, int.MaxValue));
-                        }
-
-                        break;
+                    return 0;
                 }
             }
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_done || buffer.IsEmpty)
+            {
+                return 0;
+            }
+
+            while (true)
+            {
+                int n = await _r.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (n > 0)
+                {
+                    return n;
+                }
+
+                (bool ok, Asn1Token t) = await _r.TryReadTokenAsync(cancellationToken).ConfigureAwait(false);
+                if (!ok)
+                {
+                    throw MissingToken();
+                }
+
+                if (Step(t))
+                {
+                    return 0;
+                }
+            }
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        private Asn1ParseException MissingToken() =>
+            (_r.LastFailure.Error == Asn1Error.None ? new Asn1Failure(Asn1Error.Truncated, (int)Math.Min(_r._consumed, int.MaxValue)) : _r.LastFailure).ToException();
+
+        /// <summary>Handles the token that follows a segment; true when the string has ended.</summary>
+        private bool Step(Asn1Token t)
+        {
+            switch (t.Kind)
+            {
+                case Asn1TokenKind.EndConstructed:
+                    if (_r._frames.Count < _baseDepth)
+                    {
+                        _done = true;
+                        return true;
+                    }
+
+                    break;
+                case Asn1TokenKind.StartConstructed:
+                    if (t.Tag != new Asn1Tag(Asn1Tags.OctetString) || _r._frames.Count - _baseDepth >= _r._limits.MaxStringNesting)
+                    {
+                        throw new Asn1ParseException(t.Tag != new Asn1Tag(Asn1Tags.OctetString) ? Asn1Error.UnexpectedTag : Asn1Error.DepthExceeded, (int)Math.Min(t.Offset, int.MaxValue));
+                    }
+
+                    break;
+                default:
+                    if (t.Tag != new Asn1Tag(Asn1Tags.OctetString))
+                    {
+                        throw new Asn1ParseException(Asn1Error.UnexpectedTag, (int)Math.Min(t.Offset, int.MaxValue));
+                    }
+
+                    break;
+            }
+
+            return false;
         }
 
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

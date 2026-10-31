@@ -74,3 +74,7 @@ The one-shot builders still take an `X509Signer`: `X509Signer.FromKey(ISigningKe
 ## Not here
 
 PKCS #11, gpg-agent, ssh-agent, CSC and the KMS adapters implement these same interfaces in their own packages. The library has no key store and no agent of its own.
+
+## Use in CMS and X.509
+
+CMS signers (`CmsSignerSpec.Key`), CMS recipients (`CmsDecryptionKey.FromKey`) and `X509Signer.FromKey` all sit on these interfaces. Two-phase CMS signing uses `PreparedSignature` with purpose `cms.signerinfo` (one per signer, inside `PreparedSignedData`, see `cms.md`); the OCSP request and response builders have the same `Prepare` / `Complete` pair as the certificate, request and list builders (purposes `ocsp.request`, `ocsp.response`; the certificates sent along are given again at completion).

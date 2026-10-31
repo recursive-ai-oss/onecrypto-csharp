@@ -76,6 +76,63 @@ if (!SignedData.VerifyStream(new MemoryStream(signedStream.ToArray())).IsValid)
     return 1;
 }
 
+// The asynchronous streaming twins, two-phase CMS signing, signing through a key interface, and the policy at the decision points.
+var asyncSigned = new MemoryStream();
+await SignedData.SignStreamAsync(new MemoryStream(secret), asyncSigned, [ec.Spec()]);
+var asyncSeen = new MemoryStream();
+using (CmsDecryptionKey asyncKey = rsaRecipient.Key())
+{
+    var asyncEnc = new MemoryStream();
+    await EnvelopedData.EncryptStreamAsync(new MemoryStream(secret), asyncEnc, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]);
+    var asyncPlain = new MemoryStream();
+    await EnvelopedData.DecryptStreamAsync(new MemoryStream(asyncEnc.ToArray()), asyncPlain, asyncKey);
+    var asyncAuth = new MemoryStream();
+    await AuthEnvelopedData.EncryptStreamAsync(new MemoryStream(secret), asyncAuth, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]);
+    var asyncAuthPlain = new MemoryStream();
+    await AuthEnvelopedData.DecryptStreamAsync(new MemoryStream(asyncAuth.ToArray()), asyncAuthPlain, asyncKey);
+    if (!(await SignedData.VerifyStreamAsync(new MemoryStream(asyncSigned.ToArray()), asyncSeen)).IsValid || !asyncSeen.ToArray().AsSpan().SequenceEqual(secret)
+        || !asyncPlain.ToArray().AsSpan().SequenceEqual(secret) || !asyncAuthPlain.ToArray().AsSpan().SequenceEqual(secret))
+    {
+        Console.Error.WriteLine("an async streaming twin failed");
+        return 1;
+    }
+}
+
+var asyncCompressed = new MemoryStream();
+await CompressedData.DecompressStreamAsync(new MemoryStream(CompressedData.Create(secret).Encoded.ToArray()), asyncCompressed);
+if (!asyncCompressed.ToArray().AsSpan().SequenceEqual(secret))
+{
+    Console.Error.WriteLine("streaming decompression failed");
+    return 1;
+}
+
+PreparedSignedData cmsPrepared = SignedData.Prepare(secret, [new CmsSignerSpec { Certificate = ec.Certificate, SignatureSpec = ec.Signer.Spec }], CmsKeys.SigningTime);
+PreparedSignedData restoredState = PreparedSignedData.Decode(cmsPrepared.Encode());
+byte[] twoPhaseSignature = restoredState.Signatures[0].SignWith(ec.Signer.Key!);
+if (!restoredState.Complete(twoPhaseSignature).Verify().IsValid)
+{
+    Console.Error.WriteLine("two-phase CMS signing failed");
+    return 1;
+}
+
+bool refusedSha1 = false;
+try
+{
+    _ = SignedData.Create(secret, [new CmsSignerSpec { Certificate = rsa.Certificate, Key = rsa.Signer.Key, SignatureSpec = RecursiveAI.OneCrypto.Keys.SignatureSpec.RsaPkcs1(System.Security.Cryptography.HashAlgorithmName.SHA1) }]);
+}
+catch (RecursiveAI.OneCrypto.Policy.PolicyViolationException)
+{
+    refusedSha1 = true;
+}
+
+var verifyAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+SignedDataReport policed = SignedData.Create(secret, [rsa.Spec()]).Verify(new SignedDataVerifyOptions { Policy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Standard, ReferenceTime = verifyAt });
+if (!refusedSha1 || !policed.IsValid || policed.Signers[0].Policy is null)
+{
+    Console.Error.WriteLine("the policy did not decide as expected");
+    return 1;
+}
+
 if (!CompressedData.Parse(CompressedData.Create(secret).Encoded).Decompress().AsSpan().SequenceEqual(secret)
     || !AuthenticatedData.Parse(AuthenticatedData.Create(secret, [CmsRecipient.KeyEncryptionKey(kek, "k"u8)]).Encoded).Verify(CmsDecryptionKey.FromKeyEncryptionKey(kek, "k"u8)).IsValid
     || !DigestedData.Parse(DigestedData.Create(secret).Encoded).Verify().IsValid
@@ -328,6 +385,12 @@ using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
         Console.Error.WriteLine("block ciphers gave a wrong result");
         return 1;
     }
+}
+
+if (!OneCrypto.Smoke.LoadSmoke.Run(true))
+{
+    Console.Error.WriteLine("Crypto.Load gave a wrong result");
+    return 1;
 }
 
 if (!OneCrypto.Smoke.FallbackSmoke.Run())

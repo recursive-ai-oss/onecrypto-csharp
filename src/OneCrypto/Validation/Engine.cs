@@ -184,6 +184,14 @@ internal sealed partial class Engine
             verdict = ValidationVerdict.Indeterminate;
             selected = _paths.First(p => p.Verdict == ValidationVerdict.Indeterminate);
         }
+        else if (_paths.Count > 0 && _limit)
+        {
+            // A work limit stopped the search before every candidate was tried, so "no path validated" is not proof that none exists (RFC 4158 §3).
+            // Saying Invalid here would let a pool full of decoys turn a genuine chain into a rejection.
+            verdict = ValidationVerdict.Indeterminate;
+            selected = _paths.OrderByDescending(p => p.DecidingIndex).First();
+            targetResults = [.. targetResults, new RuleResult(ValidationRule.Limit, RuleOutcome.Indeterminate, "a work limit stopped the path search before a valid path was found; paths tried so far all failed", "RFC 4158 §3; RFC 5280 §6.1")];
+        }
         else if (_paths.Count > 0)
         {
             verdict = ValidationVerdict.Invalid;
@@ -272,6 +280,13 @@ internal sealed partial class Engine
         if (cand.Cert.NotBefore > _o.ReferenceTime || cand.Cert.NotAfter < _o.ReferenceTime)
         {
             s += 4;
+        }
+
+        // RFC 5280 §6.1.4 (k), (n): a certificate that is not a CA, or whose keyUsage lacks keyCertSign, cannot issue. Such a candidate (typically a
+        // decoy a message carries to use up the search budget) is tried after every candidate that can, so it never crowds out the real issuer.
+        if (!cand.IsCa || (cand.KeyUsage is { } ku && (ku.Usages & KeyUsages.KeyCertSign) == 0))
+        {
+            s += 8;
         }
 
         return s;

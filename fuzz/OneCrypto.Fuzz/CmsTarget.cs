@@ -3,6 +3,8 @@ using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Tsp;
+using RecursiveAI.OneCrypto.Validation;
+using RecursiveAI.OneCrypto.X509;
 
 namespace OneCrypto.Fuzz;
 
@@ -14,6 +16,15 @@ namespace OneCrypto.Fuzz;
 internal static class CmsTarget
 {
     private static readonly RecursiveAI.OneCrypto.Wire.Cms.CmsLimits CmsLimits = new() { MaxContentBytes = 1 << 20 };
+
+    // The chain step of verification: the test kit's root is the only anchor, so the seeds reach the validator and mutations exercise its inputs.
+    private static readonly ValidationOptions Chain = new()
+    {
+        TrustAnchors = [TrustAnchor.FromCertificate(Certificate.Parse(TestPki.Shared.Root.RawData))],
+        ReferenceTime = DateTimeOffset.UtcNow,
+        RevocationRequired = RevocationScope.AllCertificates,
+        Limits = new ValidationLimits { MaxSearchSteps = 500, MaxSignatureChecks = 64, MaxPathsValidated = 8, MaxPolicyNodes = 500 },
+    };
 
     private static readonly byte[] FixedImprint = new byte[32];
 
@@ -39,17 +50,60 @@ internal static class CmsTarget
             _ = der.Length;
         }
 
+        // Streaming decompression of whatever CompressedData the input happens to be: bounded output, typed errors only.
+        var small = new RecursiveAI.OneCrypto.Wire.Cms.CmsLimits { MaxDecompressedBytes = 1 << 20 };
+        bool compressedSync = false, compressedAsync = false;
+        try
+        {
+            CompressedData.DecompressStream(new MemoryStream(rest), Stream.Null, small);
+            compressedSync = true;
+        }
+        catch (RecursiveAI.OneCrypto.Wire.Cms.CmsParseException)
+        {
+        }
+
+        try
+        {
+            CompressedData.DecompressStreamAsync(new MemoryStream(rest), Stream.Null, small).GetAwaiter().GetResult();
+            compressedAsync = true;
+        }
+        catch (RecursiveAI.OneCrypto.Wire.Cms.CmsParseException)
+        {
+        }
+
+        if (compressedSync != compressedAsync)
+        {
+            throw new InvalidOperationException("DecompressStream and DecompressStreamAsync disagree");
+        }
+
         if (SignedData.TryParse(rest, out SignedData? sd, allowTrailingZeros: (data[0] & 4) != 0) && sd is not null)
         {
             _ = sd.Certificates.Count + sd.Crls.Count;
             _ = sd.Verify().IsValid;
             _ = sd.Verify(CmsFixture.Content).IsValid;
+            _ = sd.Verify(new SignedDataVerifyOptions { Chain = Chain }).IsValid;
+            bool? sync = null;
             try
             {
-                _ = SignedData.VerifyStream(new MemoryStream(rest), null, null, CmsLimits).IsValid;
+                sync = SignedData.VerifyStream(new MemoryStream(rest), null, null, CmsLimits).IsValid;
             }
             catch (RecursiveAI.OneCrypto.Wire.Cms.CmsParseException)
             {
+            }
+
+            // The asynchronous twin must reach the same verdict (the harness may block; the library does not).
+            bool? async = null;
+            try
+            {
+                async = SignedData.VerifyStreamAsync(new MemoryStream(rest), null, null, CmsLimits).GetAwaiter().GetResult().IsValid;
+            }
+            catch (RecursiveAI.OneCrypto.Wire.Cms.CmsParseException)
+            {
+            }
+
+            if (sync != async)
+            {
+                throw new InvalidOperationException("VerifyStream and VerifyStreamAsync disagree");
             }
 
             foreach (SignerInfo s in sd.Signers)
@@ -73,5 +127,6 @@ internal static class CmsTarget
         byte[] token = CmsKit.Timestamp(FixedImprint, HashAlgorithmName.SHA256, DateTimeOffset.UtcNow, null, FixedNonce);
         yield return [2, .. Der.Seq(Der.Seq(Der.Int(0)), token)];
         yield return [2, .. token];
+        yield return [0, .. CompressedData.Create(CmsFixture.Content).Encoded.ToArray()];
     }
 }

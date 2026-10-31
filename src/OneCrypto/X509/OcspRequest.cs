@@ -1,5 +1,7 @@
 using System.Linq;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Keys;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto;
@@ -231,7 +233,7 @@ public static class OcspRequestBuilder
 {
     /// <summary>Creates a request. With a <paramref name="signer"/> the request is signed and <paramref name="certificates"/> are sent along.</summary>
     /// <exception cref="ArgumentException">There is nothing to ask about, or the nonce is longer than 32 octets.</exception>
-    public static OcspRequest Create(OcspRequestOptions options, X509Signer? signer = null, IEnumerable<Certificate>? certificates = null)
+    public static OcspRequest Create(OcspRequestOptions options, X509Signer? signer = null, IEnumerable<Certificate>? certificates = null, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         if (options.Requests.Count == 0)
@@ -259,9 +261,45 @@ public static class OcspRequestBuilder
             return OcspRequest.Parse(new ReadOnlyMemory<byte>(DerWriter.Sequence(tbs)));
         }
 
-        byte[] sig = signer.Sign(tbs);
+        signer.RequireAllowed(policy);
+        return Assemble(tbs, signer.SignatureAlgorithm, signer.Sign(tbs), certificates);
+    }
+
+    private static OcspRequest Assemble(byte[] tbs, AlgorithmIdentifier algorithm, byte[] sig, IEnumerable<Certificate>? certificates)
+    {
         byte[] certs = certificates is null ? [] : DerWriter.Context(0, DerWriter.Sequence([.. certificates.Select(c => c.Encoded.ToArray())]));
-        byte[] signature = DerWriter.Sequence(signer.SignatureAlgorithm.Encoded.ToArray(), X509Signer.BitString(sig), certs);
+        byte[] signature = DerWriter.Sequence(algorithm.Encoded.ToArray(), X509Signer.BitString(sig), certs);
         return OcspRequest.Parse(new ReadOnlyMemory<byte>(DerWriter.Sequence(tbs, DerWriter.Context(0, signature))));
+    }
+
+    private const string PurposeRequest = "ocsp.request";
+
+    /// <summary>
+    /// Phase one of a signed request made in two steps: builds the request to be signed and returns the state to sign (for a signer whose key is elsewhere).
+    /// Phase two is <see cref="Complete"/>.
+    /// </summary>
+    /// <param name="options">The request.</param>
+    /// <param name="signerKey">The requestor's public key.</param>
+    /// <param name="spec">How the signature will be made.</param>
+    /// <param name="policy">The policy for new signatures.</param>
+    /// <param name="at">The moment of signing.</param>
+    /// <exception cref="PolicyViolationException">The policy rejects the signature hash or the key.</exception>
+    public static PreparedSignature Prepare(OcspRequestOptions options, PublicKeyInfo signerKey, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at) =>
+        X509TwoPhase.Prepare(PurposeRequest, signerKey, spec, policy, at, s => Create(options, s));
+
+    /// <summary>Phase two: checks <paramref name="signature"/> against the requestor's key and returns the signed request.</summary>
+    /// <param name="prepared">The state from <see cref="Prepare"/>, which may have travelled through <see cref="PreparedSignature.Encode"/>.</param>
+    /// <param name="signature">The signature.</param>
+    /// <param name="certificates">Certificates to send along, as for <see cref="Create"/>.</param>
+    /// <exception cref="InvalidSignatureException">The signature does not verify.</exception>
+    public static OcspRequest Complete(PreparedSignature prepared, ReadOnlySpan<byte> signature, IEnumerable<Certificate>? certificates = null)
+    {
+        ArgumentNullException.ThrowIfNull(prepared);
+        if (prepared.Purpose != PurposeRequest)
+        {
+            throw new ArgumentException($"The prepared signature is for {prepared.Purpose}, not {PurposeRequest}.", nameof(prepared));
+        }
+
+        return Assemble(prepared.Data.ToArray(), prepared.Spec.ToAlgorithmIdentifier(prepared.PublicKey), prepared.Complete(signature), certificates);
     }
 }

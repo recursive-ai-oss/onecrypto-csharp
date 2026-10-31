@@ -1,6 +1,8 @@
 using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Keys;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto;
@@ -452,7 +454,7 @@ public static class OcspResponseBuilder
 {
     /// <summary>Creates a successful response holding a signed basic response.</summary>
     /// <exception cref="ArgumentException">A revoked answer has no revocation time.</exception>
-    public static OcspResponse CreateSuccessful(OcspResponseOptions options, X509Signer signer)
+    public static OcspResponse CreateSuccessful(OcspResponseOptions options, X509Signer signer, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
@@ -497,14 +499,47 @@ public static class OcspResponseBuilder
             DerWriter.GeneralizedTime(options.ProducedAt),
             DerWriter.Sequence([.. singles]),
             exts.Count > 0 ? DerWriter.Context(1, BuildHelpers.Extensions(exts)) : []);
-        byte[] sig = signer.Sign(tbs);
+        signer.RequireAllowed(policy);
+        return Assemble(tbs, signer.SignatureAlgorithm, signer.Sign(tbs), options.Certificates);
+    }
+
+    private static OcspResponse Assemble(byte[] tbs, AlgorithmIdentifier algorithm, byte[] sig, IReadOnlyList<Certificate> certificates)
+    {
         byte[] basic = DerWriter.Sequence(
             tbs,
-            signer.SignatureAlgorithm.Encoded.ToArray(),
+            algorithm.Encoded.ToArray(),
             X509Signer.BitString(sig),
-            options.Certificates.Count > 0 ? DerWriter.Context(0, DerWriter.Sequence([.. options.Certificates.Select(c => c.Encoded.ToArray())])) : []);
+            certificates.Count > 0 ? DerWriter.Context(0, DerWriter.Sequence([.. certificates.Select(c => c.Encoded.ToArray())])) : []);
         byte[] bytes = DerWriter.Sequence(DerWriter.Oid(KnownOids.OcspBasic), DerWriter.OctetString(basic));
         return OcspResponse.Parse(new ReadOnlyMemory<byte>(DerWriter.Sequence(DerWriter.Tlv(0x0A, [0]), DerWriter.Context(0, bytes))));
+    }
+
+    private const string PurposeResponse = "ocsp.response";
+
+    /// <summary>
+    /// Phase one of a successful response signed in two steps (a responder whose key is in a token or a remote service): builds the response data to be
+    /// signed and returns the state to sign. Phase two is <see cref="Complete"/>; <paramref name="options"/> must be the same at both steps.
+    /// </summary>
+    /// <param name="options">The response.</param>
+    /// <param name="signerKey">The responder's public key.</param>
+    /// <param name="spec">How the signature will be made.</param>
+    /// <param name="policy">The policy for new signatures.</param>
+    /// <param name="at">The moment of signing.</param>
+    /// <exception cref="PolicyViolationException">The policy rejects the signature hash or the key.</exception>
+    public static PreparedSignature Prepare(OcspResponseOptions options, PublicKeyInfo signerKey, SignatureSpec spec, CryptoPolicy policy, DateTimeOffset at) =>
+        X509TwoPhase.Prepare(PurposeResponse, signerKey, spec, policy, at, s => CreateSuccessful(options, s));
+
+    /// <summary>Phase two: checks <paramref name="signature"/> against the responder's key and returns the response, with <paramref name="certificates"/> in the basic response.</summary>
+    /// <exception cref="InvalidSignatureException">The signature does not verify.</exception>
+    public static OcspResponse Complete(PreparedSignature prepared, ReadOnlySpan<byte> signature, IReadOnlyList<Certificate>? certificates = null)
+    {
+        ArgumentNullException.ThrowIfNull(prepared);
+        if (prepared.Purpose != PurposeResponse)
+        {
+            throw new ArgumentException($"The prepared signature is for {prepared.Purpose}, not {PurposeResponse}.", nameof(prepared));
+        }
+
+        return Assemble(prepared.Data.ToArray(), prepared.Spec.ToAlgorithmIdentifier(prepared.PublicKey), prepared.Complete(signature), certificates ?? []);
     }
 
     /// <summary>Creates a response that carries only an error status.</summary>

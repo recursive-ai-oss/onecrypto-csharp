@@ -88,7 +88,40 @@ internal static class CmsEnvelopedTarget
                 Try(() => EnvelopedData.DecryptStream(new MemoryStream(rest), Stream.Null, rsa, options));
                 Try(() => EnvelopedData.DecryptStream(new MemoryStream(rest), Stream.Null, kek, options));
                 Try(() => _ = SignedData.VerifyStream(new MemoryStream(rest), Stream.Null, null, Small));
+
+                // The asynchronous twins must end the same way, and release the same plaintext, as the synchronous forms.
+                var syncOut = new MemoryStream();
+                bool syncOk = Succeeds(() => EnvelopedData.DecryptStream(new MemoryStream(rest), syncOut, rsa, options));
+                var asyncOut = new MemoryStream();
+                bool asyncOk = Succeeds(() => EnvelopedData.DecryptStreamAsync(new MemoryStream(rest), asyncOut, rsa, options).GetAwaiter().GetResult());
+                if (syncOk != asyncOk || (syncOk && !syncOut.ToArray().AsSpan().SequenceEqual(asyncOut.ToArray())))
+                {
+                    throw new InvalidOperationException("DecryptStream and DecryptStreamAsync disagree");
+                }
+
+                var syncAuth = new MemoryStream();
+                bool authOk = Succeeds(() => AuthEnvelopedData.DecryptStream(new MemoryStream(rest), syncAuth, rsa, options));
+                var asyncAuth = new MemoryStream();
+                bool authAsyncOk = Succeeds(() => AuthEnvelopedData.DecryptStreamAsync(new MemoryStream(rest), asyncAuth, rsa, options).GetAwaiter().GetResult());
+                if (authOk != authAsyncOk || (authOk && !syncAuth.ToArray().AsSpan().SequenceEqual(asyncAuth.ToArray())))
+                {
+                    throw new InvalidOperationException("AuthEnvelopedData.DecryptStream and its async twin disagree");
+                }
+
                 break;
+        }
+    }
+
+    private static bool Succeeds(Action a)
+    {
+        try
+        {
+            a();
+            return true;
+        }
+        catch (CmsParseException)
+        {
+            return false;
         }
     }
 

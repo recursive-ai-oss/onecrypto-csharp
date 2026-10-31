@@ -98,7 +98,7 @@ internal static class CmsKeys
         }
     }
 
-    public static Certificate SelfSigned(string cn, X509Signer signer, KeyUsages usages = KeyUsages.DigitalSignature | KeyUsages.NonRepudiation, IEnumerable<string>? eku = null)
+    public static Certificate SelfSigned(string cn, X509Signer signer, KeyUsages usages = KeyUsages.DigitalSignature | KeyUsages.NonRepudiation, IEnumerable<string>? eku = null, RecursiveAI.OneCrypto.Policy.CryptoPolicy? policy = null)
     {
         var ext = new List<Extension>
         {
@@ -118,7 +118,8 @@ internal static class CmsKeys
                 NotAfter = SigningTime.AddYears(5),
                 Extensions = ext,
             },
-            signer);
+            signer,
+            policy);
     }
 
     private static string PemLabel(string label, byte[] der) =>

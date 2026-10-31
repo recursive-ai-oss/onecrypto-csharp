@@ -1,5 +1,8 @@
 using System.Linq;
+using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Keys;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.Wire.Cms;
 
 namespace RecursiveAI.OneCrypto;
@@ -23,8 +26,33 @@ public sealed class CmsSignerSpec
     /// <summary>The signer's certificate. Its public key must be the one the <see cref="Signer"/> signs with.</summary>
     public required Certificate Certificate { get; init; }
 
-    /// <summary>Produces the signature value. Its algorithm identifier decides the signature algorithm.</summary>
-    public required X509Signer Signer { get; init; }
+    private X509Signer? _signer;
+
+    /// <summary>
+    /// Produces the signature value. Its algorithm identifier decides the signature algorithm. Set this, or <see cref="Key"/>, or (for the first
+    /// phase of a two-phase signature, where no key is present) only <see cref="SignatureSpec"/>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Read when neither a signer nor a key was set.</exception>
+    public X509Signer Signer
+    {
+        get => _signer ??= Key is { } k
+            ? X509Signer.FromKey(k, SignatureSpec)
+            : throw new InvalidOperationException("The signer spec has neither a Signer nor a Key.");
+        init => _signer = value;
+    }
+
+    /// <summary>
+    /// A key behind the key interfaces (in memory, operating system, token or remote) to sign with, instead of <see cref="Signer"/>. RSA and ECDSA
+    /// keys are handed the digest of the signed attributes (<see cref="ISigningKey.SignDigest"/>); EdDSA and ML-DSA keys the DER of the signed attributes.
+    /// </summary>
+    public ISigningKey? Key { get; init; }
+
+    /// <summary>
+    /// How <see cref="Key"/> signs (default: the key's own default). For a two-phase signature with no key, the scheme the later signature will use.
+    /// </summary>
+    public SignatureSpec? SignatureSpec { get; init; }
+
+    internal bool HasSigner => _signer is not null || Key is not null;
 
     /// <summary>How the SignerInfo names the certificate (default issuer and serial number).</summary>
     public CmsIdentifierKind Identifier { get; init; } = CmsIdentifierKind.IssuerAndSerialNumber;
@@ -68,6 +96,12 @@ public sealed class SignedDataOptions
 
     /// <summary>Revocation lists to include.</summary>
     public IReadOnlyList<CertificateRevocationList> Crls { get; init; } = [];
+
+    /// <summary>
+    /// The policy that decides whether the signers' algorithms and keys may be used for a new signature. Default <see cref="CryptoPolicy.Standard"/>:
+    /// no SHA-1 or MD5, no RSA under 2048 bits. New data is judged by the new-data rules, so no reference time is needed.
+    /// </summary>
+    public CryptoPolicy? Policy { get; init; }
 }
 
 public sealed partial class SignedData
@@ -85,7 +119,7 @@ public sealed partial class SignedData
         var plans = new List<SignerPlan>();
         foreach (CmsSignerSpec s in signers)
         {
-            plans.Add(SignerPlan.For(s));
+            plans.Add(SignerPlan.For(s, options.Policy));
         }
 
         var infos = new List<byte[]>();
@@ -181,10 +215,10 @@ public sealed partial class SignedData
     /// A countersignature (RFC 5652 §11.4) of <paramref name="target"/>'s signature, as an unsigned attribute ready for
     /// <see cref="WithUnsignedAttribute"/>. Its signed attributes hold the message digest of the signature value and no content type.
     /// </summary>
-    public static CmsAttributeEntry CreateCountersignature(SignerInfo target, CmsSignerSpec signer)
+    public static CmsAttributeEntry CreateCountersignature(SignerInfo target, CmsSignerSpec signer, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(target);
-        SignerPlan plan = SignerPlan.For(signer);
+        SignerPlan plan = SignerPlan.For(signer, policy);
         byte[] digest = Digest(plan.DigestOid, target.Signature.Span);
         return CmsAttributeEntry.Create(CmsOids.Countersignature, plan.Build(CmsOids.Data, digest, target.Signature.Span, countersignature: true));
     }
@@ -239,24 +273,65 @@ public sealed partial class SignedData
     /// <summary>What is decided about one signer before any content is seen: digest, signature algorithm, and the code that builds the SignerInfo.</summary>
     internal sealed class SignerPlan
     {
-        private SignerPlan(CmsSignerSpec spec, string digestOid)
+        private SignerPlan(CmsSignerSpec spec, string digestOid, AlgorithmIdentifier signatureAlgorithm, PublicKeyInfo publicKey, SignatureSpec? scheme)
         {
             Spec = spec;
             DigestOid = digestOid;
+            SigAlgorithm = signatureAlgorithm;
+            PublicKey = publicKey;
+            Scheme = scheme;
         }
 
         public CmsSignerSpec Spec { get; }
 
         public string DigestOid { get; }
 
-        public static SignerPlan For(CmsSignerSpec spec)
+        /// <summary>The signature algorithm identifier of the signer (before the rsaEncryption rewrite of RFC 3370 §3.2).</summary>
+        public AlgorithmIdentifier SigAlgorithm { get; }
+
+        public PublicKeyInfo PublicKey { get; }
+
+        /// <summary>How the signature is made, when known (always for a key, never for a bare delegate).</summary>
+        public SignatureSpec? Scheme { get; }
+
+        /// <summary>Unsigned attributes already encoded as a SET, for a plan restored from a prepared state; overrides the spec's own.</summary>
+        public byte[]? UnsignedSetOverride { get; private init; }
+
+        /// <summary>Rebuilds a plan from a prepared signature without asking the policy again (it was asked when the signature was prepared).</summary>
+        public static SignerPlan Restore(CmsSignerSpec spec, string digestOid, PreparedSignature prepared, byte[]? unsignedSet) =>
+            new(spec, digestOid, prepared.Spec.ToAlgorithmIdentifier(prepared.PublicKey), prepared.PublicKey, prepared.Spec) { UnsignedSetOverride = unsignedSet };
+
+        /// <summary>The signature value in two steps: what the signature covers, and what is left to do once it exists.</summary>
+        public readonly record struct Parts(byte[]? AttributeSet, byte[] Data);
+
+        public static SignerPlan For(CmsSignerSpec spec, CryptoPolicy? policy = null)
         {
             ArgumentNullException.ThrowIfNull(spec);
-            AlgorithmIdentifier alg = spec.Signer.SignatureAlgorithm;
-            string? natural = null;
-            if (SignatureAlgorithms.TryScheme(alg, out SignatureScheme scheme))
+            AlgorithmIdentifier alg;
+            PublicKeyInfo pub;
+            SignatureSpec? scheme;
+            if (spec.HasSigner)
             {
-                natural = scheme.HashOid;
+                X509Signer sg = spec.Signer;
+                alg = sg.SignatureAlgorithm;
+                pub = sg.PublicKey;
+                scheme = sg.Spec;
+            }
+            else if (spec.SignatureSpec is { } named)
+            {
+                pub = spec.Certificate.PublicKey;
+                alg = named.ToAlgorithmIdentifier(pub);
+                scheme = named;
+            }
+            else
+            {
+                throw new ArgumentException("A signer spec needs a Signer, a Key or (to prepare a signature) a SignatureSpec.", nameof(spec));
+            }
+
+            string? natural = null;
+            if (SignatureAlgorithms.TryScheme(alg, out SignatureScheme sch))
+            {
+                natural = sch.HashOid;
             }
             else if (alg.Oid == KnownOids.RsaPss)
             {
@@ -276,60 +351,110 @@ public sealed partial class SignedData
                 throw new NotSupportedException($"The digest algorithm {AlgorithmNames.Describe(chosen)} is not available on this platform.");
             }
 
-            return new SignerPlan(spec, chosen);
+            // New data: the policy judges the signature hash, the signer's key and the SignerInfo digest. (The ESS certificate hash only names a
+            // certificate and does not rely on collision resistance, so it is not judged here.)
+            policy ??= CryptoPolicy.Standard;
+            var decisions = new List<PolicyDecision>();
+            PolicyReport sigReport = scheme is not null ? policy.CheckSignature(scheme, pub, CryptoUse.Sign, default) : policy.CheckSignature(alg, pub, CryptoUse.Sign, default);
+            decisions.AddRange(sigReport.Decisions);
+            if (SignatureAlgorithms.TryHash(chosen, out HashAlgorithmName digestName))
+            {
+                decisions.Add(policy.CheckHash(digestName, CryptoUse.Sign, default));
+            }
+
+            var report = new PolicyReport(decisions);
+            if (!report.IsAllowed)
+            {
+                throw new PolicyViolationException(report);
+            }
+
+            return new SignerPlan(spec, chosen, alg, pub, scheme);
         }
 
         /// <summary>The signature algorithm written into the SignerInfo: rsaEncryption for PKCS #1 v1.5 (RFC 3370 §3.2), otherwise the signer's own identifier.</summary>
-        private AlgorithmIdentifier SignatureAlgorithm()
-        {
-            AlgorithmIdentifier alg = Spec.Signer.SignatureAlgorithm;
-            return alg.Oid is KnownOids.Sha1WithRsa or KnownOids.Sha224WithRsa or KnownOids.Sha256WithRsa or KnownOids.Sha384WithRsa or KnownOids.Sha512WithRsa
+        public AlgorithmIdentifier SignatureAlgorithm() =>
+            SigAlgorithm.Oid is KnownOids.Sha1WithRsa or KnownOids.Sha224WithRsa or KnownOids.Sha256WithRsa or KnownOids.Sha384WithRsa or KnownOids.Sha512WithRsa
                 ? AlgorithmIdentifier.WithNull(KnownOids.RsaEncryption)
-                : alg;
+                : SigAlgorithm;
+
+        /// <summary>
+        /// Signs the octets the signature covers. A key behind the key interfaces gets the digest for RSA and ECDSA (so a token or remote service never
+        /// sees the data) and the data itself for EdDSA and ML-DSA; a bare signer signs the data.
+        /// </summary>
+        public byte[] SignData(ReadOnlySpan<byte> data)
+        {
+            X509Signer sg = Spec.Signer;
+            if (sg.Key is { } key && sg.Spec is { } scheme)
+            {
+                return scheme.SignsDigest ? key.SignDigest(CryptographicOperations.HashData(scheme.Hash, data), scheme) : key.Sign(data, scheme);
+            }
+
+            return sg.Sign(data);
+        }
+
+        /// <summary>The asynchronous twin of <see cref="SignData"/>: a key behind the key interfaces is asked through its async methods.</summary>
+        public async ValueTask<byte[]> SignDataAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+        {
+            X509Signer sg = Spec.Signer;
+            if (sg.Key is { } key && sg.Spec is { } scheme)
+            {
+                return scheme.SignsDigest
+                    ? await key.SignDigestAsync(CryptographicOperations.HashData(scheme.Hash, data.Span), scheme, cancellationToken).ConfigureAwait(false)
+                    : await key.SignAsync(data, scheme, cancellationToken).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return sg.Sign(data.Span);
         }
 
         /// <param name="contentType">The content type attribute value.</param>
         /// <param name="contentDigest">The digest of the content under <see cref="DigestOid"/>.</param>
         /// <param name="content">The content octets, signed directly when the signer uses no attributes; may be empty for streamed content.</param>
         /// <param name="countersignature">True for a countersignature, which carries no content-type attribute (RFC 5652 §11.4).</param>
-        public byte[] Build(string contentType, byte[] contentDigest, ReadOnlySpan<byte> content, bool countersignature)
+        public Parts Prepare(string contentType, byte[] contentDigest, ReadOnlySpan<byte> content, bool countersignature)
+        {
+            if (!Spec.SignedAttributes)
+            {
+                return new Parts(null, content.ToArray());
+            }
+
+            var attrs = new List<CmsAttributeEntry>();
+            if (!countersignature)
+            {
+                attrs.Add(CmsAttributeEntry.Create(CmsOids.ContentType, DerWriter.Oid(contentType)));
+            }
+
+            attrs.Add(CmsAttributeEntry.Create(CmsOids.MessageDigest, DerWriter.OctetString(contentDigest)));
+            if (Spec.SigningTime is { } t)
+            {
+                attrs.Add(CmsAttributeEntry.Create(CmsOids.SigningTime, BuildHelpers.Time(t)));
+            }
+
+            if (Spec.SigningCertificate != EssSigningCertificate.None && !countersignature)
+            {
+                attrs.Add(EssAttribute(Spec.Certificate, Spec.SigningCertificate));
+            }
+
+            attrs.AddRange(Spec.AdditionalSignedAttributes);
+            byte[] attrSet = CmsAttributeEntry.EncodeSet(attrs);
+            return new Parts(attrSet, attrSet);
+        }
+
+        /// <summary>Writes the SignerInfo around a signature made over <see cref="Parts.Data"/>.</summary>
+        public byte[] Finish(Parts parts, byte[] signature)
         {
             byte[] digestAlg = DerWriter.Sequence(DerWriter.Oid(DigestOid));
-            byte[]? attrSet = null;
-            byte[] signature;
-            if (Spec.SignedAttributes)
-            {
-                var attrs = new List<CmsAttributeEntry>();
-                if (!countersignature)
-                {
-                    attrs.Add(CmsAttributeEntry.Create(CmsOids.ContentType, DerWriter.Oid(contentType)));
-                }
-
-                attrs.Add(CmsAttributeEntry.Create(CmsOids.MessageDigest, DerWriter.OctetString(contentDigest)));
-                if (Spec.SigningTime is { } t)
-                {
-                    attrs.Add(CmsAttributeEntry.Create(CmsOids.SigningTime, BuildHelpers.Time(t)));
-                }
-
-                if (Spec.SigningCertificate != EssSigningCertificate.None && !countersignature)
-                {
-                    attrs.Add(EssAttribute(Spec.Certificate, Spec.SigningCertificate));
-                }
-
-                attrs.AddRange(Spec.AdditionalSignedAttributes);
-                attrSet = CmsAttributeEntry.EncodeSet(attrs);
-                signature = Spec.Signer.Sign(attrSet);
-            }
-            else
-            {
-                signature = Spec.Signer.Sign(content);
-            }
-
-            byte[]? unsignedSet = Spec.UnsignedAttributes.Count > 0 ? CmsAttributeEntry.EncodeSet(Spec.UnsignedAttributes) : null;
+            byte[]? unsignedSet = UnsignedSetOverride ?? (Spec.UnsignedAttributes.Count > 0 ? CmsAttributeEntry.EncodeSet(Spec.UnsignedAttributes) : null);
             CmsIdentifier sid = CmsIdentifier.ForCertificate(Spec.Certificate, Spec.Identifier);
             int version = Spec.Identifier == CmsIdentifierKind.SubjectKeyIdentifier ? 3 : 1;
-            return SignerInfo.Encode(version, sid, digestAlg, attrSet is null ? null : DerWriter.Retag(attrSet, 0xA0), SignatureAlgorithm().Encoded.ToArray(), signature,
+            return SignerInfo.Encode(version, sid, digestAlg, parts.AttributeSet is null ? null : DerWriter.Retag(parts.AttributeSet, 0xA0), SignatureAlgorithm().Encoded.ToArray(), signature,
                 unsignedSet is null ? null : DerWriter.Retag(unsignedSet, 0xA1));
+        }
+
+        public byte[] Build(string contentType, byte[] contentDigest, ReadOnlySpan<byte> content, bool countersignature)
+        {
+            Parts parts = Prepare(contentType, contentDigest, content, countersignature);
+            return Finish(parts, SignData(parts.Data));
         }
 
         /// <summary>RFC 5035 §3 (ESSCertIDv2) and RFC 2634 §5.4.1 (ESSCertID): the signer certificate named by hash and by issuer and serial number.</summary>

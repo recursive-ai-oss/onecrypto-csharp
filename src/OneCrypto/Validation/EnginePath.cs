@@ -11,11 +11,65 @@ internal sealed partial class Engine
         public readonly List<RuleResult> List = [];
         public RevocationReport Revocation = RevocationReport.NotCheckedReport;
 
-        public void Add(ValidationRule rule, RuleOutcome outcome, string reason, string clause) => List.Add(new RuleResult(rule, outcome, reason, clause));
+        public void Add(ValidationRule rule, RuleOutcome outcome, string reason, string clause, string? policyRule = null) => List.Add(new RuleResult(rule, outcome, reason, clause, policyRule));
 
         public void Pass(ValidationRule rule, string reason, string clause) => Add(rule, RuleOutcome.Pass, reason, clause);
 
         public void Fail(ValidationRule rule, string reason, string clause) => Add(rule, RuleOutcome.Fail, reason, clause);
+    }
+
+    // RFC 5280 §4.2.1.12: a certificate that carries an extKeyUsage must allow the purpose the caller asked for; none means unrestricted.
+    // The check also covers a target that is itself a trust anchor: trusting a certificate does not widen what it says it is for.
+    private void CheckRequiredEku(CertView v, CertResults r)
+    {
+        if (string.IsNullOrEmpty(RequiredEku) || v.ExtendedKeyUsage is not { } eku)
+        {
+            return;
+        }
+
+        if (eku.Allows(RequiredEku))
+        {
+            r.Pass(ValidationRule.ExtendedKeyUsage, "extKeyUsage allows the required purpose", "RFC 5280 §4.2.1.12");
+        }
+        else
+        {
+            r.Fail(ValidationRule.ExtendedKeyUsage, $"extKeyUsage does not allow {RequiredEku}", "RFC 5280 §4.2.1.12");
+        }
+    }
+
+    // The algorithm policy: the hash named by the certificate's signature algorithm and the issuer's key, judged at the reference time.
+    // One result per decision, each with the policy's own rule id, so a report says which cutoff or minimum applied.
+    private void AlgorithmPolicy(Certificate cert, PublicKeyInfo issuerKey, CertResults r)
+    {
+        // The server-authentication profile adds the WebPKI cutoffs to the caller's policy: a certificate must satisfy both.
+        var asked = new List<Policy.CryptoPolicy> { _o.Policy };
+        if (_o.WebPki is { EnforceBaselineRequirements: true })
+        {
+            asked.Add(Policy.CryptoPolicy.WebPki);
+        }
+
+        bool any = false;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Policy.CryptoPolicy asking in asked)
+        {
+            Policy.PolicyReport pr = asking.CheckSignature(cert.SignatureAlgorithm, issuerKey, Policy.CryptoUse.Verify, _o.ReferenceTime);
+            foreach (Policy.PolicyDecision d in pr.Findings)
+            {
+                RuleOutcome oc = d.Verdict == Policy.PolicyVerdict.Rejected ? RuleOutcome.Fail : RuleOutcome.Warning;
+                if (!seen.Add($"{d.Rule}|{oc}"))
+                {
+                    continue;
+                }
+
+                any = true;
+                r.Add(ValidationRule.Algorithm, oc, $"{d.Algorithm}: {d.Reason}", d.Reference, d.Rule);
+            }
+        }
+
+        if (!any)
+        {
+            r.Add(ValidationRule.Algorithm, RuleOutcome.Pass, $"signature algorithm and issuer key accepted by the {_o.Policy.Name} policy", "CryptoPolicy");
+        }
     }
 
     private PathReport ValidatePath(TrustAnchor anchor, List<Certificate> fromTarget)
@@ -62,6 +116,7 @@ internal sealed partial class Engine
                 res[0].Fail(ValidationRule.CriticalExtension, $"critical extension {tc} is not recognised", "RFC 5280 §4.2");
             }
 
+            CheckRequiredEku(View(certs[0]), res[0]);
             TargetChecks(View(certs[0]), res[0], true);
             return Build(res, certs, anchor, pathResults, new PolicyReport(false, false, [], true), true);
         }
@@ -120,8 +175,7 @@ internal sealed partial class Engine
                 r.Fail(ValidationRule.Signature, sv.Reason.Length > 0 ? sv.Reason : $"signature check: {sv.Status}", string.IsNullOrEmpty(sv.Reference) ? "RFC 5280 §6.1.3 (a)(1)" : sv.Reference);
             }
 
-            AlgorithmDecision ad = _o.AlgorithmCheck(new AlgorithmQuery(cert.SignatureAlgorithm, workingKey, _o.ReferenceTime));
-            r.Add(ValidationRule.Algorithm, ad.Outcome, ad.Reason, "algorithm check");
+            AlgorithmPolicy(cert, workingKey, r);
 
             // (a)(2)
             if (RefSecond < cert.NotBefore)
@@ -190,17 +244,7 @@ internal sealed partial class Engine
                 r.Fail(ValidationRule.CriticalExtension, $"critical extension {crit} is not recognised", "RFC 5280 §4.2; §6.1.4 (o)");
             }
 
-            if (!string.IsNullOrEmpty(RequiredEku) && v.ExtendedKeyUsage is { } eku)
-            {
-                if (eku.Allows(RequiredEku))
-                {
-                    r.Pass(ValidationRule.ExtendedKeyUsage, "extKeyUsage allows the required purpose", "RFC 5280 §4.2.1.12");
-                }
-                else
-                {
-                    r.Fail(ValidationRule.ExtendedKeyUsage, $"extKeyUsage does not allow {RequiredEku}", "RFC 5280 §4.2.1.12");
-                }
-            }
+            CheckRequiredEku(v, r);
 
             if (last)
             {

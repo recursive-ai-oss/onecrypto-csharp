@@ -33,7 +33,7 @@ Defaults of the builder: signed attributes on (content-type, message-digest, ESS
 
 ### Verification rules
 
-The verifier takes no clock and builds no chain; the reference time and the path are the validator's. It checks every signer.
+By default the verifier takes no clock and builds no chain: the report says the signature is sound for the certificate's key and exposes the certificates, and trust is the path validator's question. With `SignedDataVerifyOptions.Chain` set (see Signer chains below) each signer is also path-validated. It checks every signer.
 
 | Rule | Passes when | Reference |
 |---|---|---|
@@ -48,9 +48,20 @@ The verifier takes no clock and builds no chain; the reference time and the path
 | `key-usage` | a signer certificate with a keyUsage extension has at least one of `AnyOfKeyUsages` (default digitalSignature or nonRepudiation; set to `None` to skip), and, when `RequiredExtendedKeyUsage` is given, that extended key usage; nothing else is assumed (for example PDF signing EKUs are the caller's to ask for) | RFC 5280 §4.2.1.3 |
 | `key-strength` | RSA of 2048 bits or more (a warning below) | CryptoPolicy |
 | `signing-certificate` | ESS signing-certificate or -v2 names the signer certificate by hash | RFC 2634 §5, RFC 5035 |
+| `chain` | only with `Chain` options: the signer's certificate validates to a trust anchor at the options' reference time (`Passed`; `Warning` when valid but revocation stayed unknown; `Unsupported` when the validator could not decide, for example required revocation data is missing; `Failed` otherwise) | RFC 5280 §6 |
 | `countersignatures` | each countersignature verifies over the signature value of its target, to `MaxCountersignatureDepth` | §11.4 |
 
 `Verify(content)`, `Verify(Stream)` and `VerifyStream` hash with every digest algorithm the signers use in one pass. A detached message with no content supplied fails the `content` rule.
+
+### Signer chains
+
+`SignedDataVerifyOptions.Chain` takes a `ValidationOptions` (`docs/validation.md`): trust anchors, the reference time, the `CryptoPolicy`, revocation data and limits. Each signer and each countersigner whose certificate was found is validated with it, and the report gets a `chain` check and `SignerReport.Chain`, the validator's full `ValidationReport` (paths, per-rule results, revocation findings). The signer is valid only if the chain check passes or warns; the message is valid only if every signer is.
+
+* The certificates in the message and in `ExtraCertificates` join the options' `Intermediates` as an untrusted pool. The CRLs in the message, and OCSP responses carried in its revocation set as `id-ri-ocsp-response`, join the options' revocation data. Being in the message confers no trust; only the anchors do.
+* With no CRL or OCSP response anywhere, the validator is given no revocation data, so a chain with `RevocationRequired = None` reports nothing unknown. With `RevocationRequired` set and no usable data the chain is undecided (`Unsupported`) unless the options set `UnknownRevocationIsFatal = false`.
+* **Time.** The reference time is the options'. The signing-time attribute is the signer's own claim and is never used as the reference time. A signer whose certificate has expired is `Failed` at "now" and valid at an instant inside its validity: to validate as of the signature, pass a time that is proven (a time-stamp token's `genTime`, from a verified token) and, for revocation, `RevocationModel.PastTime` with the data time. The long-term-validation choice of that instant is the AdES validator's.
+* The signing-certificate (ESS) check is independent: a substituted certificate that chains correctly but is not the one the signer named still fails it.
+* RFC 3161 tokens are CMS SignedData and use the same option; `TimeStampVerifyOptions` also takes anchors directly and reports the same validation as its `trust` check.
 
 ### Streaming
 
@@ -119,3 +130,34 @@ Pinned OpenSSL 3.5.9 for both the command-line tool and the platform libraries, 
 | AuthEnvelopedData AES-256-GCM, KTRI and KARI; tampered ciphertext refused | P | P |
 | CompressedData (openssl 3.5.5 with zlib) | P | P |
 | streamed EnvelopedData and SignedData (indefinite-length BER) | P | P |
+
+## Keys, two-phase signing and policy
+
+### Signing and decrypting through the key interfaces
+
+* `CmsSignerSpec` takes a `Signer` (an `X509Signer`) or a `Key` (an `ISigningKey`) with an optional `SignatureSpec`. The key is never given the content: for RSA and ECDSA it is handed the digest of the DER signed attributes (`SignDigest`), for Ed25519, Ed448 and ML-DSA the DER of the signed attributes itself (`Sign`). A signer without signed attributes signs the content itself. A bare delegate `X509Signer` still signs the attributes with its function.
+* `CmsDecryptionKey` stays as the adapter the recipient code reads through. `CmsDecryptionKey.FromKey(IKey, certificate, ownsKey)` wraps anything behind `IDecryptionKey` (RSA PKCS #1 v1.5 and OAEP, ML-KEM) or `IAgreementKey` (ECDH, X25519, X448); `FromRsa`, `FromECDiffieHellman`, `FromX25519`, `FromX448` and `FromMLKem` are shortcuts over the platform and library keys and go through the same adapter. A failed unwrap of any kind becomes "no key", so the RFC 3218 §2.3 random content key and the uniform `DecryptionFailed` hold for every backend.
+* Key operations are synchronous calls on the adapter; only the stream I/O of the async twins is asynchronous. Signing keys are asked through `SignAsync`/`SignDigestAsync` by `SignStreamAsync`.
+
+### Two-phase SignedData
+
+`SignedData.Prepare(content, signers, at, options)` and `SignedData.PrepareStream(stream, signers, at, options)` build everything except the signature values and return a `PreparedSignedData`. Each signer needs its certificate and either a key or a `SignatureSpec`; no key is used. `PreparedSignedData.Signatures` holds one `PreparedSignature` (purpose `cms.signerinfo`) per signer: the signed attributes are `Data`, and `ToSign` is their digest (RSA, ECDSA) or themselves (EdDSA, ML-DSA). `Complete(signatures)` verifies each signature against its signer's public key before it assembles the message, so a damaged, swapped or wrong-key signature raises `InvalidSignatureException` and nothing is written.
+
+* Attached content prepared from memory is kept in the state; detached content is not. Content prepared from a stream keeps only its digests: a detached message completes with `Complete`, an attached one with `CompleteStream(signatures, content, output)`, which writes indefinite-length BER and refuses (`CryptographicException`, after writing: discard the output) when the content no longer hashes to what was signed.
+* The state is DER: `SEQUENCE { version 1, "cms.signeddata", contentType, detached, contentRetained, cmsVersion, digestAlgorithms, encapsulatedContentInfo, certificateParts, contentDigests, signers }`, each signer `SEQUENCE { PreparedSignature, certificate, identifierKind, digestOid, hasSignedAttributes, unsignedAttributes }`. It re-encodes to the octets it was read from (digests in ascending OID order). Unknown versions and damage are reported by `TryDecode`.
+* The policy of `SignedDataOptions` (default `Standard`) is asked at preparation.
+
+### Policy
+
+* **Sign.** `SignedDataOptions.Policy` (default `Standard`) judges each signer's signature hash, key and SignerInfo digest as new data (no reference time: new-data rules do not depend on the date). SHA-1 and MD5 and RSA under 2048 bits are refused with `PolicyViolationException` carrying the decisions and rule ids. The ESS signing-certificate hash only names a certificate and is not judged.
+* **Verify.** `SignedDataVerifyOptions.Policy` with `ReferenceTime` (both, or `ArgumentException`: the library never reads a clock). Each `SignerReport.Policy` holds the decisions at that instant, and the `policy` check is `Passed`, `Warning` (flagged) or `Failed` (rejected, so the signer is not valid). Without a policy the report keeps the plain `digest-algorithm` and `key-strength` warnings.
+* **Encrypt and decrypt.** `CmsEncryptOptions.Policy` (default `Standard`) judges the content cipher and each recipient's public key as new data; `CmsDecryptOptions.Policy` with `ReferenceTime` judges the cipher the message names and the key that opens it, before any key operation. Triple DES follows `LegacyCiphers`.
+* **CBC EnvelopedData.** S/MIME uses it everywhere, so `Standard` cannot refuse it. `CryptoPolicy.CheckContentCipher` returns a *flagged* decision (`cipher.cbc.unauthenticated.encrypt` / `.decrypt`): `Standard` reads and writes it, `Strict` (which turns flags into rejections) refuses it, and `AllowUnauthenticatedEncryption` / `AllowUnauthenticatedDecryption` accept it without a flag. The bare "unauthenticated encryption fails closed" rule (`CheckCipher`) is for formats with no integrity container at all, such as the OpenPGP SED packet.
+
+### Async twins
+
+`SignedData.SignStreamAsync` / `VerifyStreamAsync`, `EnvelopedData.EncryptStreamAsync` / `DecryptStreamAsync`, `AuthEnvelopedData.EncryptStreamAsync` / `DecryptStreamAsync` and `CompressedData.DecompressStreamAsync` take a `CancellationToken` and share their rules with the sync forms. They read through `Asn1StreamReader.ReadTokenAsync` / `ReadAsync` / `ReadContentAsync` and write through `BerStreamWriter`'s `…Async` methods; none wraps the other form. A cancelled sign or encrypt leaves a partial message in the output (discard it). A cancelled CBC decryption has released only the plaintext of earlier blocks, never the final one; a cancelled AuthEnvelopedData decryption released nothing (the AEAD is one-shot, so the message and plaintext are held in memory up to `MaxContentBytes`, exactly as in the sync form).
+
+### CompressedData streaming
+
+`CompressedData.DecompressStream` / `DecompressStreamAsync` inflate a forward-only message in constant memory with the same bounds as `Decompress`: `MaxDecompressedBytes`, and `MaxDecompressionRatio` times the compressed octets read so far. They stop with `LimitExceeded` and leave a partial output, which the caller discards.

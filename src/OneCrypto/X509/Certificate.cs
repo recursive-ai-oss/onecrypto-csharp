@@ -298,7 +298,23 @@ public sealed class Certificate : IEquatable<Certificate>
 
     /// <summary>Checks this certificate's signature with <paramref name="issuerKey"/> over the received <c>tbsCertificate</c> octets.</summary>
     /// <remarks>Only the signature is checked: validity dates, name chaining and constraints are the path validator's job (RFC 5280 §6).</remarks>
-    public SignatureVerification VerifySignature(PublicKeyInfo issuerKey)
+    public SignatureVerification VerifySignature(PublicKeyInfo issuerKey) => VerifySignatureCore(issuerKey, null, default);
+
+    /// <summary>
+    /// Checks this certificate's signature with <paramref name="issuerKey"/> and judges its hash and the issuer's key by <paramref name="policy"/> at
+    /// <paramref name="at"/>. A SHA-1 certificate verified at a time the policy rejects SHA-1 ends as <see cref="SignatureStatus.PolicyRejected"/>; the decisions
+    /// are on <see cref="SignatureVerification.Policy"/>.
+    /// </summary>
+    /// <param name="issuerKey">The issuer's public key.</param>
+    /// <param name="policy">The policy.</param>
+    /// <param name="at">The reference time.</param>
+    public SignatureVerification VerifySignature(PublicKeyInfo issuerKey, Policy.CryptoPolicy policy, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        return VerifySignatureCore(issuerKey, policy, at);
+    }
+
+    private SignatureVerification VerifySignatureCore(PublicKeyInfo issuerKey, Policy.CryptoPolicy? policy, DateTimeOffset at)
     {
         ArgumentNullException.ThrowIfNull(issuerKey);
         AlgorithmIdentifier outer;
@@ -320,7 +336,9 @@ public sealed class Certificate : IEquatable<Certificate>
             return new(SignatureStatus.Invalid, outer.Name, "The signature BIT STRING has unused bits.", "RFC 5280 §4.1.1.3");
         }
 
-        return issuerKey.VerifySignature(outer, _tbs.Span, _signature.Span);
+        return policy is null
+            ? issuerKey.VerifySignature(outer, _tbs.Span, _signature.Span)
+            : issuerKey.VerifySignature(outer, _tbs.Span, _signature.Span, policy, at);
     }
 
     /// <summary>Checks this certificate's signature with the public key of <paramref name="issuer"/>.</summary>

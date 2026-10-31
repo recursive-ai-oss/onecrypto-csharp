@@ -118,7 +118,8 @@ public static class PathValidator
         return report;
     }
 
-    private static ValidationOptions With(ValidationOptions o, IReadOnlyList<Certificate> intermediates, RevocationData revocation) => new()
+    /// <summary>Copies the options with another intermediate pool and revocation data (used by the CMS chain step and the fetch loop).</summary>
+    internal static ValidationOptions With(ValidationOptions o, IReadOnlyList<Certificate> intermediates, RevocationData? revocation) => new()
     {
         TrustAnchors = o.TrustAnchors,
         Intermediates = intermediates,
@@ -129,7 +130,7 @@ public static class PathValidator
         UnknownRevocationIsFatal = o.UnknownRevocationIsFatal,
         RevocationModel = o.RevocationModel,
         OcspMaxAge = o.OcspMaxAge,
-        AlgorithmCheck = o.AlgorithmCheck,
+        Policy = o.Policy,
         RequiredExtendedKeyUsage = o.RequiredExtendedKeyUsage,
         RequiredKeyUsage = o.RequiredKeyUsage,
         InitialPolicySet = o.InitialPolicySet,

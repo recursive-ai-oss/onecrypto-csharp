@@ -35,6 +35,7 @@ internal static class Program
         ["keys"] = KeysTarget.Run,
         ["tsa"] = IssuerTarget.RunTsa,
         ["ocspresp"] = IssuerTarget.RunOcsp,
+        ["load"] = LoadTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -53,6 +54,7 @@ internal static class Program
         "keys" => KeysTarget.Seeds(),
         "tsa" => IssuerTarget.SeedsTsa(),
         "ocspresp" => IssuerTarget.SeedsOcsp(),
+        "load" => LoadTarget.Seeds(),
         _ => [],
     };
 
