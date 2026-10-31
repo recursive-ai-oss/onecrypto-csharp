@@ -321,4 +321,20 @@ public class Pkcs8Tests
             Assert.NotEqual(PkcsStatus.Ok, PrivateKeyPem.TryParse(text, "bad", out _));
         }
     }
+
+    [Fact]
+    public void TraditionalDsaKeysAreWrappedAsPkcs8()
+    {
+        OpenSslTool.RequireOrSkip();
+        string dir = ToolRunner.TempDir("pkcs8-dsa");
+        string prm = Path.Combine(dir, "p.pem"), key = Path.Combine(dir, "k.pem"), trad = Path.Combine(dir, "t.pem");
+        Assert.Equal(0, OpenSslTool.Run("genpkey", "-genparam", "-algorithm", "DSA", "-pkeyopt", "dsa_paramgen_bits:1024", "-out", prm).Code);
+        Assert.Equal(0, OpenSslTool.Run("genpkey", "-paramfile", prm, "-out", key).Code);
+        Assert.Equal(0, OpenSslTool.Run("pkey", "-in", key, "-traditional", "-out", trad).Code);
+        string text = File.ReadAllText(trad);
+        Assert.Contains("BEGIN DSA PRIVATE KEY", text, StringComparison.Ordinal);
+        using PrivateKeyInfo ours = PrivateKeyPem.Parse(text, default);
+        using PrivateKeyInfo theirs = PrivateKeyInfo.FromPem(File.ReadAllText(key));
+        Assert.True(theirs.Encoded.SequenceEqual(ours.Encoded));
+    }
 }

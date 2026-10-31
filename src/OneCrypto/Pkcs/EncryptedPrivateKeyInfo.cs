@@ -188,7 +188,7 @@ public static class PrivateKeyPem
                         }
 
                         return EncryptedPrivateKeyInfo.Parse(b.Data, limits).TryDecrypt(password, out key);
-                    case "RSA PRIVATE KEY" or "EC PRIVATE KEY":
+                    case "RSA PRIVATE KEY" or "EC PRIVATE KEY" or "DSA PRIVATE KEY":
                         return Legacy(b, password, out key, limits);
                 }
             }
@@ -226,7 +226,12 @@ public static class PrivateKeyPem
 
             try
             {
-                key = b.Label == "RSA PRIVATE KEY" ? PrivateKeyInfo.FromRsaPrivateKey(body) : PrivateKeyInfo.FromEcPrivateKey(body);
+                key = b.Label switch
+                {
+                    "RSA PRIVATE KEY" => PrivateKeyInfo.FromRsaPrivateKey(body),
+                    "DSA PRIVATE KEY" => PrivateKeyInfo.FromDsaPrivateKey(body),
+                    _ => PrivateKeyInfo.FromEcPrivateKey(body),
+                };
                 return PkcsStatus.Ok;
             }
             catch (PkcsParseException)

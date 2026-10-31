@@ -14,7 +14,7 @@ public class LimboKeyTests
         Assert.SkipWhen(string.IsNullOrEmpty(path) || !File.Exists(path), "ONECRYPTO_LIMBO is not set");
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllBytes(path!));
         var seen = new HashSet<string>();
-        int keys = 0, parsed = 0, matched = 0, noCert = 0;
+        int keys = 0, parsed = 0, matched = 0, noCert = 0, platformLacks = 0;
         var bad = new List<string>();
         foreach (JsonElement tc in doc.RootElement.GetProperty("testcases").EnumerateArray())
         {
@@ -35,9 +35,16 @@ public class LimboKeyTests
                 parsed++;
                 if (tc.TryGetProperty("peer_certificate", out JsonElement c) && c.ValueKind == JsonValueKind.String && Certificate.TryParse(RecursiveAI.OneCrypto.Pem.PemCodec.Parse(c.GetString()!).Data, out Certificate? cert))
                 {
-                    if (key!.GetPublicKey().Equals(cert!.PublicKey))
+                    try
                     {
-                        matched++;
+                        if (key!.GetPublicKey().Equals(cert!.PublicKey))
+                        {
+                            matched++;
+                        }
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        platformLacks++; // a post-quantum key on a platform without that algorithm
                     }
                 }
                 else
@@ -47,7 +54,7 @@ public class LimboKeyTests
             }
         }
 
-        Console.WriteLine($"limbo keys: {keys} distinct, parsed {parsed}, public key equals the peer certificate's {matched}, no usable certificate {noCert}");
+        Console.WriteLine($"limbo keys: {keys} distinct, parsed {parsed}, public key equals the peer certificate's {matched}, no usable certificate {noCert}, algorithm missing on this platform {platformLacks}");
         Assert.Empty(bad);
         Assert.True(keys > 0);
     }

@@ -172,8 +172,37 @@ public sealed class PrivateKeyInfo : IDisposable
     public string ToPem() => PemCodec.Write("PRIVATE KEY", _encoded.ReadOnlySpan);
 
     /// <summary>Wraps a PKCS#1 <c>RSAPrivateKey</c> (RFC 8017 appendix A.1.2) as PKCS#8.</summary>
+    /// <exception cref="PkcsParseException">The input is not an RSAPrivateKey.</exception>
     public static PrivateKeyInfo FromRsaPrivateKey(ReadOnlySpan<byte> rsaPrivateKey)
     {
+        // RFC 8017 appendix A.1.2: version and eight integers. Checking them here means a wrong password that happens to leave valid
+        // padding is still refused.
+        try
+        {
+            var r = new Asn1Reader(rsaPrivateKey, Asn1Rules.Ber);
+            Asn1Reader s = r.ReadSequence();
+            r.ThrowIfNotEmpty();
+            int version = s.ReadInt32();
+            if (version is not (0 or 1))
+            {
+                throw PkcsFail.Invalid("RSAPrivateKey", "The version must be 0 or 1.");
+            }
+
+            for (int i = 0; i < 8; i++)
+            {
+                s.ReadIntegerBytes();
+            }
+
+            if (version == 0)
+            {
+                s.ThrowIfNotEmpty();
+            }
+        }
+        catch (Asn1ParseException ex)
+        {
+            throw new PkcsParseException("RSAPrivateKey", ex);
+        }
+
         var w = new Asn1Writer();
         w.PushSequence();
         w.WriteInteger(0);
@@ -221,6 +250,58 @@ public sealed class PrivateKeyInfo : IDisposable
         w.WriteObjectIdentifier(curve);
         w.Pop();
         w.WriteOctetString(ecPrivateKey);
+        w.Pop();
+        return Wrap(w);
+    }
+
+    /// <summary>
+    /// Wraps OpenSSL's traditional <c>DSA PRIVATE KEY</c> structure (version, p, q, g, y, x) as PKCS#8 with the id-dsa algorithm (RFC 3279 §2.3.2,
+    /// private key as in RFC 5958 over a DSA INTEGER). DSA keys are read so that old files load; this library never signs with DSA.
+    /// </summary>
+    /// <exception cref="PkcsParseException">The input is not a DSA private key structure.</exception>
+    public static PrivateKeyInfo FromDsaPrivateKey(ReadOnlySpan<byte> dsaPrivateKey)
+    {
+        const string what = "DSAPrivateKey";
+        ReadOnlySpan<byte> p, q, g, x;
+        try
+        {
+            var r = new Asn1Reader(dsaPrivateKey, Asn1Rules.Ber);
+            Asn1Reader s = r.ReadSequence();
+            r.ThrowIfNotEmpty();
+            if (s.ReadInt32() != 0)
+            {
+                throw PkcsFail.Invalid(what, "The version must be 0.");
+            }
+
+            p = s.ReadIntegerBytes();
+            q = s.ReadIntegerBytes();
+            g = s.ReadIntegerBytes();
+            s.ReadIntegerBytes();
+            x = s.ReadIntegerBytes();
+            s.ThrowIfNotEmpty();
+        }
+        catch (Asn1ParseException ex)
+        {
+            throw new PkcsParseException(what, ex);
+        }
+
+        var w = new Asn1Writer();
+        w.PushSequence();
+        w.WriteInteger(0);
+        w.PushSequence();
+        w.WriteObjectIdentifier("1.2.840.10040.4.1");
+        w.PushSequence();
+        w.WriteContent(Asn1Tag.Universal(Asn1Tags.IntegerType), p);
+        w.WriteContent(Asn1Tag.Universal(Asn1Tags.IntegerType), q);
+        w.WriteContent(Asn1Tag.Universal(Asn1Tags.IntegerType), g);
+        w.Pop();
+        w.Pop();
+        // privateKey OCTET STRING holds the DER INTEGER x.
+        var xw = new Asn1Writer();
+        xw.WriteContent(Asn1Tag.Universal(Asn1Tags.IntegerType), x);
+        byte[] xi = xw.Encode();
+        w.WriteOctetString(xi);
+        CryptographicOperations.ZeroMemory(xi);
         w.Pop();
         return Wrap(w);
     }
