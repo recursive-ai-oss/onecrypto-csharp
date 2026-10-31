@@ -305,7 +305,19 @@ public class TwoPhaseSigningTests
         (int pc, string po) = OpenSslTool.RunIn(dir, "pkcs12", "-export", "-inkey", "k.pem", "-in", "c.pem", "-out", "t.pfx", "-passout", "pass:testpass", "-certpbe", "AES-256-CBC", "-keypbe", "AES-256-CBC", "-macalg", "SHA256");
         Assert.True(pc == 0, po);
 
-        using X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(dir, "t.pfx"), "testpass", X509KeyStorageFlags.PersistKeySet);
+        X509Certificate2 loaded;
+        try
+        {
+            loaded = X509CertificateLoader.LoadPkcs12FromFile(Path.Combine(dir, "t.pfx"), "testpass", X509KeyStorageFlags.PersistKeySet);
+        }
+        catch (CryptographicException e) when (e.Message.Contains("User interaction is not allowed", StringComparison.Ordinal))
+        {
+            // A login keychain asks the user for consent; a non-interactive session cannot answer.
+            Assert.Skip("the keychain needs user interaction in this session: " + e.Message);
+            return;
+        }
+
+        using X509Certificate2 owned = loaded;
         Certificate cert = Certificate.FromX509Certificate2(loaded);
         using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
         try
