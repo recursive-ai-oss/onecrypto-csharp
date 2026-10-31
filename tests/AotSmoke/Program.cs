@@ -39,5 +39,25 @@ if (Asn1Reader.TryRead(new byte[] { 0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF }, out _,
     return 1;
 }
 
+// The curves the platform lacks: sign and verify with each, and agree a secret both ways.
+using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
+using (var ed4 = RecursiveAI.OneCrypto.Primitives.Ed448PrivateKey.Generate())
+using (var xa = RecursiveAI.OneCrypto.Primitives.X25519PrivateKey.Generate())
+using (var xb = RecursiveAI.OneCrypto.Primitives.X25519PrivateKey.Generate())
+using (var xa4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
+using (var xb4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
+{
+    byte[] sig = new byte[64], sig4 = new byte[114], s1 = new byte[32], s2 = new byte[32], t1 = new byte[56], t2 = new byte[56];
+    bool ok = ed.TrySign("smoke"u8, sig, out _) && ed.PublicKey.Verify("smoke"u8, sig) && !ed.PublicKey.Verify("smokf"u8, sig)
+        && ed4.TrySign("smoke"u8, [], sig4, out _) && ed4.PublicKey.Verify("smoke"u8, [], sig4)
+        && xa.TryDeriveSharedSecret(xb.PublicKey, s1) && xb.TryDeriveSharedSecret(xa.PublicKey, s2) && s1.AsSpan().SequenceEqual(s2)
+        && xa4.TryDeriveSharedSecret(xb4.PublicKey, t1) && xb4.TryDeriveSharedSecret(xa4.PublicKey, t2) && t1.AsSpan().SequenceEqual(t2);
+    if (!ok)
+    {
+        Console.Error.WriteLine("curve primitives failed");
+        return 1;
+    }
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
