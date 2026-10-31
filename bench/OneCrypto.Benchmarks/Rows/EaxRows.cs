@@ -22,6 +22,8 @@ public class EaxEncryptRows : IDisposable
     private byte[] _plain = [];
     private byte[] _cipher = [];
     private byte[] _bcOut = [];
+    private readonly byte[] _nonce2 = RandomNumberGenerator.GetBytes(16);
+    private bool _flip;
     private AesEax _ours = null!;
     private EaxBlockCipher _bc = null!;
 
@@ -46,7 +48,9 @@ public class EaxEncryptRows : IDisposable
     [Benchmark]
     public int BouncyCastle()
     {
-        _bc.Init(true, new AeadParameters(null, 128, _nonce, _aad));
+        // The comparator refuses to encrypt twice under the same nonce, so it alternates between two; the work is the same.
+        _flip = !_flip;
+        _bc.Init(true, new AeadParameters(null, 128, _flip ? _nonce : _nonce2, _aad));
         int n = _bc.ProcessBytes(_plain, 0, Size, _bcOut, 0);
         return n + _bc.DoFinal(_bcOut, n);
     }
