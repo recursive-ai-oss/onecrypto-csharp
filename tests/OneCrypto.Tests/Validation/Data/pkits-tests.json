@@ -1,0 +1,4751 @@
+{
+ "source": "NIST PKITS v1.0.1 (April 14, 2011), section 4",
+ "tests": [
+  {
+   "id": "4.1.1",
+   "title": "Valid Signatures Test1",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidCertificatePathTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as all names and signatures chain, validity dates are correct, the intermediate certificate includes a basic constraint"
+    }
+   ]
+  },
+  {
+   "id": "4.1.2",
+   "title": "Invalid CA Signature Test2",
+   "certs": [
+    "BadSignedCACert.crt",
+    "InvalidCASignatureTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BadSignedCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the signature on the intermediate certificate is invalid. "
+    }
+   ]
+  },
+  {
+   "id": "4.1.3",
+   "title": "Invalid EE Signature Test3",
+   "certs": [
+    "GoodCACert.crt",
+    "InvalidEESignatureTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the signature on the end entity certificate is invalid. "
+    }
+   ]
+  },
+  {
+   "id": "4.1.4",
+   "title": "Valid DSA Signatures Test4",
+   "certs": [
+    "DSACACert.crt",
+    "ValidDSASignaturesTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "DSACACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.1.5",
+   "title": "Valid DSA Parameter Inheritance Test5",
+   "certs": [
+    "DSACACert.crt",
+    "DSAParametersInheritedCACert.crt",
+    "ValidDSAParameterInheritanceTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "DSACACRL.crl",
+    "DSAParametersInheritedCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.1.6",
+   "title": "Invalid DSA Signature Test6",
+   "certs": [
+    "DSACACert.crt",
+    "InvalidDSASignatureTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "DSACACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the signature on the end entity certificate is invalid. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.1",
+   "title": "Invalid CA notBefore Date Test1",
+   "certs": [
+    "BadnotBeforeDateCACert.crt",
+    "InvalidCAnotBeforeDateTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BadnotBeforeDateCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the notBefore date in the intermediate certificate is after the current date. 8 "
+    }
+   ]
+  },
+  {
+   "id": "4.2.2",
+   "title": "Invalid EE notBefore Date Test2",
+   "certs": [
+    "GoodCACert.crt",
+    "InvalidEEnotBeforeDateTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the notBefore date in the end entity certificate is after the current date. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.3",
+   "title": "Valid pre2000 UTC notBefore Date Test3",
+   "certs": [
+    "GoodCACert.crt",
+    "Validpre2000UTCnotBeforeDateTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as the notBefore date in the end entity certificate is before the current date. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.4",
+   "title": "Valid GeneralizedTime notBefore Date Test4",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidGeneralizedTimenotBeforeDateTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.5",
+   "title": "Invalid CA notAfter Date Test5",
+   "certs": [
+    "BadnotAfterDateCACert.crt",
+    "InvalidCAnotAfterDateTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BadnotAfterDateCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the notAfter date in the intermediate certificate is before the current date. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.6",
+   "title": "Invalid EE notAfter Date Test6",
+   "certs": [
+    "GoodCACert.crt",
+    "InvalidEEnotAfterDateTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the notAfter date in the end certificate is before the current date. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.7",
+   "title": "Invalid pre2000 UTC EE notAfter Date Test7",
+   "certs": [
+    "GoodCACert.crt",
+    "Invalidpre2000UTCEEnotAfterDateTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the notAfter date in the end certificate is before the current date. "
+    }
+   ]
+  },
+  {
+   "id": "4.2.8",
+   "title": "Valid GeneralizedTime notAfter Date Test8",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidGeneralizedTimenotAfterDateTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as the notAfter date in the end certificate is after the current date. 10 "
+    }
+   ]
+  },
+  {
+   "id": "4.3.1",
+   "title": "Invalid Name Chaining EE Test1",
+   "certs": [
+    "GoodCACert.crt",
+    "InvalidNameChainingTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the names do not chain. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.2",
+   "title": "Invalid Name Chaining Order Test2",
+   "certs": [
+    "NameOrderingCACert.crt",
+    "InvalidNameChainingOrderTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "NameOrderCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the names do not chain. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.3",
+   "title": "Valid Name Chaining Whitespace Test3",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidNameChainingWhitespaceTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as the names chain. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.4",
+   "title": "Valid Name Chaining Whitespace Test4",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidNameChainingWhitespaceTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as the names chain. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.5",
+   "title": "Valid Name Chaining Capitalization Test5",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidNameChainingCapitalizationTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully as the names chain. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.6",
+   "title": "Valid Name Chaining UIDs Test6",
+   "certs": [
+    "UIDCACert.crt",
+    "ValidNameUIDsTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UIDCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.7",
+   "title": "Valid RFC3280 Mandatory Attribute Types Test7",
+   "certs": [
+    "RFC3280MandatoryAttributeTypesCACert.crt",
+    "ValidRFC3280MandatoryAttributeTypesTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "RFC3280MandatoryAttributeTypesCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.8",
+   "title": "Valid RFC3280 Optional Attribute Types Test8",
+   "certs": [
+    "RFC3280OptionalAttributeTypesCACert.crt",
+    "ValidRFC3280OptionalAttributeTypesTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "RFC3280OptionalAttributeTypesCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.9",
+   "title": "Valid UTF8String Encoded Names Test9",
+   "certs": [
+    "UTF8StringEncodedNamesCACert.crt",
+    "ValidUTF8StringEncodedNamesTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UTF8StringEncodedNamesCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.10",
+   "title": "Valid Rollover from PrintableString to UTF8String Test10",
+   "certs": [
+    "RolloverfromPrintableStringtoUTF8StringCACert.crt",
+    "ValidRolloverfromPrintableStringtoUTF8StringTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "RolloverfromPrintableStringtoUTF8StringCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.3.11",
+   "title": "Valid UTF8String Case Insensitive Match Test11",
+   "certs": [
+    "UTF8StringCaseInsensitiveMatchCACert.crt",
+    "ValidUTF8StringCaseInsensitiveMatchTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UTF8StringCaseInsensitiveMatchCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.1",
+   "title": "Missing CRL Test1",
+   "certs": [
+    "NoCRLCACert.crt",
+    "InvalidMissingCRLTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.2",
+   "title": "Invalid Revoked CA Test2",
+   "certs": [
+    "GoodCACert.crt",
+    "RevokedsubCACert.crt",
+    "InvalidRevokedCATest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "RevokedsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since one of the intermediate certificates has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.3",
+   "title": "Invalid Revoked EE Test3",
+   "certs": [
+    "GoodCACert.crt",
+    "InvalidRevokedEETest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.4",
+   "title": "Invalid Bad CRL Signature Test4",
+   "certs": [
+    "BadCRLSignatureCACert.crt",
+    "InvalidBadCRLSignatureTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BadCRLSignatureCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since no valid revocation information is available for the end entity's certificate. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.5",
+   "title": "Invalid Bad CRL Issuer Name Test5",
+   "certs": [
+    "BadCRLIssuerNameCACert.crt",
+    "InvalidBadCRLIssuerNameTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BadCRLIssuerNameCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since no valid revocation information is available for the end entity's certificate. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.6",
+   "title": "Invalid Wrong CRL Test6",
+   "certs": [
+    "WrongCRLCACert.crt",
+    "InvalidWrongCRLTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "WrongCRLCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since no valid revocation information is available for the end entity's certificate. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.7",
+   "title": "Valid Two CRLs Test7",
+   "certs": [
+    "TwoCRLsCACert.crt",
+    "ValidTwoCRLsTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "TwoCRLsCAGoodCRL.crl",
+    "TwoCRLsCABadCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.8",
+   "title": "Invalid Unknown CRL Entry Extension Test8",
+   "certs": [
+    "UnknownCRLEntryExtensionCACert.crt",
+    "InvalidUnknownCRLEntryExtensionTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UnknownCRLEntryExtensionCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.9",
+   "title": "Invalid Unknown CRL Extension Test9",
+   "certs": [
+    "UnknownCRLExtensionCACert.crt",
+    "InvalidUnknownCRLExtensionTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UnknownCRLExtensionCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.10",
+   "title": "Invalid Unknown CRL Extension Test10",
+   "certs": [
+    "UnknownCRLExtensionCACert.crt",
+    "InvalidUnknownCRLExtensionTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "UnknownCRLExtensionCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity's certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.11",
+   "title": "Invalid Old CRL nextUpdate Test11",
+   "certs": [
+    "OldCRLnextUpdateCACert.crt",
+    "InvalidOldCRLnextUpdateTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "OldCRLnextUpdateCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity's certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.12",
+   "title": "Invalid pre2000 CRL nextUpdate Test12",
+   "certs": [
+    "pre2000CRLnextUpdateCACert.crt",
+    "Invalidpre2000CRLnextUpdateTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pre2000CRLnextUpdateCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity's certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.13",
+   "title": "Valid GeneralizedTime CRL nextUpdate Test13",
+   "certs": [
+    "GeneralizedTimeCRLnextUpdateCACert.crt",
+    "ValidGeneralizedTimeCRLnextUpdateTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GeneralizedTimeCRLnextUpdateCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.14",
+   "title": "Valid Negative Serial Number Test14",
+   "certs": [
+    "NegativeSerialNumberCACert.crt",
+    "ValidNegativeSerialNumberTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "NegativeSerialNumberCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.15",
+   "title": "Invalid Negative Serial Number Test15",
+   "certs": [
+    "NegativeSerialNumberCACert.crt",
+    "InvalidNegativeSerialNumberTest15EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "NegativeSerialNumberCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.16",
+   "title": "Valid Long Serial Number Test16",
+   "certs": [
+    "LongSerialNumberCACert.crt",
+    "ValidLongSerialNumberTest16EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "LongSerialNumberCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.17",
+   "title": "Valid Long Serial Number Test17",
+   "certs": [
+    "LongSerialNumberCACert.crt",
+    "ValidLongSerialNumberTest17EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "LongSerialNumberCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.18",
+   "title": "Invalid Long Serial Number Test18",
+   "certs": [
+    "LongSerialNumberCACert.crt",
+    "InvalidLongSerialNumberTest18EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "LongSerialNumberCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.19",
+   "title": "Valid Separate Certificate and CRL Keys Test19",
+   "certs": [
+    "SeparateCertificateandCRLKeysCertificateSigningCACert.crt",
+    "SeparateCertificateandCRLKeysCRLSigningCert.crt",
+    "ValidSeparateCertificateandCRLKeysTest19EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "SeparateCertificateandCRLKeysCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.20",
+   "title": "Invalid Separate Certificate and CRL Keys Test20",
+   "certs": [
+    "SeparateCertificateandCRLKeysCertificateSigningCACert.crt",
+    "SeparateCertificateandCRLKeysCRLSigningCert.crt",
+    "InvalidSeparateCertificateandCRLKeysTest20EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "SeparateCertificateandCRLKeysCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path not should validate successfully since the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.4.21",
+   "title": "Invalid Separate Certificate and CRL Keys Test21",
+   "certs": [
+    "SeparateCertificateandCRLKeysCA2CertificateSigningCACert.crt",
+    "SeparateCertificateandCRLKeysCA2CRLSigningCert.crt",
+    "InvalidSeparateCertificateandCRLKeysTest21EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "SeparateCertificateandCRLKeysCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path not should validate successfully since the status of the end entity's certificate can not be determined. 22 "
+    }
+   ]
+  },
+  {
+   "id": "4.5.1",
+   "title": "Valid Basic Self-Issued Old With New Test1",
+   "certs": [
+    "BasicSelfIssuedNewKeyCACert.crt",
+    "BasicSelfIssuedNewKeyOldWithNewCACert.crt",
+    "ValidBasicSelfIssuedOldWithNewTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedNewKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.2",
+   "title": "Invalid Basic Self-Issued Old With New Test2",
+   "certs": [
+    "BasicSelfIssuedNewKeyCACert.crt",
+    "BasicSelfIssuedNewKeyOldWithNewCACert.crt",
+    "InvalidBasicSelfIssuedOldWithNewTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedNewKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.3",
+   "title": "Valid Basic Self-Issued New With Old Test3",
+   "certs": [
+    "BasicSelfIssuedOldKeyCACert.crt",
+    "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+    "ValidBasicSelfIssuedNewWithOldTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+    "BasicSelfIssuedOldKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.4",
+   "title": "Valid Basic Self-Issued New With Old Test4",
+   "certs": [
+    "BasicSelfIssuedOldKeyCACert.crt",
+    "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+    "ValidBasicSelfIssuedNewWithOldTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+    "BasicSelfIssuedOldKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.5",
+   "title": "Invalid Basic Self-Issued New With Old Test5",
+   "certs": [
+    "BasicSelfIssuedOldKeyCACert.crt",
+    "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+    "InvalidBasicSelfIssuedNewWithOldTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+    "BasicSelfIssuedOldKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.6",
+   "title": "Valid Basic Self-Issued CRL Signing Key Test6",
+   "certs": [
+    "BasicSelfIssuedCRLSigningKeyCACert.crt",
+    "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+    "ValidBasicSelfIssuedCRLSigningKeyTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.7",
+   "title": "Invalid Basic Self-Issued CRL Signing Key Test7",
+   "certs": [
+    "BasicSelfIssuedCRLSigningKeyCACert.crt",
+    "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+    "InvalidBasicSelfIssuedCRLSigningKeyTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity's certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.5.8",
+   "title": "Invalid Basic Self-Issued CRL Signing Key Test8",
+   "certs": [
+    "BasicSelfIssuedCRLSigningKeyCACert.crt",
+    "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+    "InvalidBasicSelfIssuedCRLSigningKeyTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+    "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the certificate that contains the public key needed to verify the end entity's certificate is not an intermed"
+    }
+   ]
+  },
+  {
+   "id": "4.6.1",
+   "title": "Invalid Missing basicConstraints Test1",
+   "certs": [
+    "MissingbasicConstraintsCACert.crt",
+    "InvalidMissingbasicConstraintsTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "MissingbasicConstraintsCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate does not have a basicConstraints extension. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.2",
+   "title": "Invalid cA False Test2",
+   "certs": [
+    "basicConstraintsCriticalcAFalseCACert.crt",
+    "InvalidcAFalseTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "basicConstraintsCriticalcAFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the basicConstraints extension in the intermediate certificate indicates that the subject public key in that "
+    }
+   ]
+  },
+  {
+   "id": "4.6.3",
+   "title": "Invalid cA False Test3",
+   "certs": [
+    "basicConstraintsNotCriticalcAFalseCACert.crt",
+    "InvalidcAFalseTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "basicConstraintsNotCriticalcAFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the basicConstraints extension in the intermediate certificate indicates that the subject public key in that "
+    }
+   ]
+  },
+  {
+   "id": "4.6.4",
+   "title": "Valid basicConstraints Not Critical Test4",
+   "certs": [
+    "basicConstraintsNotCriticalCACert.crt",
+    "ValidbasicConstraintsNotCriticalTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "basicConstraintsNotCriticalCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.5",
+   "title": "Invalid pathLenConstraint Test5",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "pathLenConstraint0subCACert.crt",
+    "InvalidpathLenConstraintTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl",
+    "pathLenConstraint0subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the first certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.6",
+   "title": "Invalid pathLenConstraint Test6",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "pathLenConstraint0subCACert.crt",
+    "InvalidpathLenConstraintTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl",
+    "pathLenConstraint0subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the first certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.7",
+   "title": "Valid pathLenConstraint Test7",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "ValidpathLenConstraintTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.8",
+   "title": "Valid pathLenConstraint Test8",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "ValidpathLenConstraintTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.9",
+   "title": "Invalid pathLenConstraint Test9",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA0Cert.crt",
+    "pathLenConstraint6subsubCA00Cert.crt",
+    "InvalidpathLenConstraintTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA0CRL.crl",
+    "pathLenConstraint6subsubCA00CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the second certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.10",
+   "title": "Invalid pathLenConstraint Test10",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA0Cert.crt",
+    "pathLenConstraint6subsubCA00Cert.crt",
+    "InvalidpathLenConstraintTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA0CRL.crl",
+    "pathLenConstraint6subsubCA00CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the second certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.11",
+   "title": "Invalid pathLenConstraint Test11",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA1Cert.crt",
+    "pathLenConstraint6subsubCA11Cert.crt",
+    "pathLenConstraint6subsubsubCA11XCert.crt",
+    "InvalidpathLenConstraintTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA1CRL.crl",
+    "pathLenConstraint6subsubCA11CRL.crl",
+    "pathLenConstraint6subsubsubCA11XCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the second certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.12",
+   "title": "Invalid pathLenConstraint Test12",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA1Cert.crt",
+    "pathLenConstraint6subsubCA11Cert.crt",
+    "pathLenConstraint6subsubsubCA11XCert.crt",
+    "InvalidpathLenConstraintTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA1CRL.crl",
+    "pathLenConstraint6subsubCA11CRL.crl",
+    "pathLenConstraint6subsubsubCA11XCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully as the length of the path violates the pathLenConstraint in the second certificate in the path. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.13",
+   "title": "Valid pathLenConstraint Test13",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA4Cert.crt",
+    "pathLenConstraint6subsubCA41Cert.crt",
+    "pathLenConstraint6subsubsubCA41XCert.crt",
+    "ValidpathLenConstraintTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA4CRL.crl",
+    "pathLenConstraint6subsubCA41CRL.crl",
+    "pathLenConstraint6subsubsubCA41XCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.14",
+   "title": "Valid pathLenConstraint Test14",
+   "certs": [
+    "pathLenConstraint6CACert.crt",
+    "pathLenConstraint6subCA4Cert.crt",
+    "pathLenConstraint6subsubCA41Cert.crt",
+    "pathLenConstraint6subsubsubCA41XCert.crt",
+    "ValidpathLenConstraintTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint6CACRL.crl",
+    "pathLenConstraint6subCA4CRL.crl",
+    "pathLenConstraint6subsubCA41CRL.crl",
+    "pathLenConstraint6subsubsubCA41XCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.6.15",
+   "title": "Valid Self-Issued pathLenConstraint Test15",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "pathLenConstraint0SelfIssuedCACert.crt",
+    "ValidSelfIssuedpathLenConstraintTest15EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully since the only intermediate certificate following the certificate that imposes the path length constraint is self-issue"
+    }
+   ]
+  },
+  {
+   "id": "4.6.16",
+   "title": "Invalid Self-Issued pathLenConstraint Test16",
+   "certs": [
+    "pathLenConstraint0CACert.crt",
+    "pathLenConstraint0SelfIssuedCACert.crt",
+    "pathLenConstraint0subCA2Cert.crt",
+    "InvalidSelfIssuedpathLenConstraintTest16EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint0CACRL.crl",
+    "pathLenConstraint0subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the first certificate imposes a path length constraint of 0 and this certificate is followed by a non-self-is"
+    }
+   ]
+  },
+  {
+   "id": "4.6.17",
+   "title": "Valid Self-Issued pathLenConstraint Test17",
+   "certs": [
+    "pathLenConstraint1CACert.crt",
+    "pathLenConstraint1SelfIssuedCACert.crt",
+    "pathLenConstraint1subCACert.crt",
+    "pathLenConstraint1SelfIssuedsubCACert.crt",
+    "ValidSelfIssuedpathLenConstraintTest17EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "pathLenConstraint1CACRL.crl",
+    "pathLenConstraint1subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully since the first certificate imposes a path length constraint of 1 and this certificate is followed by only 1 non-self-i"
+    }
+   ]
+  },
+  {
+   "id": "4.7.1",
+   "title": "Invalid keyUsage Critical keyCertSign False Test1",
+   "certs": [
+    "keyUsageCriticalkeyCertSignFalseCACert.crt",
+    "InvalidkeyUsageCriticalkeyCertSignFalseTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "keyUsageCriticalkeyCertSignFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a keyUsage extension which specifies that the subject public key may no"
+    }
+   ]
+  },
+  {
+   "id": "4.7.2",
+   "title": "Invalid keyUsage Not Critical keyCertSign False Test2",
+   "certs": [
+    "keyUsageNotCriticalkeyCertSignFalseCACert.crt",
+    "InvalidkeyUsageNotCriticalkeyCertSignFalseTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "keyUsageNotCriticalkeyCertSignFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a keyUsage extension which specifies that the subject public key may no"
+    }
+   ]
+  },
+  {
+   "id": "4.7.3",
+   "title": "Valid keyUsage Not Critical Test3",
+   "certs": [
+    "keyUsageNotCriticalCACert.crt",
+    "ValidkeyUsageNotCriticalTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "keyUsageNotCriticalCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.7.4",
+   "title": "Invalid keyUsage Critical cRLSign False Test4",
+   "certs": [
+    "keyUsageCriticalcRLSignFalseCACert.crt",
+    "InvalidkeyUsageCriticalcRLSignFalseTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "keyUsageCriticalcRLSignFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a keyUsage extension which specifies that the subject public key may no"
+    }
+   ]
+  },
+  {
+   "id": "4.7.5",
+   "title": "Invalid keyUsage Not Critical cRLSign False Test5",
+   "certs": [
+    "keyUsageNotCriticalcRLSignFalseCACert.crt",
+    "InvalidkeyUsageNotCriticalcRLSignFalseTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "keyUsageNotCriticalcRLSignFalseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a keyUsage extension which specifies that the subject public key may no"
+    }
+   ]
+  },
+  {
+   "id": "4.8.1",
+   "title": "All Certificates Same Policy Test1",
+   "certs": [
+    "GoodCACert.crt",
+    "ValidCertificatePathTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "explicit": true
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-explicit-policy set. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true,
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-explicit-policy set and initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true,
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-explicit-policy set and initial-policy-set = {NIST-test-policy-2}. The path should not validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true,
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1",
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-explicit-policy set and initial-policy-set = {NIST-test-policy-1, NIST-test-policy-2}. The path should validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.2",
+   "title": "All Certificates No Policies Test2",
+   "certs": [
+    "NoPoliciesCACert.crt",
+    "AllCertificatesNoPoliciesTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "NoPoliciesCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-explicit-policy set . The path should not validate 37 successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.3",
+   "title": "Different Policies Test3",
+   "certs": [
+    "GoodCACert.crt",
+    "PoliciesP2subCACert.crt",
+    "DifferentPoliciesTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "PoliciesP2subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-explicit-policy set . The path should not validate successfully."
+    },
+    {
+     "settings": {
+      "explicit": true,
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1",
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-explicit-policy set and initial-policy-set = {NIST-test-policy-1, NIST-test-policy-2}. The path should not validate successfu"
+    }
+   ]
+  },
+  {
+   "id": "4.8.4",
+   "title": "Different Policies Test4",
+   "certs": [
+    "GoodCACert.crt",
+    "GoodsubCACert.crt",
+    "DifferentPoliciesTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "GoodsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.8.5",
+   "title": "Different Policies Test5",
+   "certs": [
+    "GoodCACert.crt",
+    "PoliciesP2subCA2Cert.crt",
+    "DifferentPoliciesTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "PoliciesP2subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set if the application can pro"
+    }
+   ]
+  },
+  {
+   "id": "4.8.6",
+   "title": "Overlapping Policies Test6",
+   "certs": [
+    "PoliciesP1234CACert.crt",
+    "PoliciesP1234subCAP123Cert.crt",
+    "PoliciesP1234subsubCAP123P12Cert.crt",
+    "OverlappingPoliciesTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP1234CACRL.crl",
+    "PoliciesP1234subCAP123CRL.crl",
+    "PoliciesP1234subsubCAP123P12CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.7",
+   "title": "Different Policies Test7",
+   "certs": [
+    "PoliciesP123CACert.crt",
+    "PoliciesP123subCAP12Cert.crt",
+    "PoliciesP123subsubCAP12P1Cert.crt",
+    "DifferentPoliciesTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP123CACRL.crl",
+    "PoliciesP123subCAP12CRL.crl",
+    "PoliciesP123subsubCAP12P1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. If the explicit-policy-indicator will be set if the application ca"
+    }
+   ]
+  },
+  {
+   "id": "4.8.8",
+   "title": "Different Policies Test8",
+   "certs": [
+    "PoliciesP12CACert.crt",
+    "PoliciesP12subCAP1Cert.crt",
+    "PoliciesP12subsubCAP1P2Cert.crt",
+    "DifferentPoliciesTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP12CACRL.crl",
+    "PoliciesP12subCAP1CRL.crl",
+    "PoliciesP12subsubCAP1P2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.8.9",
+   "title": "Different Policies Test9",
+   "certs": [
+    "PoliciesP123CACert.crt",
+    "PoliciesP123subCAP12Cert.crt",
+    "PoliciesP123subsubCAP12P2Cert.crt",
+    "PoliciesP123subsubsubCAP12P2P1Cert.crt",
+    "DifferentPoliciesTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP123CACRL.crl",
+    "PoliciesP123subCAP12CRL.crl",
+    "PoliciesP123subsubCAP2P2CRL.crl",
+    "PoliciesP123subsubsubCAP12P2P1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.8.10",
+   "title": "All Certificates Same Policies Test10",
+   "certs": [
+    "PoliciesP12CACert.crt",
+    "AllCertificatesSamePoliciesTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP12CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.11",
+   "title": "All Certificates AnyPolicy Test11",
+   "certs": [
+    "anyPolicyCACert.crt",
+    "AllCertificatesanyPolicyTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "anyPolicyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.12",
+   "title": "Different Policies Test12",
+   "certs": [
+    "PoliciesP3CACert.crt",
+    "DifferentPoliciesTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP3CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.8.13",
+   "title": "All Certificates Same Policies Test13",
+   "certs": [
+    "PoliciesP123CACert.crt",
+    "AllCertificatesSamePoliciesTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP123CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.3"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-3}. The path should validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.14",
+   "title": "AnyPolicy Test14",
+   "certs": [
+    "anyPolicyCACert.crt",
+    "AnyPolicyTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "anyPolicyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.8.15",
+   "title": "User Notice Qualifier Test15",
+   "certs": [
+    "UserNoticeQualifierTest15EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be the same as the initial- explicit-policy indicato"
+    }
+   ]
+  },
+  {
+   "id": "4.8.16",
+   "title": "User Notice Qualifier Test16",
+   "certs": [
+    "GoodCACert.crt",
+    "UserNoticeQualifierTest16EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be the same as the initial- explicit-policy indicato"
+    }
+   ]
+  },
+  {
+   "id": "4.8.17",
+   "title": "User Notice Qualifier Test17",
+   "certs": [
+    "GoodCACert.crt",
+    "UserNoticeQualifierTest17EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be the same as the initial- explicit-policy indica"
+    }
+   ]
+  },
+  {
+   "id": "4.8.18",
+   "title": "User Notice Qualifier Test18",
+   "certs": [
+    "PoliciesP12CACert.crt",
+    "UserNoticeQualifierTest18EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PoliciesP12CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully and the qualifier associated with NIST-test-policy-1"
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should validate successfully and the qualifier associated with anyPolicy in the e"
+    }
+   ]
+  },
+  {
+   "id": "4.8.19",
+   "title": "User Notice Qualifier Test19",
+   "certs": [
+    "UserNoticeQualifierTest19EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be the same as the initial- explicit-policy indicato"
+    }
+   ]
+  },
+  {
+   "id": "4.8.20",
+   "title": "CPS Pointer Qualifier Test20",
+   "certs": [
+    "GoodCACert.crt",
+    "CPSPointerQualifierTest20EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "explicit": true
+     },
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be the same as the initial- explicit-policy indica"
+    }
+   ]
+  },
+  {
+   "id": "4.9.1",
+   "title": "Valid RequireExplicitPolicy Test1",
+   "certs": [
+    "requireExplicitPolicy10CACert.crt",
+    "requireExplicitPolicy10subCACert.crt",
+    "requireExplicitPolicy10subsubCACert.crt",
+    "requireExplicitPolicy10subsubsubCACert.crt",
+    "ValidrequireExplicitPolicyTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy10CACRL.crl",
+    "requireExplicitPolicy10subCACRL.crl",
+    "requireExplicitPolicy10subsubCACRL.crl",
+    "requireExplicitPolicy10subsubsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully since the explicit-policy- indicator is not set. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.2",
+   "title": "Valid RequireExplicitPolicy Test2",
+   "certs": [
+    "requireExplicitPolicy5CACert.crt",
+    "requireExplicitPolicy5subCACert.crt",
+    "requireExplicitPolicy5subsubCACert.crt",
+    "requireExplicitPolicy5subsubsubCACert.crt",
+    "ValidrequireExplicitPolicyTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy5CACRL.crl",
+    "requireExplicitPolicy5subCACRL.crl",
+    "requireExplicitPolicy5subsubCACRL.crl",
+    "requireExplicitPolicy5subsubsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully since the explicit-policy- indicator is not set. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.3",
+   "title": "Invalid RequireExplicitPolicy Test3",
+   "certs": [
+    "requireExplicitPolicy4CACert.crt",
+    "requireExplicitPolicy4subCACert.crt",
+    "requireExplicitPolicy4subsubCACert.crt",
+    "requireExplicitPolicy4subsubsubCACert.crt",
+    "InvalidrequireExplicitPolicyTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy4CACRL.crl",
+    "requireExplicitPolicy4subCACRL.crl",
+    "requireExplicitPolicy4subsubCACRL.crl",
+    "requireExplicitPolicy4subsubsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path not should validate successfully since the explicit-policy- indicator is set and the authorities-constrained-policy-set is empty. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.4",
+   "title": "Valid RequireExplicitPolicy Test4",
+   "certs": [
+    "requireExplicitPolicy0CACert.crt",
+    "requireExplicitPolicy0subCACert.crt",
+    "requireExplicitPolicy0subsubCACert.crt",
+    "requireExplicitPolicy0subsubsubCACert.crt",
+    "ValidrequireExplicitPolicyTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy0CACRL.crl",
+    "requireExplicitPolicy0subCACRL.crl",
+    "requireExplicitPolicy0subsubCACRL.crl",
+    "requireExplicitPolicy0subsubsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully (as long as the initial-policy-set is either any-policy or otherwise includes NIST-test-policy-1) since the user-constr"
+    }
+   ]
+  },
+  {
+   "id": "4.9.5",
+   "title": "Invalid RequireExplicitPolicy Test5",
+   "certs": [
+    "requireExplicitPolicy7CACert.crt",
+    "requireExplicitPolicy7subCARE2Cert.crt",
+    "requireExplicitPolicy7subsubCARE2RE4Cert.crt",
+    "requireExplicitPolicy7subsubsubCARE2RE4Cert.crt",
+    "InvalidrequireExplicitPolicyTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy7CACRL.crl",
+    "requireExplicitPolicy7subCARE2CRL.crl",
+    "requireExplicitPolicy7subsubCARE2RE4CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the explicit-policy- indicator is set and the authorities-constrained-policy-set is empty. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.6",
+   "title": "Valid Self-Issued requireExplicitPolicy Test6",
+   "certs": [
+    "requireExplicitPolicy2CACert.crt",
+    "requireExplicitPolicy2SelfIssuedCACert.crt",
+    "ValidSelfIssuedrequireExplicitPolicyTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully since the explicit-policy- indicator is not set. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.7",
+   "title": "Invalid Self-Issued requireExplicitPolicy Test7",
+   "certs": [
+    "requireExplicitPolicy2CACert.crt",
+    "requireExplicitPolicy2SelfIssuedCACert.crt",
+    "requireExplicitPolicy2subCACert.crt",
+    "InvalidSelfIssuedrequireExplicitPolicyTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy2CACRL.crl",
+    "requireExplicitPolicy2subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the explicit-policy- indicator is set and the authorities-constrained-policy-set is empty. "
+    }
+   ]
+  },
+  {
+   "id": "4.9.8",
+   "title": "Invalid Self-Issued requireExplicitPolicy Test8",
+   "certs": [
+    "requireExplicitPolicy2CACert.crt",
+    "requireExplicitPolicy2SelfIssuedCACert.crt",
+    "requireExplicitPolicy2subCACert.crt",
+    "requireExplicitPolicy2SelfIssuedsubCACert.crt",
+    "InvalidSelfIssuedrequireExplicitPolicyTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "requireExplicitPolicy2CACRL.crl",
+    "requireExplicitPolicy2subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the explicit-policy- indicator is set and the authorities-constrained-policy-set is empty. "
+    }
+   ]
+  },
+  {
+   "id": "4.10.1",
+   "title": "Valid Policy Mapping Test1",
+   "certs": [
+    "Mapping1to2CACert.crt",
+    "ValidPolicyMappingTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "Mapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should not validate successfully. 51"
+    },
+    {
+     "settings": {
+      "inhibitMapping": true
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-mapping-inhibit set. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.10.2",
+   "title": "Invalid Policy Mapping Test2",
+   "certs": [
+    "Mapping1to2CACert.crt",
+    "InvalidPolicyMappingTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "Mapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": "default settings. The path should not validate successfully."
+    },
+    {
+     "settings": {
+      "inhibitMapping": true
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-mapping-inhibit set. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.10.3",
+   "title": "Valid Policy Mapping Test3",
+   "certs": [
+    "P12Mapping1to3CACert.crt",
+    "P12Mapping1to3subCACert.crt",
+    "P12Mapping1to3subsubCACert.crt",
+    "ValidPolicyMappingTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P12Mapping1to3CACRL.crl",
+    "P12Mapping1to3subCACRL.crl",
+    "P12Mapping1to3subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should not validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path 52 should validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.10.4",
+   "title": "Invalid Policy Mapping Test4",
+   "certs": [
+    "P12Mapping1to3CACert.crt",
+    "P12Mapping1to3subCACert.crt",
+    "P12Mapping1to3subsubCACert.crt",
+    "InvalidPolicyMappingTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P12Mapping1to3CACRL.crl",
+    "P12Mapping1to3subCACRL.crl",
+    "P12Mapping1to3subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty and the explicit-policy-indicator will be set (if the application c"
+    }
+   ]
+  },
+  {
+   "id": "4.10.5",
+   "title": "Valid Policy Mapping Test5",
+   "certs": [
+    "P1Mapping1to234CACert.crt",
+    "P1Mapping1to234subCACert.crt",
+    "ValidPolicyMappingTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P1Mapping1to234CACRL.crl",
+    "P1Mapping1to234subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.6"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-6}. The path should not validate successfully. 53"
+    }
+   ]
+  },
+  {
+   "id": "4.10.6",
+   "title": "Valid Policy Mapping Test6",
+   "certs": [
+    "P1Mapping1to234CACert.crt",
+    "P1Mapping1to234subCACert.crt",
+    "ValidPolicyMappingTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P1Mapping1to234CACRL.crl",
+    "P1Mapping1to234subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.6"
+      ]
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-6}. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.10.7",
+   "title": "Invalid Mapping From anyPolicy Test7",
+   "certs": [
+    "MappingFromanyPolicyCACert.crt",
+    "InvalidMappingFromanyPolicyTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "MappingFromanyPolicyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a policy mapping extension in which anyPolicy appears as an issuerDomai"
+    }
+   ]
+  },
+  {
+   "id": "4.10.8",
+   "title": "Invalid Mapping To anyPolicy Test8",
+   "certs": [
+    "MappingToanyPolicyCACert.crt",
+    "InvalidMappingToanyPolicyTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "MappingToanyPolicyCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the intermediate certificate includes a policy mapping extension in which anyPolicy appears as an subjectDoma"
+    }
+   ]
+  },
+  {
+   "id": "4.10.9",
+   "title": "Valid Policy Mapping Test9",
+   "certs": [
+    "PanyPolicyMapping1to2CACert.crt",
+    "ValidPolicyMappingTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "PanyPolicyMapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can process the policyCon"
+    }
+   ]
+  },
+  {
+   "id": "4.10.10",
+   "title": "Invalid Policy Mapping Test10",
+   "certs": [
+    "GoodCACert.crt",
+    "GoodsubCAPanyPolicyMapping1to2CACert.crt",
+    "InvalidPolicyMappingTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "GoodsubCAPanyPolicyMapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty and the explicit-policy-indicator will be set (if the application c"
+    }
+   ]
+  },
+  {
+   "id": "4.10.11",
+   "title": "Valid Policy Mapping Test11",
+   "certs": [
+    "GoodCACert.crt",
+    "GoodsubCAPanyPolicyMapping1to2CACert.crt",
+    "ValidPolicyMappingTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl",
+    "GoodsubCAPanyPolicyMapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} 56 and the explicit-policy-indicator will be set (if the application can process the poli"
+    }
+   ]
+  },
+  {
+   "id": "4.10.12",
+   "title": "Valid Policy Mapping Test12",
+   "certs": [
+    "P12Mapping1to3CACert.crt",
+    "ValidPolicyMappingTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P12Mapping1to3CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.1"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-1}. The path should validate successfully and the application should display the user notice a"
+    },
+    {
+     "settings": {
+      "policies": [
+       "2.16.840.1.101.3.2.1.48.2"
+      ]
+     },
+     "expected": "valid",
+     "note": "default settings, but with initial-policy-set = {NIST-test-policy-2}. The path should validate successfully and the application should display the user notice a"
+    }
+   ]
+  },
+  {
+   "id": "4.10.13",
+   "title": "Valid Policy Mapping Test13",
+   "certs": [
+    "P1anyPolicyMapping1to2CACert.crt",
+    "ValidPolicyMappingTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P1anyPolicyMapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can process the policyCon"
+    }
+   ]
+  },
+  {
+   "id": "4.10.14",
+   "title": "Valid Policy Mapping Test14",
+   "certs": [
+    "P1anyPolicyMapping1to2CACert.crt",
+    "ValidPolicyMappingTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "P1anyPolicyMapping1to2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can process the policyCon"
+    }
+   ]
+  },
+  {
+   "id": "4.11.1",
+   "title": "Invalid inhibitPolicyMapping Test1",
+   "certs": [
+    "inhibitPolicyMapping0CACert.crt",
+    "inhibitPolicyMapping0subCACert.crt",
+    "InvalidinhibitPolicyMappingTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping0CACRL.crl",
+    "inhibitPolicyMapping0subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty. The explicit-policy-indicator will be set. The path should not val"
+    }
+   ]
+  },
+  {
+   "id": "4.11.2",
+   "title": "Valid inhibitPolicyMapping Test2",
+   "certs": [
+    "inhibitPolicyMapping1P12CACert.crt",
+    "inhibitPolicyMapping1P12subCACert.crt",
+    "ValidinhibitPolicyMappingTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P12CACRL.crl",
+    "inhibitPolicyMapping1P12subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set. If the initial-policy-set is any-policy or"
+    }
+   ]
+  },
+  {
+   "id": "4.11.3",
+   "title": "Invalid inhibitPolicyMapping Test3",
+   "certs": [
+    "inhibitPolicyMapping1P12CACert.crt",
+    "inhibitPolicyMapping1P12subCACert.crt",
+    "inhibitPolicyMapping1P12subsubCACert.crt",
+    "InvalidinhibitPolicyMappingTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P12CACRL.crl",
+    "inhibitPolicyMapping1P12subCACRL.crl",
+    "inhibitPolicyMapping1P12subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty and the explicit-policy-indicator will be set. The path should not "
+    }
+   ]
+  },
+  {
+   "id": "4.11.4",
+   "title": "Valid inhibitPolicyMapping Test4",
+   "certs": [
+    "inhibitPolicyMapping1P12CACert.crt",
+    "inhibitPolicyMapping1P12subCACert.crt",
+    "inhibitPolicyMapping1P12subsubCACert.crt",
+    "ValidinhibitPolicyMappingTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P12CACRL.crl",
+    "inhibitPolicyMapping1P12subCACRL.crl",
+    "inhibitPolicyMapping1P12subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-2} and the explicit-policy-indicator will be set. If the initial-policy-set is any-policy or"
+    }
+   ]
+  },
+  {
+   "id": "4.11.5",
+   "title": "Invalid inhibitPolicyMapping Test5",
+   "certs": [
+    "inhibitPolicyMapping5CACert.crt",
+    "inhibitPolicyMapping5subCACert.crt",
+    "inhibitPolicyMapping5subsubCACert.crt",
+    "inhibitPolicyMapping5subsubsubCACert.crt",
+    "InvalidinhibitPolicyMappingTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping5CACRL.crl",
+    "inhibitPolicyMapping5subCACRL.crl",
+    "inhibitPolicyMapping5subsubCACRL.crl",
+    "inhibitPolicyMapping5subsubsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty and the explicit-policy-indicator will be set. The path should not "
+    }
+   ]
+  },
+  {
+   "id": "4.11.6",
+   "title": "Invalid inhibitPolicyMapping Test6",
+   "certs": [
+    "inhibitPolicyMapping1P12CACert.crt",
+    "inhibitPolicyMapping1P12subCAIPM5Cert.crt",
+    "inhibitPolicyMapping1P12subsubCAIPM5Cert.crt",
+    "InvalidinhibitPolicyMappingTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P12CACRL.crl",
+    "inhibitPolicyMapping1P12subCAIPM5CRL.crl",
+    "inhibitPolicyMapping1P12subsubCAIPM5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and the user-constrained- policy-set will be empty and the explicit-policy-indicator will be set. The path should not "
+    }
+   ]
+  },
+  {
+   "id": "4.11.7",
+   "title": "Valid Self-Issued inhibitPolicyMapping Test7",
+   "certs": [
+    "inhibitPolicyMapping1P1CACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+    "inhibitPolicyMapping1P1subCACert.crt",
+    "ValidSelfIssuedinhibitPolicyMappingTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P1CACRL.crl",
+    "inhibitPolicyMapping1P1subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set. If the initial-policy-set is any-policy or"
+    }
+   ]
+  },
+  {
+   "id": "4.11.8",
+   "title": "Invalid Self-Issued inhibitPolicyMapping Test8",
+   "certs": [
+    "inhibitPolicyMapping1P1CACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+    "inhibitPolicyMapping1P1subCACert.crt",
+    "inhibitPolicyMapping1P1subsubCACert.crt",
+    "InvalidSelfIssuedinhibitPolicyMappingTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P1CACRL.crl",
+    "inhibitPolicyMapping1P1subCACRL.crl",
+    "inhibitPolicyMapping1P1subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set. The path should not vali"
+    }
+   ]
+  },
+  {
+   "id": "4.11.9",
+   "title": "Invalid Self-Issued inhibitPolicyMapping Test9",
+   "certs": [
+    "inhibitPolicyMapping1P1CACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+    "inhibitPolicyMapping1P1subCACert.crt",
+    "inhibitPolicyMapping1P1subsubCACert.crt",
+    "InvalidSelfIssuedinhibitPolicyMappingTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P1CACRL.crl",
+    "inhibitPolicyMapping1P1subCACRL.crl",
+    "inhibitPolicyMapping1P1subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set. The path should not vali"
+    }
+   ]
+  },
+  {
+   "id": "4.11.10",
+   "title": "Invalid Self-Issued inhibitPolicyMapping Test10",
+   "certs": [
+    "inhibitPolicyMapping1P1CACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+    "inhibitPolicyMapping1P1subCACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedsubCACert.crt",
+    "InvalidSelfIssuedinhibitPolicyMappingTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P1CACRL.crl",
+    "inhibitPolicyMapping1P1subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set. The path should not vali"
+    }
+   ]
+  },
+  {
+   "id": "4.11.11",
+   "title": "Invalid Self-Issued inhibitPolicyMapping Test11",
+   "certs": [
+    "inhibitPolicyMapping1P1CACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+    "inhibitPolicyMapping1P1subCACert.crt",
+    "inhibitPolicyMapping1P1SelfIssuedsubCACert.crt",
+    "InvalidSelfIssuedinhibitPolicyMappingTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitPolicyMapping1P1CACRL.crl",
+    "inhibitPolicyMapping1P1subCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set. The path should not vali"
+    }
+   ]
+  },
+  {
+   "id": "4.12.1",
+   "title": "Invalid inhibitAnyPolicy Test1",
+   "certs": [
+    "inhibitAnyPolicy0CACert.crt",
+    "InvalidinhibitAnyPolicyTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy0CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.12.2",
+   "title": "Valid inhibitAnyPolicy Test2",
+   "certs": [
+    "inhibitAnyPolicy0CACert.crt",
+    "ValidinhibitAnyPolicyTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy0CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can 65 process the poli"
+    }
+   ]
+  },
+  {
+   "id": "4.12.3",
+   "title": "inhibitAnyPolicy Test3",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1subCA1Cert.crt",
+    "inhibitAnyPolicyTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": "default settings. The path should validate successfully."
+    },
+    {
+     "settings": {
+      "inhibitAny": true
+     },
+     "expected": "invalid",
+     "note": "default settings, but with initial-inhibit-any-policy set. The path should not validate successfully."
+    }
+   ]
+  },
+  {
+   "id": "4.12.4",
+   "title": "Invalid inhibitAnyPolicy Test4",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1subCA1Cert.crt",
+    "InvalidinhibitAnyPolicyTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the application can pro"
+    }
+   ]
+  },
+  {
+   "id": "4.12.5",
+   "title": "Invalid inhibitAnyPolicy Test5",
+   "certs": [
+    "inhibitAnyPolicy5CACert.crt",
+    "inhibitAnyPolicy5subCACert.crt",
+    "inhibitAnyPolicy5subsubCACert.crt",
+    "InvalidinhibitAnyPolicyTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy5CACRL.crl",
+    "inhibitAnyPolicy5subCACRL.crl",
+    "inhibitAnyPolicy5subsubCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the application can pro"
+    }
+   ]
+  },
+  {
+   "id": "4.12.6",
+   "title": "Invalid inhibitAnyPolicy Test6",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1subCAIAP5Cert.crt",
+    "InvalidinhibitAnyPolicyTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCAIAP5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the 67 application ca"
+    }
+   ]
+  },
+  {
+   "id": "4.12.7",
+   "title": "Valid Self-Issued inhibitAnyPolicy Test7",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1SelfIssuedCACert.crt",
+    "inhibitAnyPolicy1subCA2Cert.crt",
+    "ValidSelfIssuedinhibitAnyPolicyTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can process the policyC"
+    }
+   ]
+  },
+  {
+   "id": "4.12.8",
+   "title": "Invalid Self-Issued inhibitAnyPolicy Test8",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1SelfIssuedCACert.crt",
+    "inhibitAnyPolicy1subCA2Cert.crt",
+    "inhibitAnyPolicy1subsubCA2Cert.crt",
+    "InvalidSelfIssuedinhibitAnyPolicyTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA2CRL.crl",
+    "inhibitAnyPolicy1subsubCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.12.9",
+   "title": "Valid Self-Issued inhibitAnyPolicy Test9",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1SelfIssuedCACert.crt",
+    "inhibitAnyPolicy1subCA2Cert.crt",
+    "inhibitAnyPolicy1SelfIssuedsubCA2Cert.crt",
+    "ValidSelfIssuedinhibitAnyPolicyTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The authorities-constrained-policy-set will be {NIST-test-policy-1} and the explicit-policy-indicator will be set (if the application can process the policyC"
+    }
+   ]
+  },
+  {
+   "id": "4.12.10",
+   "title": "Invalid Self-Issued inhibitAnyPolicy Test10",
+   "certs": [
+    "inhibitAnyPolicy1CACert.crt",
+    "inhibitAnyPolicy1SelfIssuedCACert.crt",
+    "inhibitAnyPolicy1subCA2Cert.crt",
+    "InvalidSelfIssuedinhibitAnyPolicyTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "inhibitAnyPolicy1CACRL.crl",
+    "inhibitAnyPolicy1subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The authorities-constrained-policy-set and user-constrained-policy- set will be empty and the explicit-policy-indicator will be set (if the application can p"
+    }
+   ]
+  },
+  {
+   "id": "4.13.1",
+   "title": "Valid DN nameConstraints Test1",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "ValidDNnameConstraintsTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.2",
+   "title": "Invalid DN nameConstraints Test2",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "InvalidDNnameConstraintsTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.3",
+   "title": "Invalid DN nameConstraints Test3",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "InvalidDNnameConstraintsTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.4",
+   "title": "Valid DN nameConstraints Test4",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "ValidDNnameConstraintsTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.5",
+   "title": "Valid DN nameConstraints Test5",
+   "certs": [
+    "nameConstraintsDN2CACert.crt",
+    "ValidDNnameConstraintsTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.6",
+   "title": "Valid DN nameConstraints Test6",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "ValidDNnameConstraintsTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.7",
+   "title": "Invalid DN nameConstraints Test7",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "InvalidDNnameConstraintsTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.8",
+   "title": "Invalid DN nameConstraints Test8",
+   "certs": [
+    "nameConstraintsDN4CACert.crt",
+    "InvalidDNnameConstraintsTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN4CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.9",
+   "title": "Invalid DN nameConstraints Test9",
+   "certs": [
+    "nameConstraintsDN4CACert.crt",
+    "InvalidDNnameConstraintsTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN4CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.10",
+   "title": "Invalid DN nameConstraints Test10",
+   "certs": [
+    "nameConstraintsDN5CACert.crt",
+    "InvalidDNnameConstraintsTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN5CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.11",
+   "title": "Valid DN nameConstraints Test11",
+   "certs": [
+    "nameConstraintsDN5CACert.crt",
+    "ValidDNnameConstraintsTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN5CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.12",
+   "title": "Invalid DN nameConstraints Test12",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA1Cert.crt",
+    "InvalidDNnameConstraintsTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.13",
+   "title": "Invalid DN nameConstraints Test13",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA2Cert.crt",
+    "InvalidDNnameConstraintsTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.14",
+   "title": "Valid DN nameConstraints Test14",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA2Cert.crt",
+    "ValidDNnameConstraintsTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.15",
+   "title": "Invalid DN nameConstraints Test15",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "nameConstraintsDN3subCA1Cert.crt",
+    "InvalidDNnameConstraintsTest15EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl",
+    "nameConstraintsDN3subCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. 75 "
+    }
+   ]
+  },
+  {
+   "id": "4.13.16",
+   "title": "Invalid DN nameConstraints Test16",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "nameConstraintsDN3subCA1Cert.crt",
+    "InvalidDNnameConstraintsTest16EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl",
+    "nameConstraintsDN3subCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.17",
+   "title": "Invalid DN nameConstraints Test17",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "nameConstraintsDN3subCA2Cert.crt",
+    "InvalidDNnameConstraintsTest17EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl",
+    "nameConstraintsDN3subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.18",
+   "title": "Valid DN nameConstraints Test18",
+   "certs": [
+    "nameConstraintsDN3CACert.crt",
+    "nameConstraintsDN3subCA2Cert.crt",
+    "ValidDNnameConstraintsTest18EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN3CACRL.crl",
+    "nameConstraintsDN3subCA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.19",
+   "title": "Valid Self-Issued DN nameConstraints Test19",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1SelfIssuedCACert.crt",
+    "ValidDNnameConstraintsTest19EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.20",
+   "title": "Invalid Self-Issued DN nameConstraints Test20",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "InvalidDNnameConstraintsTest20EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.21",
+   "title": "Valid RFC822 nameConstraints Test21 \ufffd",
+   "certs": [
+    "nameConstraintsRFC822CA1Cert.crt",
+    "ValidRFC822nameConstraintsTest21EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.22",
+   "title": "Invalid RFC822 nameConstraints Test22",
+   "certs": [
+    "nameConstraintsRFC822CA1Cert.crt",
+    "InvalidRFC822nameConstraintsTest22EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.23",
+   "title": "Valid RFC822 nameConstraints Test23",
+   "certs": [
+    "nameConstraintsRFC822CA2Cert.crt",
+    "ValidRFC822nameConstraintsTest23EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.24",
+   "title": "Invalid RFC822 nameConstraints Test24 \ufffd",
+   "certs": [
+    "nameConstraintsRFC822CA2Cert.crt",
+    "InvalidRFC822nameConstraintsTest24EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA2CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.25",
+   "title": "Valid RFC822 nameConstraints Test25",
+   "certs": [
+    "nameConstraintsRFC822CA3Cert.crt",
+    "ValidRFC822nameConstraintsTest25EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA3CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.26",
+   "title": "Invalid RFC822 nameConstraints Test26",
+   "certs": [
+    "nameConstraintsRFC822CA3Cert.crt",
+    "InvalidRFC822nameConstraintsTest26EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsRFC822CA3CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.27",
+   "title": "Valid DN and RFC822 nameConstraints Test27",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA3Cert.crt",
+    "ValidDNandRFC822nameConstraintsTest27EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA3CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.28",
+   "title": "Invalid DN and RFC822 nameConstraints Test28",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA3Cert.crt",
+    "InvalidDNandRFC822nameConstraintsTest28EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA3CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.29",
+   "title": "Invalid DN and RFC822 nameConstraints Test29",
+   "certs": [
+    "nameConstraintsDN1CACert.crt",
+    "nameConstraintsDN1subCA3Cert.crt",
+    "InvalidDNandRFC822nameConstraintsTest29EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDN1CACRL.crl",
+    "nameConstraintsDN1subCA3CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. 80 "
+    }
+   ]
+  },
+  {
+   "id": "4.13.30",
+   "title": "Valid DNS nameConstraints Test30",
+   "certs": [
+    "nameConstraintsDNS1CACert.crt",
+    "ValidDNSnameConstraintsTest30EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDNS1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.31",
+   "title": "Invalid DNS nameConstraints Test31",
+   "certs": [
+    "nameConstraintsDNS1CACert.crt",
+    "InvalidDNSnameConstraintsTest31EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDNS1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.32",
+   "title": "Valid DNS nameConstraints Test32",
+   "certs": [
+    "nameConstraintsDNS2CACert.crt",
+    "ValidDNSnameConstraintsTest32EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDNS2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.33",
+   "title": "Invalid DNS nameConstraints Test33",
+   "certs": [
+    "nameConstraintsDNS2CACert.crt",
+    "InvalidDNSnameConstraintsTest33EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDNS2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.34",
+   "title": "Valid URI nameConstraints Test34",
+   "certs": [
+    "nameConstraintsURI1CACert.crt",
+    "ValidURInameConstraintsTest34EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsURI1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.35",
+   "title": "Invalid URI nameConstraints Test35",
+   "certs": [
+    "nameConstraintsURI1CACert.crt",
+    "InvalidURInameConstraintsTest35EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsURI1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.36",
+   "title": "Valid URI nameConstraints Test36 \ufffd",
+   "certs": [
+    "nameConstraintsURI2CACert.crt",
+    "ValidURInameConstraintsTest36EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsURI2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.37",
+   "title": "Invalid URI nameConstraints Test37",
+   "certs": [
+    "nameConstraintsURI2CACert.crt",
+    "InvalidURInameConstraintsTest37EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsURI2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.13.38",
+   "title": "Invalid DNS nameConstraints Test38",
+   "certs": [
+    "nameConstraintsDNS1CACert.crt",
+    "InvalidDNSnameConstraintsTest38EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "nameConstraintsDNS1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.1",
+   "title": "Valid distributionPoint Test1",
+   "certs": [
+    "distributionPoint1CACert.crt",
+    "ValiddistributionPointTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.2",
+   "title": "Invalid distributionPoint Test2",
+   "certs": [
+    "distributionPoint1CACert.crt",
+    "InvaliddistributionPointTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.3",
+   "title": "Invalid distributionPoint Test3",
+   "certs": [
+    "distributionPoint1CACert.crt",
+    "InvaliddistributionPointTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.4",
+   "title": "Valid distributionPoint Test4",
+   "certs": [
+    "distributionPoint1CACert.crt",
+    "ValiddistributionPointTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint1CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.5",
+   "title": "Valid distributionPoint Test5",
+   "certs": [
+    "distributionPoint2CACert.crt",
+    "ValiddistributionPointTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.6",
+   "title": "Invalid distributionPoint Test6",
+   "certs": [
+    "distributionPoint2CACert.crt",
+    "InvaliddistributionPointTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.7",
+   "title": "Valid distributionPoint Test7",
+   "certs": [
+    "distributionPoint2CACert.crt",
+    "ValiddistributionPointTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.8",
+   "title": "Invalid distributionPoint Test8",
+   "certs": [
+    "distributionPoint2CACert.crt",
+    "InvaliddistributionPointTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.9",
+   "title": "Invalid distributionPoint Test9",
+   "certs": [
+    "distributionPoint2CACert.crt",
+    "InvaliddistributionPointTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "distributionPoint2CACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.10",
+   "title": "Valid No issuingDistributionPoint Test10",
+   "certs": [
+    "NoissuingDistributionPointCACert.crt",
+    "ValidNoissuingDistributionPointTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "NoissuingDistributionPointCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.11",
+   "title": "Invalid onlyContainsUserCerts CRL Test11",
+   "certs": [
+    "onlyContainsUserCertsCACert.crt",
+    "InvalidonlyContainsUserCertsTest11EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlyContainsUserCertsCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.12",
+   "title": "Invalid onlyContainsCACerts CRL Test12",
+   "certs": [
+    "onlyContainsCACertsCACert.crt",
+    "InvalidonlyContainsCACertsTest12EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlyContainsCACertsCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.13",
+   "title": "Valid onlyContainsCACerts CRL Test13",
+   "certs": [
+    "onlyContainsCACertsCACert.crt",
+    "ValidonlyContainsCACertsTest13EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlyContainsCACertsCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.14",
+   "title": "Invalid onlyContainsAttributeCerts Test14",
+   "certs": [
+    "onlyContainsAttributeCertsCACert.crt",
+    "InvalidonlyContainsAttributeCertsTest14EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlyContainsAttributeCertsCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.15",
+   "title": "Invalid onlySomeReasons Test15",
+   "certs": [
+    "onlySomeReasonsCA1Cert.crt",
+    "InvalidonlySomeReasonsTest15EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA1compromiseCRL.crl",
+    "onlySomeReasonsCA1otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.16",
+   "title": "Invalid onlySomeReasons Test16",
+   "certs": [
+    "onlySomeReasonsCA1Cert.crt",
+    "InvalidonlySomeReasonsTest16EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA1compromiseCRL.crl",
+    "onlySomeReasonsCA1otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate is on hold. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.17",
+   "title": "Invalid onlySomeReasons Test17",
+   "certs": [
+    "onlySomeReasonsCA2Cert.crt",
+    "InvalidonlySomeReasonsTest17EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA2CRL1.crl",
+    "onlySomeReasonsCA2CRL2.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.18",
+   "title": "Valid onlySomeReasons Test18",
+   "certs": [
+    "onlySomeReasonsCA3Cert.crt",
+    "ValidonlySomeReasonsTest18EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA3compromiseCRL.crl",
+    "onlySomeReasonsCA3otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.19",
+   "title": "Valid onlySomeReasons Test19",
+   "certs": [
+    "onlySomeReasonsCA4Cert.crt",
+    "ValidonlySomeReasonsTest19EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA4compromiseCRL.crl",
+    "onlySomeReasonsCA4otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.20",
+   "title": "Invalid onlySomeReasons Test20",
+   "certs": [
+    "onlySomeReasonsCA4Cert.crt",
+    "InvalidonlySomeReasonsTest20EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA4compromiseCRL.crl",
+    "onlySomeReasonsCA4otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.21",
+   "title": "Invalid onlySomeReasons Test21",
+   "certs": [
+    "onlySomeReasonsCA4Cert.crt",
+    "InvalidonlySomeReasonsTest21EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "onlySomeReasonsCA4compromiseCRL.crl",
+    "onlySomeReasonsCA4otherreasonsCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.22",
+   "title": "Valid IDP with indirectCRL Test22",
+   "certs": [
+    "indirectCRLCA1Cert.crt",
+    "ValidIDPwithindirectCRLTest22EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.23",
+   "title": "Invalid IDP with indirectCRL Test23",
+   "certs": [
+    "indirectCRLCA1Cert.crt",
+    "InvalidIDPwithindirectCRLTest23EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.24",
+   "title": "Valid IDP with indirectCRL Test24",
+   "certs": [
+    "indirectCRLCA2Cert.crt",
+    "indirectCRLCA1Cert.crt",
+    "ValidIDPwithindirectCRLTest24EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.25",
+   "title": "Valid IDP with indirectCRL Test25",
+   "certs": [
+    "indirectCRLCA2Cert.crt",
+    "indirectCRLCA1Cert.crt",
+    "ValidIDPwithindirectCRLTest25EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.26",
+   "title": "Invalid IDP with indirectCRL Test26",
+   "certs": [
+    "indirectCRLCA2Cert.crt",
+    "indirectCRLCA1Cert.crt",
+    "InvalidIDPwithindirectCRLTest26EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA1CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.27",
+   "title": "Invalid cRLIssuer Test27",
+   "certs": [
+    "indirectCRLCA2Cert.crt",
+    "GoodCACert.crt",
+    "InvalidcRLIssuerTest27EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "GoodCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.28",
+   "title": "Valid cRLIssuer Test28",
+   "certs": [
+    "indirectCRLCA3Cert.crt",
+    "indirectCRLCA3cRLIssuerCert.crt",
+    "ValidcRLIssuerTest28EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA3CRL.crl",
+    "indirectCRLCA3cRLIssuerCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.29",
+   "title": "Valid cRLIssuer Test29",
+   "certs": [
+    "indirectCRLCA3Cert.crt",
+    "indirectCRLCA3cRLIssuerCert.crt",
+    "ValidcRLIssuerTest29EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA3CRL.crl",
+    "indirectCRLCA3cRLIssuerCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.30",
+   "title": "Valid cRLIssuer Test30",
+   "certs": [
+    "indirectCRLCA4Cert.crt",
+    "indirectCRLCA4cRLIssuerCert.crt",
+    "ValidcRLIssuerTest30EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA4cRLIssuerCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.31",
+   "title": "Invalid cRLIssuer Test31",
+   "certs": [
+    "indirectCRLCA5Cert.crt",
+    "indirectCRLCA6Cert.crt",
+    "InvalidcRLIssuerTest31EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.32",
+   "title": "Invalid cRLIssuer Test32",
+   "certs": [
+    "indirectCRLCA5Cert.crt",
+    "indirectCRLCA6Cert.crt",
+    "InvalidcRLIssuerTest32EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.33",
+   "title": "Valid cRLIssuer Test33",
+   "certs": [
+    "indirectCRLCA5Cert.crt",
+    "indirectCRLCA6Cert.crt",
+    "ValidcRLIssuerTest33EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. 95 "
+    }
+   ]
+  },
+  {
+   "id": "4.14.34",
+   "title": "Invalid cRLIssuer Test34",
+   "certs": [
+    "indirectCRLCA5Cert.crt",
+    "InvalidcRLIssuerTest34EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.14.35",
+   "title": "Invalid cRLIssuer Test35",
+   "certs": [
+    "indirectCRLCA5Cert.crt",
+    "InvalidcRLIssuerTest35EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "indirectCRLCA5CRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.1",
+   "title": "Invalid deltaCRLIndicator No Base Test1",
+   "certs": [
+    "deltaCRLIndicatorNoBaseCACert.crt",
+    "InvaliddeltaCRLIndicatorNoBaseTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLIndicatorNoBaseCACRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.2",
+   "title": "Valid delta-CRL Test2",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "ValiddeltaCRLTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.3",
+   "title": "Invalid delta-CRL Test3",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "InvaliddeltaCRLTest3EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.4",
+   "title": "Invalid delta-CRL Test4",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "InvaliddeltaCRLTest4EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.5",
+   "title": "Valid delta-CRL Test5",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "ValiddeltaCRLTest5EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.6",
+   "title": "Invalid delta-CRL Test6",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "InvaliddeltaCRLTest6EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. 98 "
+    }
+   ]
+  },
+  {
+   "id": "4.15.7",
+   "title": "Valid delta-CRL Test7",
+   "certs": [
+    "deltaCRLCA1Cert.crt",
+    "ValiddeltaCRLTest7EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA1CRL.crl",
+    "deltaCRLCA1deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.8",
+   "title": "Valid delta-CRL Test8",
+   "certs": [
+    "deltaCRLCA2Cert.crt",
+    "ValiddeltaCRLTest8EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA2CRL.crl",
+    "deltaCRLCA2deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.9",
+   "title": "Invalid delta-CRL Test9",
+   "certs": [
+    "deltaCRLCA2Cert.crt",
+    "InvaliddeltaCRLTest9EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA2CRL.crl",
+    "deltaCRLCA2deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate has been revoked. "
+    }
+   ]
+  },
+  {
+   "id": "4.15.10",
+   "title": "Invalid delta-CRL Test10",
+   "certs": [
+    "deltaCRLCA3Cert.crt",
+    "InvaliddeltaCRLTest10EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl",
+    "deltaCRLCA3CRL.crl",
+    "deltaCRLCA3deltaCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the status of the end entity certificate can not be determined. "
+    }
+   ]
+  },
+  {
+   "id": "4.16.1",
+   "title": "Valid Unknown Not Critical Certificate Extension Test1",
+   "certs": [
+    "ValidUnknownNotCriticalCertificateExtensionTest1EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "valid",
+     "note": " \ufffd The path should validate successfully. "
+    }
+   ]
+  },
+  {
+   "id": "4.16.2",
+   "title": "Invalid Unknown Critical Certificate Extension Test2",
+   "certs": [
+    "InvalidUnknownCriticalCertificateExtensionTest2EE.crt"
+   ],
+   "crls": [
+    "TrustAnchorRootCRL.crl"
+   ],
+   "runs": [
+    {
+     "settings": {},
+     "expected": "invalid",
+     "note": " \ufffd The path should not validate successfully since the end entity certificate includes a unknown, critical extension. "
+    }
+   ]
+  }
+ ]
+}

@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <None Include="Primitives/Data/*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Validation/Data/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
