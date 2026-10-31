@@ -15,6 +15,7 @@ internal static class Targets
         .. AesModesTargets.Targets(),
         .. LegacyCipherTargets.Targets(),
         .. KdfTargets.Targets(),
+        .. SecretModTargets.Targets(),
         .. FallbackTargets.Targets(),
     ];
 }
