@@ -354,8 +354,8 @@ public sealed record NameConstraints(IReadOnlyList<GeneralSubtree>? PermittedSub
 
     private static byte[] WriteSubtrees(int n, IReadOnlyList<GeneralSubtree> trees) => DerWriter.Context(n, [.. trees.Select(t => DerWriter.Sequence(
         t.Base.Encoded.ToArray(),
-        t.Minimum != 0 ? DerWriter.Tlv(0x80, new BigInteger(t.Minimum).ToByteArray(isUnsigned: true, isBigEndian: true)) : [],
-        t.Maximum is int m ? DerWriter.Tlv(0x81, new BigInteger(m).ToByteArray(isUnsigned: true, isBigEndian: true)) : []))]);
+        t.Minimum != 0 ? DerWriter.Tlv(0x80, new BigInteger(t.Minimum).ToByteArray(isUnsigned: false, isBigEndian: true)) : [],
+        t.Maximum is int m ? DerWriter.Tlv(0x81, new BigInteger(m).ToByteArray(isUnsigned: false, isBigEndian: true)) : []))]);
 
     /// <inheritdoc/>
     public byte[] Encode() => DerWriter.Sequence(
@@ -490,8 +490,8 @@ public sealed record PolicyConstraints(int? RequireExplicitPolicy, int? InhibitP
 
     /// <inheritdoc/>
     public byte[] Encode() => DerWriter.Sequence(
-        RequireExplicitPolicy is int a ? DerWriter.Tlv(0x80, new BigInteger(a).ToByteArray(isUnsigned: true, isBigEndian: true)) : [],
-        InhibitPolicyMapping is int b ? DerWriter.Tlv(0x81, new BigInteger(b).ToByteArray(isUnsigned: true, isBigEndian: true)) : []);
+        RequireExplicitPolicy is int a ? DerWriter.Tlv(0x80, new BigInteger(a).ToByteArray(isUnsigned: false, isBigEndian: true)) : [],
+        InhibitPolicyMapping is int b ? DerWriter.Tlv(0x81, new BigInteger(b).ToByteArray(isUnsigned: false, isBigEndian: true)) : []);
 }
 
 /// <summary>inhibitAnyPolicy (RFC 5280 §4.2.1.14).</summary>

@@ -292,7 +292,9 @@ internal static class SignatureAlgorithms
 /// <summary>Ed25519 and Ed448 verification entry point.</summary>
 internal static class EdwardsDispatch
 {
-    /// <summary>Checks an EdDSA signature; null when the build has no implementation of the curve.</summary>
-    // Placeholder until the library's Primitives namespace (Ed25519/Ed448) is part of the tree: this is the one place to wire them.
-    public static bool? Verify(string algorithmOid, ReadOnlySpan<byte> publicKey, ReadOnlySpan<byte> message, ReadOnlySpan<byte> signature) => null;
+    /// <summary>Checks an EdDSA signature (RFC 8032, empty context for Ed448 per RFC 8410 §3); the caller passes only Ed25519 or Ed448 identifiers.</summary>
+    public static bool? Verify(string algorithmOid, ReadOnlySpan<byte> publicKey, ReadOnlySpan<byte> message, ReadOnlySpan<byte> signature) =>
+        algorithmOid == KnownOids.Ed25519
+            ? publicKey.Length == 32 && signature.Length == 64 && RecursiveAI.OneCrypto.Primitives.Ed25519.Verify(publicKey, message, signature)
+            : publicKey.Length == 57 && signature.Length == 114 && RecursiveAI.OneCrypto.Primitives.Ed448.Verify(publicKey, message, default, signature);
 }

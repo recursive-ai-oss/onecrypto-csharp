@@ -164,4 +164,14 @@ public class HostileX509Tests
         Assert.Null(crl.Find(new byte[] { 0x4E, 0x21 }));
         Assert.True(crl.VerifySignature(root).IsValid);
     }
+
+    [Fact]
+    public void PolicyConstraintsWithTopBitSetNumberRoundTrips()
+    {
+        // A fuzz finding: 129 was re-encoded without its sign-padding zero and read back as negative.
+        PolicyConstraints pc = PolicyConstraints.Parse(new byte[] { 0x30, 0x06, 0x80, 0x04, 0x00, 0x81, 0x31, 0x01 }.AsMemory());
+        Assert.Equal(PolicyConstraints.Parse(pc.Encode()), pc);
+        var pc2 = new PolicyConstraints(200, 255);
+        Assert.Equal(pc2, PolicyConstraints.Parse(pc2.Encode()));
+    }
 }
