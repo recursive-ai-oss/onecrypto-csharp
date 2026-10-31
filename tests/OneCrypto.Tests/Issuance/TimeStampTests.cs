@@ -133,6 +133,15 @@ public class TimeStampTests
         Assert.Equal(CmsCheckStatus.NotApplicable, TimeStampVerifier.Verify(req, resp.Encoded).Find("trust")!.Status);
     }
 
+    // Found by fuzzing: a token whose authority certificate has an unreadable subjectAltName made Verify throw instead of failing the tsa-name rule.
+    [Fact]
+    public void ATokenWithAnUnreadableSubjectAltNameIsReportedNotThrown()
+    {
+        byte[] response = File.ReadAllBytes(Path.Combine(TestFiles.TestData, "fuzz-repros", "tsa-response-malformed-san.der"));
+        TimeStampReport report = TimeStampVerifier.Verify(TimeStampRequest.Create(new TimeStampRequestOptions { Hash = HashAlgorithmName.SHA256, MessageImprint = new byte[32] }), response);
+        Assert.False(report.IsValid);
+    }
+
     [Fact]
     public void WithoutCertReqTheTokenCarriesNoCertificateAndTheCallerSuppliesIt()
     {

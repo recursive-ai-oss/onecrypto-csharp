@@ -347,9 +347,20 @@ public static class TimeStampVerifier
         // RFC 3161 §2.4.2: when the tsa field is present it must identify the signer's certificate.
         if (info.Tsa is { } tsa)
         {
+            // A certificate whose subjectAltName cannot be read cannot be matched against the name: that fails the rule, it does not throw.
+            IReadOnlyList<GeneralName> sans;
+            try
+            {
+                sans = signer.SubjectAlternativeName?.Names ?? [];
+            }
+            catch (X509ParseException)
+            {
+                sans = [];
+            }
+
             bool match = tsa.Kind == GeneralNameKind.DirectoryName
-                ? tsa.DirectoryName is { } dn && (dn.Matches(signer.Subject) || (signer.SubjectAlternativeName?.Names.Any(n => n.Kind == GeneralNameKind.DirectoryName && n.Equals(tsa)) ?? false))
-                : signer.SubjectAlternativeName?.Names.Any(n => n.Equals(tsa)) ?? false;
+                ? tsa.DirectoryName is { } dn && (dn.Matches(signer.Subject) || sans.Any(n => n.Kind == GeneralNameKind.DirectoryName && n.Equals(tsa)))
+                : sans.Any(n => n.Equals(tsa));
             checks.Add(match
                 ? new CmsCheck("tsa-name", CmsCheckStatus.Passed, string.Empty, Rfc3161 + " §2.4.2")
                 : new CmsCheck("tsa-name", CmsCheckStatus.Failed, "The tsa field does not name the signer's certificate.", Rfc3161 + " §2.4.2"));
