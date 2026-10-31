@@ -235,6 +235,33 @@ public class ValidatorTests
         }
     }
 
+    [Fact]
+    public void TheSideBySideReportAgreesOnAPlainChainAndDisagreesWhereTheRulesDiffer()
+    {
+        using var root = new Node("Root", null, true);
+        using var leaf = new Node("leaf", root, false);
+        ValidationOptions o = Opts(root, []);
+        ChainDiagnostic same = ChainDiagnostics.Compare(leaf.Certificate, o, PathValidator.Validate(leaf.Certificate, o));
+        Assert.True(same.Agrees, same.Note + " " + same.PlatformStatus);
+
+        // Excluding the leaf's name makes us refuse a chain the platform engine (which ignores nothing here, but is not asked about names) may accept.
+        var nc = Extension.Create(new NameConstraints(null, [new GeneralSubtree(GeneralName.Dns("leaf.example.test"))]), true);
+        using var ca = new Node("CA", root, true, [nc]);
+        using var leaf2 = new Node("leaf", ca, false);
+        ValidationOptions o2 = Opts(root, [ca]);
+        ValidationReport r2 = PathValidator.Validate(leaf2.Certificate, o2);
+        Assert.False(r2.IsValid);
+        ChainDiagnostic diff = ChainDiagnostics.Compare(leaf2.Certificate, o2, r2);
+        Assert.Equal(ValidationVerdict.Invalid, diff.OurVerdict);
+    }
+
+    [Fact]
+    public void TheOsStoreLoaderYieldsAnchorsWithoutThrowing()
+    {
+        IReadOnlyList<TrustAnchor> roots = OsTrustStore.LoadRoots();
+        Assert.All(roots, a => Assert.NotNull(a.Certificate));
+    }
+
     // ---------------------------------------------------------------- denial-of-service constructions
 
     [Fact]
