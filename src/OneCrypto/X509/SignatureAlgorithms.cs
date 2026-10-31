@@ -168,6 +168,12 @@ internal static class SignatureAlgorithms
                     return Fail(SignatureStatus.AlgorithmNotSupported, $"{scheme.Hash.Name} is not available on {RuntimeInformation.OSDescription}.", "RFC 5758");
                 }
 
+                // The platform also accepts BER and unpadded integers here; the signature must be the strict DER of RFC 3279 §2.2.3.
+                if (!IsStrictEcdsaSignature(signature))
+                {
+                    return Fail(SignatureStatus.Invalid, "The ECDSA signature is not a strict DER SEQUENCE of two positive INTEGERs.", "RFC 3279 §2.2.3");
+                }
+
                 using ECDsa ec = key.ToECDsa();
                 bool ok = ec.VerifyData(data, signature, scheme.Hash, DSASignatureFormat.Rfc3279DerSequence);
                 return ok ? new(SignatureStatus.Valid, name, string.Empty, "RFC 5758 §3.2") : Fail(SignatureStatus.Invalid, "The ECDSA signature does not verify.", "RFC 5758 §3.2");
@@ -217,6 +223,17 @@ internal static class SignatureAlgorithms
         {
             return Fail(SignatureStatus.Malformed, e.Message, "RFC 5280 §4.1.1.3");
         }
+    }
+
+    private static bool IsStrictEcdsaSignature(ReadOnlySpan<byte> signature)
+    {
+        var r = new Asn1Reader(signature, Asn1Rules.Der);
+        if (!r.TryReadSequence(out Asn1Reader seq) || r.HasData)
+        {
+            return false;
+        }
+
+        return seq.TryReadUnsignedIntegerBytes(out _) && seq.TryReadUnsignedIntegerBytes(out _) && !seq.HasData;
     }
 
     private static SignatureVerification VerifyRsa(PublicKeyInfo key, SignatureScheme scheme, RSASignaturePadding padding, ReadOnlySpan<byte> data, ReadOnlySpan<byte> sig, string name)

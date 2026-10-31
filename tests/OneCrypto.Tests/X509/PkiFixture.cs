@@ -50,6 +50,9 @@ internal sealed class TestKey : IDisposable
 
     public KeyKind Kind { get; }
 
+    /// <summary>The ECDSA key when this is an EC kind (so a test can hand it to openssl), otherwise null.</summary>
+    public ECDsa? Ec => _key as ECDsa;
+
     public X509Signer Signer { get; }
 
 

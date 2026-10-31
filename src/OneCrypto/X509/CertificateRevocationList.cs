@@ -422,7 +422,7 @@ public sealed record RevokedCertificateInfo(
     IReadOnlyList<Extension>? Extensions = null);
 
 /// <summary>What goes into a CRL that is about to be issued.</summary>
-public sealed class CertificateRevocationListOptions
+public sealed class RevocationListOptions
 {
     /// <summary>The issuer name. Left null, it is the subject of the issuer certificate given to the builder.</summary>
     public DistinguishedName? Issuer { get; init; }
@@ -447,11 +447,11 @@ public sealed class CertificateRevocationListOptions
 }
 
 /// <summary>Issues CRLs and delta CRLs (RFC 5280 §5).</summary>
-public static class CertificateRevocationListBuilder
+public static class RevocationListBuilder
 {
     /// <summary>Issues a list signed by <paramref name="signer"/>. With <paramref name="issuer"/> the issuer name and authorityKeyIdentifier come from that certificate.</summary>
     /// <exception cref="ArgumentException">Neither the options nor an issuer certificate give an issuer name.</exception>
-    public static CertificateRevocationList Create(CertificateRevocationListOptions options, X509Signer signer, Certificate? issuer = null)
+    public static CertificateRevocationList Create(RevocationListOptions options, X509Signer signer, Certificate? issuer = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
