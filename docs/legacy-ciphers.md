@@ -30,8 +30,10 @@ but never writes: `Cast5` (RFC 2144), `Idea`, `Blowfish` and `Twofish`. The plat
 Table-driven implementations index tables with secret bytes, which a co-resident observer of the cache can read. None of these
 ciphers does that, in the rounds or the key schedule:
 
-- **Camellia.** One lookup of the F-function is a vector operation on its eight bytes: each byte's low nibble indexes all sixteen
-  16-entry rows of SBOX1 through a byte shuffle, and the high nibble selects a row through a tree of blends. SBOX2, SBOX3 and SBOX4 are
+- **Camellia.** One lookup of the F-function is a vector operation on its eight bytes (sixteen, for two blocks at once). With AES
+  instructions (see "Camellia through the AES instruction" below) the S-box is one AES round instruction between two affine maps.
+  Without them, each byte's low nibble indexes all sixteen 16-entry rows of SBOX1 through a byte shuffle, and the high nibble
+  selects a row through a tree of blends. SBOX2, SBOX3 and SBOX4 are
   derived exactly as RFC 3713 section 2.4.1 defines them (rotate the output or the input by one bit). The P-function is six shuffles.
 - **CAST5 and Blowfish.** Every S-box lookup compares the index with all 256 positions and keeps the match (`CtLookup.Word`), vectorised
   over 8 (or 4) positions per step. The Blowfish key schedule performs its 521 block encryptions the same way.
@@ -60,6 +62,34 @@ and loops over public counts (stage, round, table position); no jump, `cmov` or 
 - OpenPGP CFB: fixtures written by GnuPG 2.4 (`tools/gen_gnupg_cfb_fixtures.py`) for IDEA, CAST5, Blowfish, Twofish and Camellia 128/192/256,
   both the protected packet and the older one with resynchronisation.
 - Wycheproof has no files for CAST5, IDEA, Blowfish or Twofish, and none for Camellia ECB or CFB.
+
+## Camellia through the AES instruction
+
+Camellia's S-box is affine-equivalent to the inversion in the AES field GF(2^8) (the design papers say as much), so an AES
+S-box instruction can do the substitution. The affine maps are not in RFC 3713, so they were found from the RFC's SBOX1 table by
+black-box search; nothing was taken from any implementation or from the designers' specification.
+
+1. **Find P.** For every input difference a the differential `SBOX1[x] ^ SBOX1[x ^ a]` takes exactly one output difference b
+   exactly four times; set phi(a) = b. If SBOX1(x) = N(Inv(M x ^ a0)) ^ b0 with N and M linear, Inv the AES-field inversion and
+   Inv's own differential having the same one-in-four property, then phi(a) = N(D(M a)) for the corresponding map of Inv.
+   Inv is fixed, so M and N are constrained by phi.
+2. **Search.** A depth-first search chooses the images of the eight unit vectors under M one at a time (without loss of generality
+   the first is 1), keeps a linear basis of the pairs (phi(v), Inv(M v)) built so far, and prunes a branch as soon as the basis is
+   inconsistent. It finds solutions in well under a second. One solution, with P = M, has columns
+   `1, 25, 177, 171, 167, 147, 97, 217` (column i is P applied to the unit vector with bit i set).
+3. **Solve the rest.** With P fixed, the constant a0 = 8 is the only value for which `N(SBOX1[x]) ^ Inv(P x ^ a0)` is constant
+   in x, and N is the linear map that follows from the pairs; N^-1 has columns `241, 187, 142, 9, 250, 215, 33, 225` and the
+   output constant is `0x6E`: `SBOX1(x) = N^-1 (Inv(P x ^ 8)) ^ 0x6E`, checked on all 256 inputs.
+4. **Use the AES instruction.** One AES round with a zero key computes the AES S-box, `A Inv(y) ^ 0x63`, and permutes bytes with
+   ShiftRows. The code builds both nibble tables at start-up: before the instruction, `y = P x ^ 8` as two 16-entry shuffles; after
+   it, the map from the AES S-box output to SBOX1 is read off the 256 values of `SBOX1[x]` against `AES(P x ^ 8)` (an affine
+   function of the output, so a matrix and a constant) and applied as two more shuffles. SBOX2, SBOX3 and SBOX4 keep their RFC
+   definitions (rotations on lanes). The byte shuffle of ShiftRows is folded into the P-function's index tables.
+5. **Two blocks.** The vector has sixteen lanes; lanes 0 to 7 carry one block's S-box bytes and lanes 8 to 15 another's. ShiftRows
+   maps the two groups to disjoint lanes, so ECB and CBC decryption push two blocks through each F call.
+
+The shuffle path remains for processors without AES instructions, and a test compares the two paths, one block against two
+blocks, for all three key sizes in both directions.
 
 ## Cost of avoiding table lookups
 
