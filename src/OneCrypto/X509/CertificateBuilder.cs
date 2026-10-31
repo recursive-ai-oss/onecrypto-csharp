@@ -39,15 +39,15 @@ public static class CertificateBuilder
 {
     /// <summary>Issues a certificate signed by its own key.</summary>
     /// <exception cref="ArgumentException">The validity period ends before it starts, or the serial number is longer than 20 octets.</exception>
-    public static Certificate CreateSelfSigned(CertificateOptions options, X509Signer signer)
+    public static Certificate CreateSelfSigned(CertificateOptions options, X509Signer signer, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
-        return Build(options, options.Subject, signer.PublicKey, null, signer);
+        return Build(options, options.Subject, signer.PublicKey, null, signer, policy);
     }
 
     /// <summary>Issues a certificate signed by <paramref name="issuer"/>'s key (held by <paramref name="signer"/>).</summary>
-    public static Certificate Create(CertificateOptions options, Certificate issuer, X509Signer signer)
+    public static Certificate Create(CertificateOptions options, Certificate issuer, X509Signer signer, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(issuer);
@@ -57,7 +57,7 @@ public static class CertificateBuilder
             throw new ArgumentException("A certificate for another subject needs the subject's public key.", nameof(options));
         }
 
-        return Build(options, issuer.Subject, issuer.PublicKey, issuer, signer);
+        return Build(options, issuer.Subject, issuer.PublicKey, issuer, signer, policy);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public static class CertificateBuilder
 
     private const string PurposeCertificate = "x509.certificate";
 
-    private static Certificate Build(CertificateOptions o, DistinguishedName issuerName, PublicKeyInfo issuerKey, Certificate? issuer, X509Signer signer)
+    private static Certificate Build(CertificateOptions o, DistinguishedName issuerName, PublicKeyInfo issuerKey, Certificate? issuer, X509Signer signer, CryptoPolicy? policy)
     {
         if (o.NotAfter < o.NotBefore)
         {
@@ -118,6 +118,6 @@ public static class CertificateBuilder
             o.Subject.Encoded.ToArray(),
             subjectKey.Encoded.ToArray(),
             exts.Count > 0 ? DerWriter.Context(3, BuildHelpers.Extensions(exts)) : []);
-        return Certificate.Parse(BuildHelpers.Signed(tbs, signer));
+        return Certificate.Parse(BuildHelpers.Signed(tbs, signer, policy));
     }
 }

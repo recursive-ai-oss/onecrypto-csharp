@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Internal;
+using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Primitives;
 using RecursiveAI.OneCrypto.Wire.Cms;
+using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -19,6 +21,9 @@ public abstract class CmsDecryptionKey : IDisposable
 
     /// <summary>The recipient's certificate, used to pick the recipient infos meant for this key. When null every matching kind is tried.</summary>
     public virtual Certificate? Certificate => null;
+
+    /// <summary>The public key of the private key, when known; the policy judges its size. Null for key-encryption keys and passwords.</summary>
+    public virtual PublicKeyInfo? PublicKey => Certificate?.PublicKey;
 
     /// <summary>Decrypts a key-transport <c>EncryptedKey</c> (RSA PKCS #1 v1.5 or OAEP, as the algorithm says); null on failure or when this key is not an RSA key.</summary>
     public virtual byte[]? UnwrapKeyTransport(AlgorithmIdentifier keyEncryptionAlgorithm, ReadOnlySpan<byte> encryptedKey) => null;
@@ -47,20 +52,36 @@ public abstract class CmsDecryptionKey : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// A private key behind the key interfaces: RSA keys through <see cref="IDecryptionKey"/> (PKCS #1 v1.5 and OAEP), EC, X25519 and X448 keys
+    /// through <see cref="IAgreementKey"/>, ML-KEM keys through <see cref="IDecryptionKey"/>. Keys that live in a token or a remote service
+    /// work the same way: the content-encryption key is unwrapped by the key itself.
+    /// </summary>
+    /// <param name="key">The key.</param>
+    /// <param name="certificate">The recipient's certificate, used to pick the recipient infos meant for the key; null tries every matching kind.</param>
+    /// <param name="ownsKey">True to dispose <paramref name="key"/> with this object (default false: the caller keeps it).</param>
+    public static CmsDecryptionKey FromKey(IKey key, Certificate? certificate = null, bool ownsKey = false)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return new KeyAdapter(key, certificate, ownsKey);
+    }
+
     /// <summary>An RSA key; the key stays owned by the caller.</summary>
-    public static CmsDecryptionKey FromRsa(RSA key, Certificate? certificate = null) => new RsaKey(key, certificate);
+    public static CmsDecryptionKey FromRsa(RSA key, Certificate? certificate = null) => new KeyAdapter(PrivateKey.FromRsa(key), certificate, true);
 
     /// <summary>An ECDH key on a NIST or Brainpool curve; the key stays owned by the caller.</summary>
-    public static CmsDecryptionKey FromECDiffieHellman(ECDiffieHellman key, Certificate? certificate = null) => new EcdhKey(key, certificate);
+    public static CmsDecryptionKey FromECDiffieHellman(ECDiffieHellman key, Certificate? certificate = null) => new KeyAdapter(PrivateKey.FromECDiffieHellman(key), certificate, true);
 
     /// <summary>An X25519 private key (32 octets); the octets are copied.</summary>
-    public static CmsDecryptionKey FromX25519(ReadOnlySpan<byte> privateKey, Certificate? certificate = null) => new XKey(privateKey, false, certificate);
+    public static CmsDecryptionKey FromX25519(ReadOnlySpan<byte> privateKey, Certificate? certificate = null) =>
+        new KeyAdapter(PrivateKey.FromX25519(X25519PrivateKey.FromBytes(privateKey), ownsKey: true), certificate, true);
 
     /// <summary>An X448 private key (56 octets); the octets are copied.</summary>
-    public static CmsDecryptionKey FromX448(ReadOnlySpan<byte> privateKey, Certificate? certificate = null) => new XKey(privateKey, true, certificate);
+    public static CmsDecryptionKey FromX448(ReadOnlySpan<byte> privateKey, Certificate? certificate = null) =>
+        new KeyAdapter(PrivateKey.FromX448(X448PrivateKey.FromBytes(privateKey), ownsKey: true), certificate, true);
 
     /// <summary>An ML-KEM private key; the key stays owned by the caller.</summary>
-    public static CmsDecryptionKey FromMLKem(MLKem key, Certificate? certificate = null) => new MlKemKey(key, certificate);
+    public static CmsDecryptionKey FromMLKem(MLKem key, Certificate? certificate = null) => new KeyAdapter(PrivateKey.FromMLKem(key), certificate, true);
 
     /// <summary>A symmetric key-encryption key and the identifier senders name it by.</summary>
     public static CmsDecryptionKey FromKeyEncryptionKey(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> keyIdentifier) => new KekKey(kek, keyIdentifier);
@@ -72,46 +93,112 @@ public abstract class CmsDecryptionKey : IDisposable
         return new PasswordKey(System.Text.Encoding.UTF8.GetBytes(password));
     }
 
-    private abstract class WithCertificate : CmsDecryptionKey
+    /// <summary>
+    /// Opens recipient infos through a key behind the key interfaces. Every failure becomes "no key" so callers cannot tell a padding error from a
+    /// wrong key (RFC 3218 §2.3); the interface call itself is what a token or remote backend answers.
+    /// </summary>
+    private sealed class KeyAdapter : CmsDecryptionKey
     {
+        private readonly IKey _key;
         private readonly Certificate? _cert;
+        private readonly bool _owns;
 
-        protected WithCertificate(Certificate? cert) => _cert = cert;
+        public KeyAdapter(IKey key, Certificate? cert, bool owns)
+        {
+            _key = key;
+            _cert = cert;
+            _owns = owns;
+        }
 
         public override Certificate? Certificate => _cert;
-    }
 
-    private sealed class RsaKey : WithCertificate
-    {
-        private readonly RSA _key;
-
-        public RsaKey(RSA key, Certificate? cert)
-            : base(cert)
-        {
-            ArgumentNullException.ThrowIfNull(key);
-            _key = key;
-        }
+        public override PublicKeyInfo? PublicKey => _key.PublicKey;
 
         public override byte[]? UnwrapKeyTransport(AlgorithmIdentifier keyEncryptionAlgorithm, ReadOnlySpan<byte> encryptedKey)
         {
+            if (_key is not IDecryptionKey dk)
+            {
+                return null;
+            }
+
             try
             {
                 if (keyEncryptionAlgorithm.Oid == KnownOids.RsaEncryption)
                 {
-                    return _key.Decrypt(encryptedKey, RSAEncryptionPadding.Pkcs1);
+                    DecryptionSpec spec = DecryptionSpec.RsaPkcs1();
+                    return dk.Supports(spec) ? dk.Decrypt(encryptedKey, spec) : null;
                 }
 
                 if (keyEncryptionAlgorithm.Oid == KnownOids.RsaOaep && OaepPadding(keyEncryptionAlgorithm) is { } padding)
                 {
-                    return _key.Decrypt(encryptedKey, padding);
+                    DecryptionSpec spec = DecryptionSpec.RsaOaep(padding.OaepHashAlgorithm);
+                    return dk.Supports(spec) ? dk.Decrypt(encryptedKey, spec) : null;
                 }
             }
-            catch (CryptographicException)
+            catch (Exception e) when (e is CryptographicException or NotSupportedException or ArgumentException)
             {
                 // Padding errors are folded into "no key" so the caller cannot tell which check failed (RFC 3218 §2.3).
             }
 
             return null;
+        }
+
+        public override byte[]? DeriveAgreementSecret(PublicKeyInfo originator)
+        {
+            if (_key is not IAgreementKey ak)
+            {
+                return null;
+            }
+
+            try
+            {
+                PublicKeyInfo peer = originator;
+                if (originator.KeyAlgorithm == KeyAlgorithm.EllipticCurve && originator.Algorithm.Parameters.IsEmpty)
+                {
+                    // RFC 5753 §3.1.1 asks for the curve parameters in originatorKey, but some senders leave them out; the curve is then the recipient's own.
+                    ReadOnlySpan<byte> point = originator.KeyBits.Span;
+                    if (point.Length < 3 || point[0] != 4 || (point.Length - 1) % 2 != 0)
+                    {
+                        return null;
+                    }
+
+                    peer = PublicKeyInfo.Parse(DerWriter.Sequence(_key.PublicKey.Algorithm.Encoded.ToArray(), X509Signer.BitString(point)));
+                }
+
+                return ak.Agree(peer);
+            }
+            catch (Exception e) when (e is CryptographicException or ArgumentException or X509ParseException or Asn1ParseException)
+            {
+                return null;
+            }
+        }
+
+        public override byte[]? Decapsulate(AlgorithmIdentifier kem, ReadOnlySpan<byte> ciphertext)
+        {
+            if (_key is not IDecryptionKey dk || _key.PublicKey.KeyAlgorithm != KeyAlgorithm.MlKem || kem.Oid != _key.PublicKey.Algorithm.Oid)
+            {
+                return null;
+            }
+
+            try
+            {
+                DecryptionSpec spec = DecryptionSpec.MlKem();
+                return dk.Supports(spec) ? dk.Decrypt(ciphertext, spec) : null;
+            }
+            catch (Exception e) when (e is CryptographicException or NotSupportedException or ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _owns)
+            {
+                _key.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
     }
 
@@ -174,129 +261,6 @@ public abstract class CmsDecryptionKey : IDisposable
             KnownOids.Sha512 => RSAEncryptionPadding.OaepSHA512,
             _ => null,
         };
-    }
-
-    private sealed class EcdhKey : WithCertificate
-    {
-        private readonly ECDiffieHellman _key;
-
-        public EcdhKey(ECDiffieHellman key, Certificate? cert)
-            : base(cert)
-        {
-            ArgumentNullException.ThrowIfNull(key);
-            _key = key;
-        }
-
-        public override byte[]? DeriveAgreementSecret(PublicKeyInfo originator)
-        {
-            try
-            {
-                if (originator.KeyAlgorithm != KeyAlgorithm.EllipticCurve)
-                {
-                    return null;
-                }
-
-                using ECDiffieHellman peer = ECDiffieHellman.Create();
-                if (originator.Algorithm.Parameters.IsEmpty)
-                {
-                    // RFC 5753 §3.1.1 asks for the curve parameters in originatorKey, but some senders leave them out; the curve is then the recipient's own.
-                    ReadOnlySpan<byte> point = originator.KeyBits.Span;
-                    int half = (point.Length - 1) / 2;
-                    if (point.Length < 3 || point[0] != 4 || point.Length != (2 * half) + 1)
-                    {
-                        return null;
-                    }
-
-                    ECParameters own = _key.ExportParameters(false);
-                    peer.ImportParameters(new ECParameters
-                    {
-                        Curve = own.Curve,
-                        Q = new ECPoint { X = point.Slice(1, half).ToArray(), Y = point.Slice(1 + half, half).ToArray() },
-                    });
-                }
-                else
-                {
-                    peer.ImportSubjectPublicKeyInfo(originator.Encoded.Span, out _);
-                }
-
-                return _key.DeriveRawSecretAgreement(peer.PublicKey);
-            }
-            catch (CryptographicException)
-            {
-                return null;
-            }
-        }
-    }
-
-    private sealed class XKey : WithCertificate
-    {
-        private readonly PinnedSecret _key;
-        private readonly bool _x448;
-
-        public XKey(ReadOnlySpan<byte> key, bool x448, Certificate? cert)
-            : base(cert)
-        {
-            if (key.Length != (x448 ? 56 : 32))
-            {
-                throw new ArgumentException("The private key has the wrong length.", nameof(key));
-            }
-
-            _key = new PinnedSecret(key);
-            _x448 = x448;
-        }
-
-        public override byte[]? DeriveAgreementSecret(PublicKeyInfo originator)
-        {
-            if (originator.KeyAlgorithm != (_x448 ? KeyAlgorithm.X448 : KeyAlgorithm.X25519))
-            {
-                return null;
-            }
-
-            ReadOnlySpan<byte> peer = originator.KeyBits.Span;
-            byte[] z = new byte[_x448 ? 56 : 32];
-            if (peer.Length != z.Length)
-            {
-                return null;
-            }
-
-            bool ok = _x448 ? X448.TryDeriveSharedSecret(_key.ReadOnlySpan, peer, z) : X25519.TryDeriveSharedSecret(_key.ReadOnlySpan, peer, z);
-            return ok ? z : null;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _key.Dispose();
-            }
-
-            base.Dispose(disposing);
-        }
-    }
-
-    private sealed class MlKemKey : WithCertificate
-    {
-        private readonly MLKem _key;
-
-        public MlKemKey(MLKem key, Certificate? cert)
-            : base(cert)
-        {
-            ArgumentNullException.ThrowIfNull(key);
-            _key = key;
-        }
-
-        public override byte[]? Decapsulate(AlgorithmIdentifier kem, ReadOnlySpan<byte> ciphertext)
-        {
-            try
-            {
-                string oid = _key.Algorithm.Name switch { "ML-KEM-512" => KnownOids.MlKem512, "ML-KEM-768" => KnownOids.MlKem768, _ => KnownOids.MlKem1024 };
-                return kem.Oid == oid ? _key.Decapsulate(ciphertext.ToArray()) : null;
-            }
-            catch (CryptographicException)
-            {
-                return null;
-            }
-        }
     }
 
     private sealed class KekKey : CmsDecryptionKey
@@ -382,6 +346,9 @@ public abstract class CmsRecipient
 
     internal virtual bool IsLegacy => false;
 
+    /// <summary>The recipient's public key when the recipient is a certificate holder (the policy judges its size); null for shared secrets and passwords.</summary>
+    internal virtual PublicKeyInfo? PublicKey => null;
+
     /// <summary>Wraps <paramref name="cek"/> for this recipient and returns the RecipientInfo element.</summary>
     internal abstract byte[] Build(ReadOnlySpan<byte> cek);
 
@@ -438,6 +405,8 @@ public abstract class CmsRecipient
             _kind = kind;
         }
 
+        internal override PublicKeyInfo? PublicKey => _cert.PublicKey;
+
         internal override int Version => _kind == CmsIdentifierKind.SubjectKeyIdentifier ? 2 : 0;
 
         internal override bool IsLegacy => _scheme == KeyTransportScheme.Pkcs1V15;
@@ -487,6 +456,8 @@ public abstract class CmsRecipient
             _cert = cert;
             _kind = kind;
         }
+
+        internal override PublicKeyInfo? PublicKey => _cert.PublicKey;
 
         internal override int Version => 3;
 
@@ -623,6 +594,8 @@ public abstract class CmsRecipient
             _cert = cert;
             _kind = kind;
         }
+
+        internal override PublicKeyInfo? PublicKey => _cert.PublicKey;
 
         internal override int Version => 0;
 

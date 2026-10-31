@@ -46,7 +46,7 @@ case "$target" in
   ssh) maxlen=16384 ;;
   validate) maxlen=16384 ;;
   verify) maxlen=1024 ;;
-  keys) maxlen=4096 ;;
+  keys) maxlen=16384 ;;
   load) maxlen=65536 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac

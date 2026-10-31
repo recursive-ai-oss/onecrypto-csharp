@@ -464,7 +464,7 @@ public static class RevocationListBuilder
 
     /// <summary>Issues a list signed by <paramref name="signer"/>. With <paramref name="issuer"/> the issuer name and authorityKeyIdentifier come from that certificate.</summary>
     /// <exception cref="ArgumentException">Neither the options nor an issuer certificate give an issuer name.</exception>
-    public static CertificateRevocationList Create(RevocationListOptions options, X509Signer signer, Certificate? issuer = null)
+    public static CertificateRevocationList Create(RevocationListOptions options, X509Signer signer, Certificate? issuer = null, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
@@ -523,6 +523,6 @@ public static class RevocationListBuilder
             options.NextUpdate is DateTimeOffset next ? BuildHelpers.Time(next) : [],
             entries.Count > 0 ? DerWriter.Sequence([.. entries]) : [],
             exts.Count > 0 ? DerWriter.Context(0, BuildHelpers.Extensions(exts)) : []);
-        return CertificateRevocationList.Parse(new ReadOnlyMemory<byte>(BuildHelpers.Signed(tbs, signer)));
+        return CertificateRevocationList.Parse(new ReadOnlyMemory<byte>(BuildHelpers.Signed(tbs, signer, policy)));
     }
 }

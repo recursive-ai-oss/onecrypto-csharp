@@ -165,8 +165,10 @@ public class SignedDataTests
     {
         using var rsa = RSA.Create(2048);
         X509Signer signer = X509Signer.FromRsa(rsa, HashAlgorithmName.SHA1);
-        Certificate cert = CmsKeys.SelfSigned("Old SHA-1", signer);
-        SignedData sd = SignedData.Create(Content, [new CmsSignerSpec { Certificate = cert, Signer = signer }]);
+        // SHA-1 is refused for new data under the default policy; this test plays an old signer, so it asks for a policy that allows it.
+        RecursiveAI.OneCrypto.Policy.CryptoPolicy legacy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Standard with { HashRules = [] };
+        Certificate cert = CmsKeys.SelfSigned("Old SHA-1", signer, policy: legacy);
+        SignedData sd = SignedData.Create(Content, [new CmsSignerSpec { Certificate = cert, Signer = signer }], new SignedDataOptions { Policy = legacy });
         SignedDataReport r = sd.Verify();
         Assert.True(r.IsValid);
         Assert.Equal(CmsCheckStatus.Warning, r.Signers[0].Find("digest-algorithm")!.Status);

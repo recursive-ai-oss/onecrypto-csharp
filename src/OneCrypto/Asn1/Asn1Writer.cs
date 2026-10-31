@@ -341,7 +341,7 @@ public sealed class Asn1Writer
 /// one — goes out in chunks without being held in memory (ITU-T X.690 clause 8.1.3.6 and 8.7.3). Close every
 /// <see cref="BeginIndefinite"/> with <see cref="End"/>.
 /// </summary>
-public sealed class BerStreamWriter
+public sealed partial class BerStreamWriter
 {
     private readonly Stream _stream;
     private int _open;

@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.Wire.Cms;
 using RecursiveAI.OneCrypto.X509;
 
@@ -35,8 +36,9 @@ public sealed record CmsCheck(string Rule, CmsCheckStatus Status, string Reason,
 /// <summary>The verification of one signer (or countersigner): the signer's certificate, every rule's result and the countersignatures.</summary>
 public sealed class SignerReport
 {
-    internal SignerReport(SignerInfo signer, Certificate? certificate, IReadOnlyList<CmsCheck> checks, IReadOnlyList<SignerReport> countersignatures, DateTimeOffset? signingTime)
+    internal SignerReport(SignerInfo signer, Certificate? certificate, IReadOnlyList<CmsCheck> checks, IReadOnlyList<SignerReport> countersignatures, DateTimeOffset? signingTime, PolicyReport? policy = null)
     {
+        Policy = policy;
         Signer = signer;
         Certificate = certificate;
         Checks = checks;
@@ -46,6 +48,12 @@ public sealed class SignerReport
 
     /// <summary>The SignerInfo checked.</summary>
     public SignerInfo Signer { get; }
+
+    /// <summary>
+    /// What the <see cref="CryptoPolicy"/> decided about this signer's hash, signature algorithm and key at the reference time, decision by decision
+    /// with the rule and standard behind each; null when the verification was given no policy. A rejection also fails the <c>policy</c> check.
+    /// </summary>
+    public PolicyReport? Policy { get; }
 
     /// <summary>The certificate that matched the signer identifier, or null when none was found.</summary>
     public Certificate? Certificate { get; }
@@ -108,6 +116,18 @@ public sealed class SignedDataVerifyOptions
 
     /// <summary>Limits for the countersignature depth.</summary>
     public CmsLimits Limits { get; init; } = CmsLimits.Default;
+
+    /// <summary>
+    /// The policy that judges each signer's hash, signature algorithm and key. Null (the default) applies no policy and keeps the plain
+    /// SHA-1 and small-RSA warnings. When set, <see cref="ReferenceTime"/> must be set too: the same signature is fine in 2012 and refused in 2032.
+    /// </summary>
+    public CryptoPolicy? Policy { get; init; }
+
+    /// <summary>
+    /// The instant the policy is asked about: now for a fresh validation, a proven existence time, or a past instant. The library never reads a clock.
+    /// Required when <see cref="Policy"/> is set.
+    /// </summary>
+    public DateTimeOffset? ReferenceTime { get; init; }
 }
 
 public sealed partial class SignedData
@@ -282,6 +302,11 @@ public sealed partial class SignedData
 
     private SignedDataReport VerifyCore(ContentSource source, SignedDataVerifyOptions options)
     {
+        if (options.Policy is not null && options.ReferenceTime is null)
+        {
+            throw new ArgumentException("A policy needs a reference time: set SignedDataVerifyOptions.ReferenceTime.", nameof(options));
+        }
+
         var checks = new List<CmsCheck>();
         if (Signers.Count == 0)
         {
@@ -328,13 +353,14 @@ public sealed partial class SignedData
         else
         {
             contentDigest = source.DigestOf(digestOid);
-            checks.Add(digestOid == KnownOids.Sha1
+            checks.Add(digestOid == KnownOids.Sha1 && options.Policy is null
                 ? new CmsCheck("digest-algorithm", CmsCheckStatus.Warning, "SHA-1 is no longer collision resistant (NIST SP 800-131A).", "RFC 5652 §5.3")
                 : new CmsCheck("digest-algorithm", CmsCheckStatus.Passed, string.Empty, "RFC 5652 §5.3"));
         }
 
         ReadOnlyMemory<byte> signedData = default;
         bool haveSignedData = false;
+        PolicyReport? policyReport = null;
         DateTimeOffset? signingTime = null;
         if (si.SignedAttributes is not null)
         {
@@ -366,7 +392,16 @@ public sealed partial class SignedData
 
             checks.Add(CheckAlgorithmProtection(si));
             checks.Add(CheckKeyUsage(cert, options));
-            checks.Add(CheckStrength(cert));
+            if (options.Policy is { } policy)
+            {
+                policyReport = CheckPolicy(si, cert, policy, options.ReferenceTime!.Value);
+                checks.Add(PolicyCheck(policyReport));
+            }
+            else
+            {
+                checks.Add(CheckStrength(cert));
+            }
+
             checks.Add(counter ? new CmsCheck("signing-certificate", CmsCheckStatus.NotApplicable, string.Empty, "RFC 5035 §5") : CheckSigningCertificate(si, cert));
         }
         else
@@ -390,7 +425,7 @@ public sealed partial class SignedData
             checks.Add(new CmsCheck("countersignatures", counters.All(static c => c.IsValid) ? CmsCheckStatus.Passed : CmsCheckStatus.Failed, counters.All(static c => c.IsValid) ? string.Empty : "A countersignature is not valid.", "RFC 5652 §11.4"));
         }
 
-        return new SignerReport(si, cert, checks, counters, signingTime);
+        return new SignerReport(si, cert, checks, counters, signingTime, policyReport);
     }
 
     /// <summary>Checks the signed attributes (RFC 5652 §5.3, §11) and returns the DER octets the signature covers, or empty when they cannot be formed.</summary>
@@ -643,6 +678,30 @@ public sealed partial class SignedData
         }
 
         return new CmsCheck("key-usage", CmsCheckStatus.Passed, string.Empty, "RFC 5280 §4.2.1.3");
+    }
+
+    /// <summary>Asks the policy about the signature hash, the SignerInfo digest and the signer's key, at the reference time.</summary>
+    private static PolicyReport CheckPolicy(SignerInfo si, Certificate cert, CryptoPolicy policy, DateTimeOffset at)
+    {
+        var decisions = new List<PolicyDecision>(policy.CheckSignature(EffectiveSignatureAlgorithm(si), cert.PublicKey, CryptoUse.Verify, at).Decisions);
+        if (SignatureAlgorithms.TryHash(si.DigestAlgorithm.Oid, out HashAlgorithmName digest) && !decisions.Any(d => d.Use == CryptoUse.Verify && d.Algorithm == policy.CheckHash(digest, CryptoUse.Verify, at).Algorithm))
+        {
+            // EdDSA and ML-DSA identifiers name no hash, but the SignerInfo's digest still protects the signed attributes.
+            decisions.Add(policy.CheckHash(digest, CryptoUse.Verify, at));
+        }
+
+        return new PolicyReport(decisions);
+    }
+
+    private static CmsCheck PolicyCheck(PolicyReport report)
+    {
+        PolicyDecision? worst = report.Findings.OrderByDescending(static d => d.Verdict).Cast<PolicyDecision?>().FirstOrDefault();
+        if (worst is not { } d)
+        {
+            return new CmsCheck("policy", CmsCheckStatus.Passed, string.Empty, "RFC 5652 §5.3");
+        }
+
+        return new CmsCheck("policy", d.Verdict == PolicyVerdict.Rejected ? CmsCheckStatus.Failed : CmsCheckStatus.Warning, $"{d.Reason} [{d.Rule}]", d.Reference);
     }
 
     private static CmsCheck CheckStrength(Certificate cert)

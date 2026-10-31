@@ -78,6 +78,31 @@ using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
     }
 }
 
+// The asynchronous ASN.1 reader walks the same tokens as the synchronous one, and streaming decompression runs through its async twin.
+var syncReader = new Asn1StreamReader(new MemoryStream(cms));
+var asyncReader = new Asn1StreamReader(new MemoryStream(cms));
+int tokens = 0;
+while (syncReader.TryReadToken(out Asn1Token t1))
+{
+    (bool more, Asn1Token t2) = await asyncReader.TryReadTokenAsync();
+    if (!more || t1.Kind != t2.Kind || t1.Offset != t2.Offset || t1.Length != t2.Length)
+    {
+        Console.Error.WriteLine("the async reader diverged from the sync reader");
+        return 1;
+    }
+
+    tokens++;
+}
+
+var inflated = new MemoryStream();
+await CompressedData.DecompressStreamAsync(new MemoryStream(CompressedData.Create(cms).Encoded.ToArray()), inflated);
+if (tokens < 10 || !inflated.ToArray().AsSpan().SequenceEqual(cms) || PreparedSignedData.TryDecode(cms, out _, out _)
+    || RecursiveAI.OneCrypto.Policy.CryptoPolicy.Strict.CheckContentCipher("AES-256-CBC", RecursiveAI.OneCrypto.Policy.CryptoUse.Decrypt).IsAllowed)
+{
+    Console.Error.WriteLine("async streaming or the policy gave a wrong result");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.LoadSmoke.Run(false))
 {
     Console.Error.WriteLine("Crypto.Load gave a wrong result");

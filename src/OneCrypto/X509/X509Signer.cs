@@ -76,6 +76,29 @@ public abstract class X509Signer
         return new Platform(algorithm, publicKey, sign);
     }
 
+    /// <summary>True for the recorder that two-phase signing uses to capture the to-be-signed octets; the policy was asked when the state was prepared.</summary>
+    internal bool IsRecorder { get; private init; }
+
+    internal static X509Signer Recorder(AlgorithmIdentifier algorithm, PublicKeyInfo publicKey, Func<byte[], byte[]> sign) =>
+        new Platform(algorithm, publicKey, sign) { IsRecorder = true };
+
+    /// <summary>Asks the policy whether this signer may sign new data; recorders pass (they were checked when the state was prepared).</summary>
+    internal void RequireAllowed(CryptoPolicy? policy)
+    {
+        if (IsRecorder)
+        {
+            return;
+        }
+
+        PolicyReport report = Spec is { } spec
+            ? (policy ?? CryptoPolicy.Standard).CheckSignature(spec, PublicKey, CryptoUse.Sign, default)
+            : (policy ?? CryptoPolicy.Standard).CheckSignature(SignatureAlgorithm, PublicKey, CryptoUse.Sign, default);
+        if (!report.IsAllowed)
+        {
+            throw new PolicyViolationException(report);
+        }
+    }
+
     internal static byte[] BitString(ReadOnlySpan<byte> bits)
     {
         var b = new byte[bits.Length + 1];
@@ -118,8 +141,9 @@ internal static class BuildHelpers
         return u.Year is >= 1950 and <= 2049 ? DerWriter.UtcTime(u) : DerWriter.GeneralizedTime(u);
     }
 
-    public static byte[] Signed(byte[] tbs, X509Signer signer)
+    public static byte[] Signed(byte[] tbs, X509Signer signer, CryptoPolicy? policy = null)
     {
+        signer.RequireAllowed(policy);
         byte[] sig = signer.Sign(tbs);
         return DerWriter.Sequence(tbs, signer.SignatureAlgorithm.Encoded.ToArray(), X509Signer.BitString(sig));
     }
@@ -154,7 +178,7 @@ internal static class X509TwoPhase
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(spec);
         byte[]? tbs = null;
-        X509Signer recorder = X509Signer.FromDelegate(spec.ToAlgorithmIdentifier(key), key, d =>
+        X509Signer recorder = X509Signer.Recorder(spec.ToAlgorithmIdentifier(key), key, d =>
         {
             tbs = d;
             return [0]; // placeholder; the structure built around it is discarded

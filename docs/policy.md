@@ -46,3 +46,11 @@ The policy gathers the parser limits so one object configures a run: `Asn1Limits
 ## Customising dates
 
 `HashRules` is a list of `AlgorithmRule(Name, FlagFrom, RejectFrom, RejectNew, Reference)`; replace it to move a cutoff. `RsaWeakFrom` moves the RSA deprecation date (`null` flags every sub-2048 key). The dates above are this library's choices from the cited documents, not a legal standard: a validation profile (EN 319 102-1, CA/B Forum) overrides them with its own.
+
+## Where the library asks
+
+Every builder that signs new data takes an optional `CryptoPolicy` (default `Standard`): `CertificateBuilder.Create` / `CreateSelfSigned`, `CertificateSigningRequestBuilder.Create`, `RevocationListBuilder.Create`, `OcspRequestBuilder.Create`, `OcspResponseBuilder.CreateSuccessful`, `SignedDataOptions.Policy` for CMS and `CmsEncryptOptions.Policy` for encryption. A refusal is a `PolicyViolationException` listing the decisions. The two-phase `Prepare` methods take the policy and a time explicitly; their `Complete` does not ask again.
+
+Verification asks only when given a policy and a time: `Certificate.VerifySignature(key, policy, at)` and `PublicKeyInfo.VerifySignature(algorithm, data, signature, policy, at)` return a `SignatureVerification` whose `Policy` holds the decisions and whose status is `PolicyRejected` when the signature is correct but refused at `at` (not valid). CMS: `SignedDataVerifyOptions.Policy` / `ReferenceTime` and `CmsDecryptOptions.Policy` / `ReferenceTime`; see `cms.md`.
+
+`CheckContentCipher` (CBC inside a container that is meant to carry integrity) is flagged under `Standard`, rejected under `Strict`, and accepted when the matching `AllowUnauthenticated…` switch is on.
