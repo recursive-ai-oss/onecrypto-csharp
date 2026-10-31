@@ -62,6 +62,10 @@ public sealed partial class CompressedData
         {
             throw new CmsParseException("CompressedData", e);
         }
+        catch (X509ParseException e)
+        {
+            throw new CmsParseException("CompressedData", CmsError.UnexpectedStructure, e.Message);
+        }
         catch (InvalidDataException e)
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
@@ -121,6 +125,10 @@ public sealed partial class CompressedData
         catch (Asn1ParseException e)
         {
             throw new CmsParseException("CompressedData", e);
+        }
+        catch (X509ParseException e)
+        {
+            throw new CmsParseException("CompressedData", CmsError.UnexpectedStructure, e.Message);
         }
         catch (InvalidDataException e)
         {

@@ -538,4 +538,13 @@ public class AsyncStreamingTests
         File.AppendAllText(BigFile("result.txt"), $"async-stream-check size={size} start-ws={start >> 20}MiB constant-ops-peak-ws={constantPeak >> 20}MiB {report}{Environment.NewLine}");
         Assert.True(constantPeak - start < 200L << 20, $"working set grew by {(constantPeak - start) >> 20} MiB");
     }
+
+    /// <summary>A CompressedData whose algorithm OID is damaged raises the typed CMS error on both twins (a fuzz finding: it escaped as an X.509 parse error).</summary>
+    [Fact]
+    public async Task DamagedCompressionAlgorithmIsATypedError()
+    {
+        byte[] msg = Convert.FromHexString("301B060B2A864886F70D0109100109A00C300A020100300506 03FFFFFF".Replace(" ", ""));
+        Assert.Throws<CmsParseException>(() => CompressedData.DecompressStream(new MemoryStream(msg), Stream.Null));
+        await Assert.ThrowsAsync<CmsParseException>(() => CompressedData.DecompressStreamAsync(new MemoryStream(msg), Stream.Null));
+    }
 }
