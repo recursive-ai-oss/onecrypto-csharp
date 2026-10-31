@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 
 namespace RecursiveAI.OneCrypto.Primitives;
@@ -120,34 +121,21 @@ internal static class KeccakShake256
         0x8000000080008081UL, 0x8000000000008080UL, 0x0000000080000001UL, 0x8000000080008008UL,
     ];
 
-    // FIPS 202 section 3.2.2 (rho): the rotation of lane (x, y) walks t = 0..23 along (x, y) -> (y, 2x + 3y) from (1, 0)
-    // with offset (t + 1)(t + 2) / 2 mod 64. Lanes are indexed x + 5y; the first entry (0, 0) does not rotate.
-    private static readonly int[] Rotations = BuildRotations();
-
-    private static int[] BuildRotations()
-    {
-        var r = new int[25];
-        int x = 1, y = 0;
-        for (int t = 0; t < 24; t++)
-        {
-            r[x + (5 * y)] = ((t + 1) * (t + 2) / 2) % 64;
-            (x, y) = (y, ((2 * x) + (3 * y)) % 5);
-        }
-        return r;
-    }
-
     public static void Hash(Span<byte> output, ReadOnlySpan<byte> a, ReadOnlySpan<byte> b, ReadOnlySpan<byte> c, ReadOnlySpan<byte> d)
     {
-        Span<ulong> state = stackalloc ulong[25]; // fixed small buffer
+        Span<ulong> state = stackalloc ulong[25]; // fixed small buffers
+        Span<byte> block = stackalloc byte[Rate];
         state.Clear();
         int pos = 0;
-        Absorb(state, ref pos, a);
-        Absorb(state, ref pos, b);
-        Absorb(state, ref pos, c);
-        Absorb(state, ref pos, d);
+        Absorb(state, block, ref pos, a);
+        Absorb(state, block, ref pos, b);
+        Absorb(state, block, ref pos, c);
+        Absorb(state, block, ref pos, d);
         // SHAKE domain bits 1111 then the pad10*1 rule (FIPS 202 section 6.2 and appendix B.2).
-        state[pos >> 3] ^= 0x1FUL << (8 * (pos & 7));
-        state[(Rate - 1) >> 3] ^= 0x80UL << (8 * ((Rate - 1) & 7));
+        block[pos..].Clear();
+        block[pos] ^= 0x1F;
+        block[Rate - 1] ^= 0x80;
+        XorBlock(state, block);
         int done = 0;
         while (true)
         {
@@ -164,61 +152,152 @@ internal static class KeccakShake256
             }
         }
         state.Clear();
+        block.Clear();
     }
 
-    private static void Absorb(Span<ulong> state, ref int pos, ReadOnlySpan<byte> data)
+    private static void XorBlock(Span<ulong> state, ReadOnlySpan<byte> block)
     {
-        foreach (byte v in data)
+        for (int i = 0; i < Rate / 8; i++)
         {
-            state[pos >> 3] ^= (ulong)v << (8 * (pos & 7));
-            if (++pos == Rate)
+            state[i] ^= BinaryPrimitives.ReadUInt64LittleEndian(block[(8 * i)..]);
+        }
+    }
+
+    private static void Absorb(Span<ulong> state, Span<byte> block, ref int pos, ReadOnlySpan<byte> data)
+    {
+        while (data.Length > 0)
+        {
+            int n = Math.Min(Rate - pos, data.Length);
+            data[..n].CopyTo(block[pos..]);
+            pos += n;
+            data = data[n..];
+            if (pos == Rate)
             {
+                XorBlock(state, block);
                 Permute(state);
                 pos = 0;
             }
         }
     }
 
-    private static void Permute(Span<ulong> a)
+    /// <summary>Keccak-f[1600] (FIPS 202 section 3), the 24 rounds written out on 25 local lanes. Generated from the round
+    /// definition: theta, then rho and pi folded into one rotate-and-place step, chi, iota.</summary>
+    private static void Permute(Span<ulong> state)
     {
-        Span<ulong> bState = stackalloc ulong[25]; // fixed small buffers
-        Span<ulong> c = stackalloc ulong[5];
         ReadOnlySpan<ulong> rc = RoundConstants;
-        int[] rot = Rotations;
+        ulong a00 = state[0];
+        ulong a10 = state[1];
+        ulong a20 = state[2];
+        ulong a30 = state[3];
+        ulong a40 = state[4];
+        ulong a01 = state[5];
+        ulong a11 = state[6];
+        ulong a21 = state[7];
+        ulong a31 = state[8];
+        ulong a41 = state[9];
+        ulong a02 = state[10];
+        ulong a12 = state[11];
+        ulong a22 = state[12];
+        ulong a32 = state[13];
+        ulong a42 = state[14];
+        ulong a03 = state[15];
+        ulong a13 = state[16];
+        ulong a23 = state[17];
+        ulong a33 = state[18];
+        ulong a43 = state[19];
+        ulong a04 = state[20];
+        ulong a14 = state[21];
+        ulong a24 = state[22];
+        ulong a34 = state[23];
+        ulong a44 = state[24];
         for (int round = 0; round < 24; round++)
         {
-            // theta
-            for (int x = 0; x < 5; x++)
-            {
-                c[x] = a[x] ^ a[x + 5] ^ a[x + 10] ^ a[x + 15] ^ a[x + 20];
-            }
-            for (int x = 0; x < 5; x++)
-            {
-                ulong dx = c[(x + 4) % 5] ^ ulong.RotateLeft(c[(x + 1) % 5], 1);
-                for (int y = 0; y < 25; y += 5)
-                {
-                    a[x + y] ^= dx;
-                }
-            }
-            // rho and pi: lane (x, y) moves to (y, 2x + 3y)
-            for (int x = 0; x < 5; x++)
-            {
-                for (int y = 0; y < 5; y++)
-                {
-                    bState[y + (5 * (((2 * x) + (3 * y)) % 5))] = ulong.RotateLeft(a[x + (5 * y)], rot[x + (5 * y)]);
-                }
-            }
-            // chi
-            for (int y = 0; y < 25; y += 5)
-            {
-                for (int x = 0; x < 5; x++)
-                {
-                    a[x + y] = bState[x + y] ^ (~bState[((x + 1) % 5) + y] & bState[((x + 2) % 5) + y]);
-                }
-            }
-            // iota
-            a[0] ^= rc[round];
+            ulong c0 = a00 ^ a01 ^ a02 ^ a03 ^ a04;
+            ulong c1 = a10 ^ a11 ^ a12 ^ a13 ^ a14;
+            ulong c2 = a20 ^ a21 ^ a22 ^ a23 ^ a24;
+            ulong c3 = a30 ^ a31 ^ a32 ^ a33 ^ a34;
+            ulong c4 = a40 ^ a41 ^ a42 ^ a43 ^ a44;
+            ulong d0 = c4 ^ ulong.RotateLeft(c1, 1);
+            ulong d1 = c0 ^ ulong.RotateLeft(c2, 1);
+            ulong d2 = c1 ^ ulong.RotateLeft(c3, 1);
+            ulong d3 = c2 ^ ulong.RotateLeft(c4, 1);
+            ulong d4 = c3 ^ ulong.RotateLeft(c0, 1);
+            ulong b00 = a00 ^ d0;
+            ulong b13 = ulong.RotateLeft(a01 ^ d0, 36);
+            ulong b21 = ulong.RotateLeft(a02 ^ d0, 3);
+            ulong b34 = ulong.RotateLeft(a03 ^ d0, 41);
+            ulong b42 = ulong.RotateLeft(a04 ^ d0, 18);
+            ulong b02 = ulong.RotateLeft(a10 ^ d1, 1);
+            ulong b10 = ulong.RotateLeft(a11 ^ d1, 44);
+            ulong b23 = ulong.RotateLeft(a12 ^ d1, 10);
+            ulong b31 = ulong.RotateLeft(a13 ^ d1, 45);
+            ulong b44 = ulong.RotateLeft(a14 ^ d1, 2);
+            ulong b04 = ulong.RotateLeft(a20 ^ d2, 62);
+            ulong b12 = ulong.RotateLeft(a21 ^ d2, 6);
+            ulong b20 = ulong.RotateLeft(a22 ^ d2, 43);
+            ulong b33 = ulong.RotateLeft(a23 ^ d2, 15);
+            ulong b41 = ulong.RotateLeft(a24 ^ d2, 61);
+            ulong b01 = ulong.RotateLeft(a30 ^ d3, 28);
+            ulong b14 = ulong.RotateLeft(a31 ^ d3, 55);
+            ulong b22 = ulong.RotateLeft(a32 ^ d3, 25);
+            ulong b30 = ulong.RotateLeft(a33 ^ d3, 21);
+            ulong b43 = ulong.RotateLeft(a34 ^ d3, 56);
+            ulong b03 = ulong.RotateLeft(a40 ^ d4, 27);
+            ulong b11 = ulong.RotateLeft(a41 ^ d4, 20);
+            ulong b24 = ulong.RotateLeft(a42 ^ d4, 39);
+            ulong b32 = ulong.RotateLeft(a43 ^ d4, 8);
+            ulong b40 = ulong.RotateLeft(a44 ^ d4, 14);
+            a00 = b00 ^ (~b10 & b20);
+            a10 = b10 ^ (~b20 & b30);
+            a20 = b20 ^ (~b30 & b40);
+            a30 = b30 ^ (~b40 & b00);
+            a40 = b40 ^ (~b00 & b10);
+            a01 = b01 ^ (~b11 & b21);
+            a11 = b11 ^ (~b21 & b31);
+            a21 = b21 ^ (~b31 & b41);
+            a31 = b31 ^ (~b41 & b01);
+            a41 = b41 ^ (~b01 & b11);
+            a02 = b02 ^ (~b12 & b22);
+            a12 = b12 ^ (~b22 & b32);
+            a22 = b22 ^ (~b32 & b42);
+            a32 = b32 ^ (~b42 & b02);
+            a42 = b42 ^ (~b02 & b12);
+            a03 = b03 ^ (~b13 & b23);
+            a13 = b13 ^ (~b23 & b33);
+            a23 = b23 ^ (~b33 & b43);
+            a33 = b33 ^ (~b43 & b03);
+            a43 = b43 ^ (~b03 & b13);
+            a04 = b04 ^ (~b14 & b24);
+            a14 = b14 ^ (~b24 & b34);
+            a24 = b24 ^ (~b34 & b44);
+            a34 = b34 ^ (~b44 & b04);
+            a44 = b44 ^ (~b04 & b14);
+            a00 ^= rc[round];
         }
-        bState.Clear();
+        state[0] = a00;
+        state[1] = a10;
+        state[2] = a20;
+        state[3] = a30;
+        state[4] = a40;
+        state[5] = a01;
+        state[6] = a11;
+        state[7] = a21;
+        state[8] = a31;
+        state[9] = a41;
+        state[10] = a02;
+        state[11] = a12;
+        state[12] = a22;
+        state[13] = a32;
+        state[14] = a42;
+        state[15] = a03;
+        state[16] = a13;
+        state[17] = a23;
+        state[18] = a33;
+        state[19] = a43;
+        state[20] = a04;
+        state[21] = a14;
+        state[22] = a24;
+        state[23] = a34;
+        state[24] = a44;
     }
 }
