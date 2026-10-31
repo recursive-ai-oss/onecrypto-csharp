@@ -327,7 +327,18 @@ public sealed class DistinguishedName : IEquatable<DistinguishedName>
                     throw new ArgumentException($"The value for {type} must be ASCII.", nameof(rdns));
                 }
 
-                members.Add(DerWriter.Sequence(DerWriter.Oid(type), DerWriter.Tlv((byte)tag, content)));
+                byte[] typeOid;
+                try
+                {
+                    typeOid = DerWriter.Oid(type);
+                }
+                catch (OverflowException e)
+                {
+                    // A negative or oversized arc is malformed text, the same class of error as a non-numeric one.
+                    throw new FormatException($"The attribute type '{type}' is not an object identifier.", e);
+                }
+
+                members.Add(DerWriter.Sequence(typeOid, DerWriter.Tlv((byte)tag, content)));
             }
 
             items.Add(DerWriter.SetOf(members));

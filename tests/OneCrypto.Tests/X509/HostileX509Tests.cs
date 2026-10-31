@@ -174,4 +174,12 @@ public class HostileX509Tests
         var pc2 = new PolicyConstraints(200, 255);
         Assert.Equal(pc2, PolicyConstraints.Parse(pc2.Encode()));
     }
+
+    [Fact]
+    public void DistinguishedNameTextWithNegativeOrHugeArcsIsAFormatError()
+    {
+        // A fuzz finding: the arc parser's OverflowException escaped.
+        Assert.ThrowsAny<FormatException>(() => DistinguishedName.FromString("0.-2.-=x"));
+        Assert.ThrowsAny<FormatException>(() => DistinguishedName.FromString("2.99999999999999999999999=x"));
+    }
 }
