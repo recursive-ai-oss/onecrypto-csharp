@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="../Common/FallbackSmoke.cs" Link="FallbackSmoke.cs" />
+    <Compile Include="../Common/LoadSmoke.cs" Link="LoadSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>

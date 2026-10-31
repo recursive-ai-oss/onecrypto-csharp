@@ -32,6 +32,7 @@ internal static class Program
         ["ssh"] = SshTarget.Run,
         ["verify"] = VerifyTarget.Run,
         ["keys"] = KeysTarget.Run,
+        ["load"] = LoadTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -47,6 +48,7 @@ internal static class Program
         "ssh" => SshTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
+        "load" => LoadTarget.Seeds(),
         _ => [],
     };
 
