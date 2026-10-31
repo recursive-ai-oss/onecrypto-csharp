@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -174,6 +175,19 @@ internal static class SignatureAlgorithms
                     return Fail(SignatureStatus.Invalid, "The ECDSA signature is not a strict DER SEQUENCE of two positive INTEGERs.", "RFC 3279 §2.2.3");
                 }
 
+                // Where the platform lacks the curve (the browser, Brainpool on some systems) the verify-only fallback checks the signature.
+                if (EcCurveOf(key.CurveOid) is EcCurve curve && Platform.EcdsaVerify(curve) != Provider.Bcl)
+                {
+                    byte[]? digest = PlatformHash.Digest(scheme.Hash, data);
+                    if (digest is null)
+                    {
+                        return Fail(SignatureStatus.AlgorithmNotSupported, $"{scheme.Hash.Name} is not available on {RuntimeInformation.OSDescription}.", "RFC 5758");
+                    }
+
+                    bool fallbackOk = PlatformSignatures.EcdsaVerifyHash(curve, key.KeyBits.Span, digest, signature, DSASignatureFormat.Rfc3279DerSequence);
+                    return fallbackOk ? new(SignatureStatus.Valid, name, string.Empty, "RFC 5758 §3.2") : Fail(SignatureStatus.Invalid, "The ECDSA signature does not verify.", "RFC 5758 §3.2");
+                }
+
                 using ECDsa ec = key.ToECDsa();
                 bool ok = ec.VerifyData(data, signature, scheme.Hash, DSASignatureFormat.Rfc3279DerSequence);
                 return ok ? new(SignatureStatus.Valid, name, string.Empty, "RFC 5758 §3.2") : Fail(SignatureStatus.Invalid, "The ECDSA signature does not verify.", "RFC 5758 §3.2");
@@ -230,6 +244,17 @@ internal static class SignatureAlgorithms
         }
     }
 
+    private static EcCurve? EcCurveOf(string? oid) => oid switch
+    {
+        KnownOids.P256 => EcCurve.NistP256,
+        KnownOids.P384 => EcCurve.NistP384,
+        KnownOids.P521 => EcCurve.NistP521,
+        KnownOids.BrainpoolP256r1 => EcCurve.BrainpoolP256r1,
+        KnownOids.BrainpoolP384r1 => EcCurve.BrainpoolP384r1,
+        KnownOids.BrainpoolP512r1 => EcCurve.BrainpoolP512r1,
+        _ => null,
+    };
+
     private static bool IsStrictEcdsaSignature(ReadOnlySpan<byte> signature)
     {
         var r = new Asn1Reader(signature, Asn1Rules.Der);
@@ -246,6 +271,22 @@ internal static class SignatureAlgorithms
         if (!Supported(scheme.Hash))
         {
             return new(SignatureStatus.AlgorithmNotSupported, name, $"{scheme.Hash.Name} is not available on {RuntimeInformation.OSDescription}.", "RFC 8017 §8.2");
+        }
+
+        if (Platform.RsaVerify != Provider.Bcl)
+        {
+            // No platform RSA (the browser): the verify-only managed fallback; the public key is an RSAPublicKey (RFC 8017 A.1.1).
+            byte[]? digest = PlatformHash.Digest(scheme.Hash, data);
+            var r = new Asn1Reader(key.KeyBits.Span, Asn1Rules.Ber);
+            Asn1Reader seq = r.ReadSequence();
+            ReadOnlySpan<byte> n = seq.ReadUnsignedIntegerBytes();
+            ReadOnlySpan<byte> e = seq.ReadUnsignedIntegerBytes();
+            bool fb = digest is not null && (padding == RSASignaturePadding.Pss
+                ? PlatformSignatures.RsaVerifyPss(n, e, scheme.Hash, scheme.Hash, digest.Length, digest, sig)
+                : PlatformSignatures.RsaVerifyPkcs1(n, e, scheme.Hash, digest, sig));
+            return fb
+                ? new(SignatureStatus.Valid, name, string.Empty, "RFC 8017 §8.2.2")
+                : new(SignatureStatus.Invalid, name, "The RSA signature does not verify.", "RFC 8017 §8.2.2");
         }
 
         using RSA rsa = key.ToRsa();

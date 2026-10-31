@@ -31,6 +31,15 @@ internal static class ValidationSmoke
         ValidationReport early = PathValidator.Validate(leaf, Options(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)));
         bool good = ok.IsValid && ok.SelectedPath is { Certificates.Length: 2 } && !early.IsValid && early.DecidingRule?.Rule == ValidationRule.Validity;
         Console.WriteLine($"validation: {ok.Verdict}, earlier instant: {early.Verdict} ({early.DecidingRule?.Rule})");
+        if (!good)
+        {
+            Console.WriteLine($"  deciding: {ok.DecidingRule}");
+            foreach (RejectedCandidate r in ok.Rejected)
+            {
+                Console.WriteLine($"  rejected candidate: {r.Reason}");
+            }
+        }
+
         return good;
     }
 }
