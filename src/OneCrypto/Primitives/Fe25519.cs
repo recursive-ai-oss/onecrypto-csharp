@@ -108,9 +108,8 @@ internal struct Fe25519
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong bShifted)
     {
-        ulong h = Math.BigMul(a, bShifted, out ulong l);
-        lo += l >> 12;
-        hi += h;
+        lo += (a * bShifted) >> 12;
+        hi += WideMul.High(a, bShifted);
     }
 
     /// <summary>

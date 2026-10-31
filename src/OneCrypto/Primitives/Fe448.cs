@@ -139,9 +139,8 @@ internal struct Fe448
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong bShifted)
     {
-        ulong h = Math.BigMul(a, bShifted, out ulong l);
-        lo += l >> 7;
-        hi += h;
+        lo += (a * bShifted) >> 7;
+        hi += WideMul.High(a, bShifted);
     }
 
     /// <summary>Folds the 15 columns (each lo + hi·2^57 = lo + 2·hi·2^56) of a product back to eight limbs and carries.</summary>

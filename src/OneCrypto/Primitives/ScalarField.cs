@@ -33,7 +33,8 @@ internal sealed class ScalarField
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong MulAdd2(ulong a, ulong b, ulong c, ulong d, out ulong low)
     {
-        ulong high = Math.BigMul(a, b, out ulong lo);
+        ulong lo = a * b;
+        ulong high = WideMul.High(a, b);
         ulong s1 = lo + c;
         high += AddCarry(lo, c, s1);
         ulong s2 = s1 + d;
