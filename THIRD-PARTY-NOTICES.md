@@ -14,3 +14,8 @@ OneCrypto's own code is licensed `MIT OR Apache-2.0`. Test vectors and other mat
 | Legacy cipher known answers (`testdata/vectors/legacy-ciphers-openssl.txt`) | Written by `tools/gen_legacy_vectors.py` with OpenSSL as a black-box oracle; the version is recorded in the file header | Our own generated fixture (random keys and data from a fixed seed) | see the file | None required. |
 | OpenPGP symmetric-encryption fixtures (`testdata/vectors/gnupg-openpgp-cfb.txt`) | Written by `tools/gen_gnupg_cfb_fixtures.py` with GnuPG as a black-box oracle; the version is recorded in the file header | Our own generated fixture (fixed passphrase and message) | see the file | None required. |
 | IDEA, Blowfish and Twofish known answers (inline in `LegacyCipherTests.cs`) | IDEA: the commonly published known answer for key 0001..0008; Blowfish: the variable-key known-answer set; Twofish: the known-answer tests of the submission (Schneier et al., 1998), https://www.schneier.com/wp-content/uploads/2016/02/paper-twofish-paper.pdf | Short numeric test values; each also reproduced by OpenSSL (IDEA, Blowfish) or checked against GnuPG output (Twofish) | n/a (inline) | None required; credited here. |
+Only the test vectors below are included so far.
+
+| Material | Source | Licence | SHA-256 | Notice |
+|---|---|---|---|---|
+| Known-answer values for Argon2, scrypt, BLAKE2b and the OpenPGP Argon2 sample messages, in `tests/OneCrypto.Tests/Primitives/` | RFC 9106 section 5, RFC 7914 sections 12 and 13, RFC 7693 Appendix A, RFC 9580 Appendix A.12 | IETF Trust Legal Provisions: the Revised BSD licence for code components | not applicable (values typed from the RFC text) | Copyright (c) IETF Trust and the persons identified as the document authors. All rights reserved. |

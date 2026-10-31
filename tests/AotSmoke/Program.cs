@@ -1,10 +1,12 @@
 using System.Security.Cryptography;
 using OneCrypto.Tests.Support;
+using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Cms;
 using RecursiveAI.OneCrypto.Pem;
 using RecursiveAI.OneCrypto.Primitives;
 using RecursiveAI.OneCrypto.Tsp;
+using RecursiveAI.OneCrypto.X509;
 
 // Exercises the library from a NativeAOT-published app; grows as the library does.
 TestPki pki = TestPki.Shared;
@@ -104,6 +106,51 @@ if (Asn1Element.TryRead(new byte[] { 0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF }, out _
     return 1;
 }
 
+// PKI models: build a chain, a request, a CRL and an OCSP exchange, read them back and check every signature.
+using (var rootKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+using (var leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256))
+{
+    DateTimeOffset now = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+    X509Signer rootSigner = X509Signer.FromECDsa(rootKey);
+    Certificate root = CertificateBuilder.CreateSelfSigned(
+        new CertificateOptions { Subject = DistinguishedName.FromString("CN=Smoke Root,O=Smoke"), NotBefore = now, NotAfter = now.AddYears(5), Extensions = [Extension.Create(new BasicConstraints(true, 0), true)] },
+        rootSigner);
+    Certificate leaf = CertificateBuilder.Create(
+        new CertificateOptions
+        {
+            Subject = DistinguishedName.FromString("CN=smoke.example.test"),
+            PublicKey = X509Signer.FromECDsa(leafKey).PublicKey,
+            NotBefore = now,
+            NotAfter = now.AddYears(1),
+            Extensions = [Extension.Create(new SubjectAlternativeName([GeneralName.Dns("smoke.example.test")]), false)],
+        },
+        root,
+        rootSigner);
+    CertificateSigningRequest csr = CertificateSigningRequestBuilder.Create(new CertificateSigningRequestOptions { Subject = leaf.Subject }, X509Signer.FromECDsa(leafKey));
+    CertificateRevocationList crl = RevocationListBuilder.Create(
+        new RevocationListOptions { ThisUpdate = now, Number = 1, Revoked = [new RevokedCertificateInfo(7, now, RevocationReason.Superseded)] }, rootSigner, root);
+    OcspCertId id = OcspCertId.Create(leaf, root);
+    OcspResponse response = OcspResponseBuilder.CreateSuccessful(
+        new OcspResponseOptions { Responder = new OcspResponderId(root.Subject), ProducedAt = now, Responses = [new OcspSingleResponseInfo(id, OcspCertStatus.Good, now)] }, rootSigner);
+    OcspRequest request = OcspRequestBuilder.Create(new OcspRequestOptions { Requests = [id], Nonce = new byte[] { 1, 2, 3 } });
+    if (!leaf.VerifySignature(root).IsValid || !root.IsSelfSigned || !csr.VerifySignature().IsValid || !crl.VerifySignature(root).IsValid
+        || !response.BasicResponse!.VerifySignature(root.PublicKey).IsValid || leaf.SubjectAlternativeName!.Names[0].Value != "smoke.example.test"
+        || crl.Find(new byte[] { 7 }) is null || request.Nonce is null || !id.Matches(leaf, root)
+        || !Certificate.FromPem(leaf.ToPem()).Equals(leaf) || leaf.Subject.ToString() != "CN=smoke.example.test")
+    {
+        Console.Error.WriteLine("PKI models did not round trip");
+        return 1;
+    }
+
+    if (Certificate.TryParse(new byte[] { 0x30, 0x80 }, out _) || !leaf.TryToX509Certificate2(out System.Security.Cryptography.X509Certificates.X509Certificate2? platform) || platform is null)
+    {
+        Console.Error.WriteLine("PKI hostile input or platform conversion failed");
+        return 1;
+    }
+
+    platform.Dispose();
+}
+
 // The curves the platform lacks: sign and verify with each, and agree a secret both ways.
 using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
 using (var ed4 = RecursiveAI.OneCrypto.Primitives.Ed448PrivateKey.Generate())
@@ -122,6 +169,19 @@ using (var xb4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
         Console.Error.WriteLine("curve primitives failed");
         return 1;
     }
+}
+
+// Password-based key derivation: RFC 9106 Argon2id and RFC 7914 scrypt vectors, and a bcrypt-pbkdf run.
+byte[] argon = Argon2.DeriveKey(
+    Argon2Type.Argon2id, Enumerable.Repeat((byte)1, 32).ToArray(), Enumerable.Repeat((byte)2, 16).ToArray(), 32, 3, 4, 32,
+    Enumerable.Repeat((byte)3, 8).ToArray(), Enumerable.Repeat((byte)4, 12).ToArray());
+byte[] scrypt = Scrypt.DeriveKey("password"u8, "NaCl"u8, 1024, 8, 16, 64);
+if (Convert.ToHexString(argon) != "0D640DF58D78766C08C037A34A8B53C9D01EF0452D75B65EB52520E96B01E659"
+    || !Convert.ToHexString(scrypt).StartsWith("FDBABE1C9D347200", StringComparison.Ordinal)
+    || BcryptPbkdf.DeriveKey("pw"u8, "salt"u8, 2, 48).Length != 48)
+{
+    Console.Error.WriteLine("key derivation gave the wrong answer");
+    return 1;
 }
 
 // Camellia (RFC 3713 Appendix A) and the decrypt-only legacy ciphers (RFC 2144 B.1 for CAST5, the published Twofish known answer).

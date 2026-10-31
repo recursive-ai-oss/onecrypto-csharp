@@ -14,6 +14,7 @@ internal static class Targets
         .. CurveTargets.Targets(),
         .. AesModesTargets.Targets(),
         .. LegacyCipherTargets.Targets(),
+        .. KdfTargets.Targets(),
     ];
 }
 
