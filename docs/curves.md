@@ -57,9 +57,14 @@ Every path that touches a secret follows the repository's constant-time rules.
 
 - **Field arithmetic** (`Fe25519`, five 51-bit limbs; `Fe448`, eight 56-bit limbs) is straight-line code on `ulong` limbs.
   Products are split at the limb width so column sums are plain additions: no 128-bit type, no carry comparison, no branch.
-  The reduction constants are fixed. Inversion and square roots are fixed exponentiation chains.
+  The reduction constants are fixed. Inversion and square roots are fixed exponentiation chains. The high word of each 64 x 64
+  product comes from the hardware multiply (`WideMul`: BMI2 `mulx`, Arm `umulh`, otherwise `Math.BigMul`), which are
+  constant-time instructions; the portable form keeps the low word in memory and is slower, not different in result.
 - **Montgomery ladder** (X25519, X448): a fixed number of steps (255, 448); the two working points are swapped with a mask taken
   from the scalar bit, never a branch or an index.
+- **Public keys of X25519 and X448** come from the fixed-base tables of the Edwards curves instead of a ladder: Curve25519's
+  u = (1 + y) / (1 - y) (RFC 7748 section 4.1), and for Curve448 the 4-isogeny u = y^2 / x^2 (section 4.2), which maps the Ed448
+  base point to the Curve448 base point up to sign. Tests compare both against the ladder.
 - **Fixed-base multiplication** (Ed25519 and Ed448 signing, key derivation): the scalar is recoded into signed 4-bit digits.
   Each digit selects a table entry by reading **every** entry of its row and keeping one with a mask; the sign is applied with a
   mask. The sequence of group operations and the memory addresses touched are the same for every scalar. The group laws used
