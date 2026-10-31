@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Primitives/Data/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The fuzz target body doubles as a deterministic mutation smoke test. -->
     <Compile Include="../../fuzz/OneCrypto.Fuzz/CmsTarget.cs" Link="Cms/CmsTarget.cs" />
   </ItemGroup>
