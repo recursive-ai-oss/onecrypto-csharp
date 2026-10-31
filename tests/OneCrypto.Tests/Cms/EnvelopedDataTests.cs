@@ -101,6 +101,23 @@ public class EnvelopedDataTests
         }
     }
 
+    [Theory]
+    [InlineData(16)]
+    [InlineData(24)]
+    [InlineData(32)]
+    public void KeyEncryptionKeysWrapWithAndWithoutPadding(int size)
+    {
+        byte[] kek = RandomNumberGenerator.GetBytes(size);
+        foreach (bool padded in new[] { false, true })
+        {
+            EnvelopedData ed = EnvelopedData.Parse(EnvelopedData.Create(Content, [CmsRecipient.KeyEncryptionKey(kek, "id"u8, padded)]).Encoded);
+            var ri = (KekRecipientInfo)ed.RecipientInfos[0];
+            Assert.Equal(padded, ri.KeyEncryptionAlgorithm.Oid.StartsWith("2.16.840.1.101.3.4.1", StringComparison.Ordinal) && ri.KeyEncryptionAlgorithm.Oid is CmsOids.Aes128WrapPad or CmsOids.Aes192WrapPad or CmsOids.Aes256WrapPad);
+            using CmsDecryptionKey key = CmsDecryptionKey.FromKeyEncryptionKey(kek, "id"u8);
+            Assert.Equal(Content, ed.Decrypt(key));
+        }
+    }
+
     [Fact]
     public void WrongKeysAreRefusedTheSameWay()
     {

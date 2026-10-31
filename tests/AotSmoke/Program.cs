@@ -28,6 +28,63 @@ if (!report.IsValid || report.Signers.Count != 2 || report.Signers[0].Countersig
     return 1;
 }
 
+// Encrypted CMS: key transport, key agreement (P-256 and X25519), a shared key and a password, then authenticated, streamed and compressed forms.
+byte[] secret = CmsFixture.Content;
+byte[] kek = new byte[32];
+RecipientKit rsaRecipient = RecipientKit.Get(RecipKind.Rsa);
+RecipientKit ecRecipient = RecipientKit.Get(RecipKind.P256);
+RecipientKit xRecipient = RecipientKit.Get(RecipKind.X25519);
+EnvelopedData env = EnvelopedData.Parse(EnvelopedData.Create(secret,
+    [CmsRecipient.KeyTransport(rsaRecipient.Certificate), CmsRecipient.KeyAgreement(ecRecipient.Certificate), CmsRecipient.KeyAgreement(xRecipient.Certificate),
+     CmsRecipient.KeyEncryptionKey(kek, "k"u8, padded: true), CmsRecipient.Password("pw", 1000)]).Encoded);
+foreach (CmsDecryptionKey key in new[] { rsaRecipient.Key(), ecRecipient.Key(), xRecipient.Key(), CmsDecryptionKey.FromKeyEncryptionKey(kek, "k"u8), CmsDecryptionKey.FromPassword("pw") })
+{
+    using (key)
+    {
+        if (!env.Decrypt(key).AsSpan().SequenceEqual(secret))
+        {
+            Console.Error.WriteLine("enveloped data did not decrypt");
+            return 1;
+        }
+    }
+}
+
+using (CmsDecryptionKey key = rsaRecipient.Key())
+{
+    if (!AuthEnvelopedData.Parse(AuthEnvelopedData.Create(secret, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]).Encoded).Decrypt(key).AsSpan().SequenceEqual(secret))
+    {
+        Console.Error.WriteLine("authenticated enveloped data did not decrypt");
+        return 1;
+    }
+
+    var streamed = new MemoryStream();
+    EnvelopedData.EncryptStream(new MemoryStream(secret), streamed, [CmsRecipient.KeyTransport(rsaRecipient.Certificate)]);
+    var back = new MemoryStream();
+    EnvelopedData.DecryptStream(new MemoryStream(streamed.ToArray()), back, key);
+    if (!back.ToArray().AsSpan().SequenceEqual(secret))
+    {
+        Console.Error.WriteLine("streamed enveloped data did not decrypt");
+        return 1;
+    }
+}
+
+var signedStream = new MemoryStream();
+SignedData.SignStream(new MemoryStream(secret), signedStream, [ec.Spec()]);
+if (!SignedData.VerifyStream(new MemoryStream(signedStream.ToArray())).IsValid)
+{
+    Console.Error.WriteLine("streamed signature did not verify");
+    return 1;
+}
+
+if (!CompressedData.Parse(CompressedData.Create(secret).Encoded).Decompress().AsSpan().SequenceEqual(secret)
+    || !AuthenticatedData.Parse(AuthenticatedData.Create(secret, [CmsRecipient.KeyEncryptionKey(kek, "k"u8)]).Encoded).Verify(CmsDecryptionKey.FromKeyEncryptionKey(kek, "k"u8)).IsValid
+    || !DigestedData.Parse(DigestedData.Create(secret).Encoded).Verify().IsValid
+    || !EncryptedData.Parse(EncryptedData.Create(secret, kek).Encoded).Decrypt(kek).AsSpan().SequenceEqual(secret))
+{
+    Console.Error.WriteLine("a simple content type failed");
+    return 1;
+}
+
 // The wire layer: write DER, read it back with the span reader and the stream reader, and go through PEM.
 var writer = new Asn1Writer();
 writer.PushSequence();
