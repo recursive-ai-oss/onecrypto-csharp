@@ -413,6 +413,26 @@ public sealed record CryptoPolicy
         return PolicyDecision.Ok(use, name);
     }
 
+    /// <summary>
+    /// Asks about a content-encryption mode that has no integrity check of its own but is wrapped by a container that is meant to carry one (CBC in CMS
+    /// EnvelopedData, RFC 5652 §6.3; S/MIME 4.0 asks for AuthEnvelopedData, RFC 8551 §2.7). Unlike <see cref="CheckCipher"/>, which fails bare unauthenticated
+    /// encryption closed, this flags the mode: <see cref="Standard"/> still reads and writes it, <see cref="Strict"/> (which turns flags into rejections) refuses it,
+    /// and setting <see cref="AllowUnauthenticatedDecryption"/> or <see cref="AllowUnauthenticatedEncryption"/> accepts it without a flag.
+    /// </summary>
+    /// <param name="cipherName">The cipher in readable form (<c>AES-256-CBC</c>).</param>
+    /// <param name="use"><see cref="CryptoUse.Encrypt"/> or <see cref="CryptoUse.Decrypt"/>.</param>
+    public PolicyDecision CheckContentCipher(string cipherName, CryptoUse use)
+    {
+        bool encrypt = use is CryptoUse.Encrypt or CryptoUse.Sign;
+        if (encrypt ? AllowUnauthenticatedEncryption : AllowUnauthenticatedDecryption)
+        {
+            return PolicyDecision.Ok(use, cipherName);
+        }
+
+        return Finish(new(PolicyVerdict.Flagged, use, cipherName, encrypt ? "cipher.cbc.unauthenticated.encrypt" : "cipher.cbc.unauthenticated.decrypt",
+            $"{cipherName} does not protect the content's integrity; use AuthEnvelopedData or sign the message.", "RFC 5652 §6.3; RFC 8551 §2.7"));
+    }
+
     /// <summary>Asks about a password-based derivation's cost parameter.</summary>
     /// <param name="kdf">The function.</param>
     /// <param name="cost">The function's cost as listed on <see cref="KdfAlgorithm"/>.</param>

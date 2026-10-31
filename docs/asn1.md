@@ -58,3 +58,7 @@ Found by the differential run (`tests/OneCrypto.Tests/Asn1/DifferentialTests.cs`
 * A decoded block is limited to 64 MiB. Base64 padding must be correct in both modes.
 
 `PemCodec.Write` writes LF line ends, 64-column lines and a trailing newline.
+
+## Asynchronous reading and writing
+
+`Asn1StreamReader` has `TryReadTokenAsync`, `ReadTokenAsync`, `ReadAsync` and `ReadContentAsync`, and the stream returned by `OpenOctetString` has a real `ReadAsync`. They await the octets a header or run needs into the reader's own 16 KiB buffer and then apply the same synchronous logic, so both forms accept and reject the same input at the same offset. `BerStreamWriter` has `BeginIndefiniteAsync`, `EndAsync`, `WriteDefiniteAsync`, `WriteEncodedValueAsync` and `WriteOctetStringFromAsync` writing the same octets as the sync methods. Memory use is unchanged.

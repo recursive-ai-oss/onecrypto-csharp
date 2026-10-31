@@ -143,6 +143,12 @@ internal static class CmsStream
             }
         }
 
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) =>
+            buffer.IsEmpty ? ValueTask.CompletedTask : _w.WriteDefiniteAsync(new Asn1Tag(Asn1Tags.OctetString), buffer, cancellationToken);
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
@@ -178,7 +184,7 @@ public sealed partial class SignedData
                 throw new NotSupportedException("Streaming signing needs signed attributes: a signature over the bare content cannot be made in one pass.");
             }
 
-            plans.Add(SignerPlan.For(s));
+            plans.Add(SignerPlan.For(s, options.Policy));
         }
 
         using var digests = new DigestSet(plans.Select(static p => p.DigestOid).Distinct());
@@ -494,6 +500,7 @@ public sealed partial class EnvelopedData
             }
 
             CmsCiphers.ReadParameters(cipher, alg, out byte[] iv, out _);
+            CmsPolicyChecks.BeforeDecrypt(options, cipher, key);
             if (!RecipientOpener.TryOpen(recipients, key, cipher.KeyBytes, options, out byte[] cek, out bool real, out bool matched))
             {
                 throw matched ? DecryptionFailed("EnvelopedData") : new CmsParseException("EnvelopedData", CmsError.NoMatchingRecipient, "no recipient info matches the key");

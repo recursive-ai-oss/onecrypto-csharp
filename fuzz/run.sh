@@ -42,7 +42,7 @@ case "$target" in
   x509) maxlen=16384 ;;
   ocsp) maxlen=16384 ;;
   verify) maxlen=1024 ;;
-  keys) maxlen=4096 ;;
+  keys) maxlen=16384 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 

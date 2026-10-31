@@ -248,6 +248,7 @@ public sealed partial class AuthEnvelopedData
         }
 
         CmsCiphers.ReadParameters(cipher, ContentEncryptionAlgorithm, out byte[] nonce, out int tagBytes);
+        CmsPolicyChecks.BeforeDecrypt(options, cipher, key);
         if (!RecipientOpener.TryOpen(RecipientInfos, key, cipher.KeyBytes, options, out byte[] cek, out bool real, out bool matched))
         {
             throw matched ? EnvelopedData.DecryptionFailed("AuthEnvelopedData") : new CmsParseException("AuthEnvelopedData", CmsError.NoMatchingRecipient, "no recipient info matches the key");
@@ -526,6 +527,7 @@ public sealed class AuthenticatedData
             checks.Add(new CmsCheck("mac-algorithm", CmsCheckStatus.Warning, "HMAC-SHA-1 is legacy.", "RFC 5652 §9.1"));
         }
 
+        CmsPolicyChecks.BeforeDecrypt(options, null, key);
         if (!RecipientOpener.TryOpen(RecipientInfos, key, 0, options, out byte[] macKey, out _, out bool matched))
         {
             checks.Add(new CmsCheck("recipient", CmsCheckStatus.Failed, matched ? "The MAC key could not be recovered." : "No recipient info matches the key.", "RFC 5652 §9.1"));
@@ -795,7 +797,7 @@ public sealed class EncryptedData
 }
 
 /// <summary>A CMS <c>CompressedData</c> (RFC 3274): content compressed with zlib. Decompression is bounded by <see cref="CmsLimits"/>.</summary>
-public sealed class CompressedData
+public sealed partial class CompressedData
 {
     private CompressedData(int version, AlgorithmIdentifier alg, EncapsulatedContent content, ReadOnlyMemory<byte> encoded, CmsLimits limits)
     {

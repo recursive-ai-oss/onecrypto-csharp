@@ -260,7 +260,7 @@ public static class CertificateSigningRequestBuilder
     private const string PurposeRequest = "x509.request";
 
     /// <summary>Creates a request for the signer's own public key, signed with it.</summary>
-    public static CertificateSigningRequest Create(CertificateSigningRequestOptions options, X509Signer signer)
+    public static CertificateSigningRequest Create(CertificateSigningRequestOptions options, X509Signer signer, CryptoPolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
@@ -280,6 +280,6 @@ public static class CertificateSigningRequestBuilder
             options.Subject.Encoded.ToArray(),
             signer.PublicKey.Encoded.ToArray(),
             DerWriter.Tlv(0xA0, [.. attrs]));
-        return CertificateSigningRequest.Parse(new ReadOnlyMemory<byte>(BuildHelpers.Signed(info, signer)));
+        return CertificateSigningRequest.Parse(new ReadOnlyMemory<byte>(BuildHelpers.Signed(info, signer, policy)));
     }
 }

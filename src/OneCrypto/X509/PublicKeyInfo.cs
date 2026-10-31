@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
 
@@ -47,6 +48,8 @@ public enum SignatureStatus
     KeyMismatch,
     /// <summary>The public key or the signature algorithm parameters could not be decoded.</summary>
     Malformed,
+    /// <summary>The signature is mathematically correct but the <see cref="Policy.CryptoPolicy"/> refuses its hash or key at the reference time. Not valid.</summary>
+    PolicyRejected,
 }
 
 /// <summary>The outcome of checking a signature, with the reason and the section of the specification the rule comes from.</summary>
@@ -54,7 +57,8 @@ public enum SignatureStatus
 /// <param name="Algorithm">The signature algorithm in readable form.</param>
 /// <param name="Reason">A sentence explaining a result other than <see cref="SignatureStatus.Valid"/>; empty when valid.</param>
 /// <param name="Reference">The RFC section behind the rule that decided the result.</param>
-public readonly record struct SignatureVerification(SignatureStatus Status, string Algorithm, string Reason, string Reference)
+/// <param name="Policy">What the policy decided about the hash and the key, when the check was made with a policy; otherwise null.</param>
+public readonly record struct SignatureVerification(SignatureStatus Status, string Algorithm, string Reason, string Reference, Policy.PolicyReport? Policy = null)
 {
     /// <summary>True only when <see cref="Status"/> is <see cref="SignatureStatus.Valid"/>.</summary>
     public bool IsValid => Status == SignatureStatus.Valid;
@@ -263,6 +267,34 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
             ec.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Like <see cref="VerifySignature(AlgorithmIdentifier, ReadOnlySpan{byte}, ReadOnlySpan{byte})"/>, and the policy judges the signature's hash and this
+    /// key at <paramref name="at"/>. A correct signature the policy rejects ends as <see cref="SignatureStatus.PolicyRejected"/>; the decisions, flags
+    /// included, are on <see cref="SignatureVerification.Policy"/>.
+    /// </summary>
+    /// <param name="signatureAlgorithm">The signature algorithm identifier.</param>
+    /// <param name="data">The signed octets.</param>
+    /// <param name="signature">The signature value.</param>
+    /// <param name="policy">The policy.</param>
+    /// <param name="at">The reference time: now for a fresh check, or the past instant the signature is judged at.</param>
+    public SignatureVerification VerifySignature(AlgorithmIdentifier signatureAlgorithm, ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, Policy.CryptoPolicy policy, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        SignatureVerification v = VerifySignature(signatureAlgorithm, data, signature);
+        return WithPolicy(v, policy.CheckSignature(signatureAlgorithm, this, Policy.CryptoUse.Verify, at));
+    }
+
+    internal static SignatureVerification WithPolicy(SignatureVerification v, Policy.PolicyReport report)
+    {
+        if (v.IsValid && !report.IsAllowed)
+        {
+            Policy.PolicyDecision d = report.Decisions.First(static x => x.Verdict == Policy.PolicyVerdict.Rejected);
+            return v with { Status = SignatureStatus.PolicyRejected, Reason = $"{d.Reason} [{d.Rule}]", Reference = d.Reference, Policy = report };
+        }
+
+        return v with { Policy = report };
     }
 
     /// <summary>

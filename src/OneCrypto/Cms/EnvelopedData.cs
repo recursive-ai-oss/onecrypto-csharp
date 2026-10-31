@@ -24,6 +24,12 @@ public sealed class CmsEncryptOptions
 
     /// <summary>Authenticated attributes for AuthEnvelopedData; they are the AEAD's associated data. Content-type is added when the type is not id-data.</summary>
     public IReadOnlyList<CmsAttributeEntry> AuthenticatedAttributes { get; init; } = [];
+
+    /// <summary>
+    /// The policy for new data (default <see cref="Policy.CryptoPolicy.Standard"/>): it judges the content cipher and each recipient's public key
+    /// (RSA under 2048 bits is refused, 3072 under Strict). Standard flags CBC content encryption and still writes it; Strict refuses it.
+    /// </summary>
+    public Policy.CryptoPolicy? Policy { get; init; }
 }
 
 /// <summary>Choices for opening encrypted CMS messages. The defaults refuse legacy ciphers.</summary>
@@ -37,6 +43,15 @@ public sealed class CmsDecryptOptions
 
     /// <summary>Accept RSA PKCS #1 v1.5 key transport (default true; its failures are made indistinguishable, RFC 3218 §2.3).</summary>
     public bool AllowPkcs1V15KeyTransport { get; init; } = true;
+
+    /// <summary>
+    /// The policy that judges the message's content cipher and the key that opens it. Null applies none. Standard flags CBC content encryption (no
+    /// integrity of its own) and decrypts it; Strict refuses it. A refusal throws <see cref="Policy.PolicyViolationException"/> before any key is used.
+    /// </summary>
+    public Policy.CryptoPolicy? Policy { get; init; }
+
+    /// <summary>The instant the policy is asked about. Required when <see cref="Policy"/> is set; the library never reads a clock.</summary>
+    public DateTimeOffset? ReferenceTime { get; init; }
 }
 
 /// <summary>The <c>EncryptedContentInfo</c> (RFC 5652 §6.1) shared by EnvelopedData, AuthEnvelopedData and EncryptedData.</summary>
@@ -458,6 +473,12 @@ public sealed partial class EnvelopedData
             throw new NotSupportedException($"{cipher.Name} cannot be written in this content type.");
         }
 
+        // New data: the cipher and every recipient's key go through the policy before a key is generated.
+        Policy.CryptoPolicy policy = options.Policy ?? Policy.CryptoPolicy.Standard;
+        var decisions = new List<Policy.PolicyDecision>(CmsPolicyChecks.Cipher(policy, cipher, Policy.CryptoUse.Encrypt).Decisions);
+        decisions.AddRange(CmsPolicyChecks.Recipients(policy, recipients).Decisions);
+        CmsPolicyChecks.ThrowIfRejected(new Policy.PolicyReport(decisions));
+
         return cipher;
     }
 
@@ -520,6 +541,7 @@ public sealed partial class EnvelopedData
         }
 
         CmsCiphers.ReadParameters(cipher, ContentEncryptionAlgorithm, out byte[] iv, out _);
+        CmsPolicyChecks.BeforeDecrypt(options, cipher, key);
         if (!RecipientOpener.TryOpen(RecipientInfos, key, cipher.KeyBytes, options, out byte[] cek, out bool real, out bool matched))
         {
             throw matched ? DecryptionFailed("EnvelopedData") : new CmsParseException("EnvelopedData", CmsError.NoMatchingRecipient, "no recipient info matches the key");
