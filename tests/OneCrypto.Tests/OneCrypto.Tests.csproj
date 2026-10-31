@@ -26,6 +26,7 @@
     <!-- The fuzz target body doubles as a deterministic mutation smoke test. -->
     <Compile Include="../../fuzz/OneCrypto.Fuzz/CmsTarget.cs" Link="Cms/CmsTarget.cs" />
     <Compile Include="../../fuzz/OneCrypto.Fuzz/X509Target.cs" Link="X509/X509Target.cs" />
+    <Compile Include="../../fuzz/OneCrypto.Fuzz/PkcsTargets.cs" Link="Pkcs/PkcsTargets.cs" />
   </ItemGroup>
 
   <ItemGroup>
