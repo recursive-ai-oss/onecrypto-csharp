@@ -31,6 +31,7 @@ internal static class Program
         ["pkcs12"] = Pkcs12Target.Run,
         ["ssh"] = SshTarget.Run,
         ["verify"] = VerifyTarget.Run,
+        ["validate"] = ValidateTarget.Run,
         ["keys"] = KeysTarget.Run,
     };
 
@@ -46,6 +47,7 @@ internal static class Program
         "pkcs12" => Pkcs12Target.Seeds(),
         "ssh" => SshTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
+        "validate" => ValidateTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
         _ => [],
     };
