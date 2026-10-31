@@ -420,7 +420,7 @@ public static class PemCodec
                     }
 
                     int colon = h.IndexOf(':');
-                    if (colon <= 0)
+                    if (colon <= 0 || h[..colon].Trim().IsEmpty)
                     {
                         return Fail(PemError.InvalidHeader, ls, out err);
                     }

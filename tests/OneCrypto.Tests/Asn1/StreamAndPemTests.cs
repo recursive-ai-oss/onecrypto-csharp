@@ -298,6 +298,15 @@ public class PemTests
     }
 
     [Fact]
+    public void HeaderWithOnlyWhitespaceBeforeTheColonIsRejected()
+    {
+        // Found by fuzzing: a parsed block must always be writable again.
+        string text = "-----BEGIN A-----\r\n : x\r\n\r\nAQID\r\n-----END A-----\r\n";
+        Assert.False(PemCodec.TryParse(text, PemMode.Lax, out _, out PemError e));
+        Assert.Equal(PemError.InvalidHeader, e);
+    }
+
+    [Fact]
     public void Utf8InputIsCheckedAndNoInputGivesNoBlock()
     {
         Assert.False(PemCodec.TryParse(new byte[] { 0xFF, 0xFE }, PemMode.Lax, out _, out PemError e));
