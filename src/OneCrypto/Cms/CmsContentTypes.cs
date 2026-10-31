@@ -909,8 +909,9 @@ public sealed partial class CompressedData
                 output.Write(buffer, 0, n);
             }
         }
-        catch (IOException e)
+        catch (Exception e) when (e is IOException or InvalidDataException)
         {
+            // The source is an in-memory buffer, so any inflater failure here is damaged input; the inflater signals it as IOException or InvalidDataException.
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
         }
 
