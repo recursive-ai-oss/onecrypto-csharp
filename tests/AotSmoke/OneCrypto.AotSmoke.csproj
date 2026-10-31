@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <Compile Include="../Common/FallbackSmoke.cs" Link="FallbackSmoke.cs" />
+    <Compile Include="../Common/ValidationSmoke.cs" Link="ValidationSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>

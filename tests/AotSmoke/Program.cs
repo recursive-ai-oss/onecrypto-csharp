@@ -207,5 +207,11 @@ if (!OneCrypto.Smoke.FallbackSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.ValidationSmoke.Run())
+{
+    Console.Error.WriteLine("path validation gave the wrong answer");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
