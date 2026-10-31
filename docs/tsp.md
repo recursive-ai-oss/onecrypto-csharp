@@ -33,9 +33,9 @@ Reports one `CmsCheck` per rule (rule name, status, reason, RFC section), and ne
 | `tsa-name` | when the token has a `tsa` name it identifies the signer's certificate (§2.4.2) |
 | `tsa-validity` | genTime lies within the certificate's validity |
 | `policy` | `CryptoPolicy` (default `Standard`) on the imprint hash and the token signature at genTime, or at `ReferenceTime` when the caller passes one |
-| `trust` | always `NotApplicable`: whether the certificate chains to a trust anchor and was not revoked at genTime is the path validator's question |
+| `trust` | `NotApplicable` without `TrustAnchors`. With anchors, the authority's certificate goes through `PathValidator` as of the token's genTime (time-stamping EKU required, the token's and `ExtraCertificates` as the pool, `Revocation` data if supplied): `Failed` when no path validates, `Warning` when it does but revocation of the certificate is not known good (offline is never reported as plain `Passed`), `Passed` when the revocation data says good |
 
-`IsValid` means no rule failed or went undecided; it does not mean the authority is trusted. A token made without certReq has no
+`IsValid` means no rule failed or went undecided; it means the authority is trusted only when anchors were supplied and `trust` passed or warned. A token made without certReq has no
 certificate in it, and the report says `tsa-certificate` is undecided until the caller passes it in `ExtraCertificates`. A bare token
 (a ContentInfo) is accepted as an answer, with a warning.
 

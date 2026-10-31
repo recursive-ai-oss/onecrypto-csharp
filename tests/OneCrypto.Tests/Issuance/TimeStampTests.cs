@@ -5,6 +5,7 @@ using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Issuance;
 using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Tsp;
+using RecursiveAI.OneCrypto.Validation;
 using RecursiveAI.OneCrypto.X509;
 
 namespace OneCrypto.Tests.Issuance;
@@ -105,6 +106,31 @@ public class TimeStampTests
         }
 
         Assert.Contains("64", seen); // the counter started at 100
+    }
+
+    [Theory]
+    [InlineData(SigKind.Rsa)]
+    [InlineData(SigKind.P256)]
+    [InlineData(SigKind.Ed25519)]
+    public void TheAuthorityChainsToTheSuppliedAnchorAtGenTimeOrTheTrustCheckFails(SigKind kind)
+    {
+        Tsa t = Make(kind);
+        TimeStampRequest req = Request(HashAlgorithmName.SHA256, [4]);
+        TimeStampResponse resp = t.Authority.Handle(req.Encoded, T0);
+        var anchor = new[] { TrustAnchor.FromCertificate(IssuanceKit.Get().Root.Certificate) };
+
+        TimeStampReport ok = TimeStampVerifier.Verify(req, resp.Encoded, new TimeStampVerifyOptions { TrustAnchors = anchor });
+        Assert.True(ok.IsValid, string.Join("; ", ok.Checks.Where(static c => c.Status != CmsCheckStatus.Passed).Select(static c => c.Rule + ":" + c.Reason)));
+        Assert.Equal(CmsCheckStatus.Warning, ok.Find("trust")!.Status); // chains, revocation unknown: never "valid" silently
+
+        // A different root is not an anchor for this authority.
+        var other = CertificateAuthority.CreateRoot(DistinguishedName.Create((KnownOids.CommonName, "Other Root")), X509Signer.FromECDsa(ECDsa.Create(ECCurve.NamedCurves.nistP256)), IssuanceKit.T0, TimeSpan.FromDays(30));
+        TimeStampReport bad = TimeStampVerifier.Verify(req, resp.Encoded, new TimeStampVerifyOptions { TrustAnchors = [TrustAnchor.FromCertificate(other.Certificate)] });
+        Assert.Equal(CmsCheckStatus.Failed, bad.Find("trust")!.Status);
+        Assert.False(bad.IsValid);
+
+        // Without anchors the check stays not-applicable.
+        Assert.Equal(CmsCheckStatus.NotApplicable, TimeStampVerifier.Verify(req, resp.Encoded).Find("trust")!.Status);
     }
 
     [Fact]

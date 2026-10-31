@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Policy;
+using RecursiveAI.OneCrypto.Validation;
 using RecursiveAI.OneCrypto.Wire.Cms;
 using RecursiveAI.OneCrypto.X509;
 
@@ -23,12 +24,25 @@ public sealed class TimeStampVerifyOptions
 
     /// <summary>The limits for the CMS layer.</summary>
     public CmsLimits CmsLimits { get; init; } = CmsLimits.Default;
+
+    /// <summary>
+    /// Trust anchors for the authority's certificate. When empty (the default) the <c>trust</c> check is reported as not applicable; when set, the authority's
+    /// certificate is validated by <see cref="PathValidator"/> as of the token's genTime, with the time-stamping extended key usage required, using the
+    /// certificates of the token and <see cref="ExtraCertificates"/> as the untrusted pool.
+    /// </summary>
+    public IReadOnlyList<TrustAnchor> TrustAnchors { get; init; } = [];
+
+    /// <summary>CRLs and OCSP responses the path validation may use; null means revocation is not checked and the report says so.</summary>
+    public RevocationData? Revocation { get; init; }
+
+    /// <summary>Whether a revocation answer is required for every certificate of the authority's path (default false: unknown revocation is reported, not fatal).</summary>
+    public RevocationScope RevocationRequired { get; init; } = RevocationScope.None;
 }
 
 /// <summary>
 /// What checking a time-stamp response against its request found: one <see cref="CmsCheck"/> per rule, with the RFC section it comes from, plus the parsed
 /// pieces. The report speaks of the token's integrity and its binding to the request; whether the authority's certificate chains to a trust anchor and was not
-/// revoked is the path validator's question and is reported as <c>trust</c>, not evaluated.
+/// revoked is answered by <see cref="PathValidator"/> when the options carry trust anchors, and reported as <c>trust</c>; without anchors it is not evaluated.
 /// </summary>
 public sealed class TimeStampReport
 {
@@ -193,9 +207,41 @@ public static class TimeStampVerifier
             checks.Add(new CmsCheck("tsa-certificate", CmsCheckStatus.Unsupported, "The authority's certificate is not in the token; supply it in ExtraCertificates (the request asked for it with certReq).", Rfc3161 + " §2.4.2"));
         }
 
-        // Path building and revocation belong to the validator; say so rather than imply the authority is trusted.
-        checks.Add(new CmsCheck("trust", CmsCheckStatus.NotApplicable, "Whether the authority's certificate chains to a trust anchor and was not revoked at genTime was not evaluated.", "RFC 5280 §6"));
+        // RFC 3161 §2.4.2 / RFC 5280 §6: the authority's certificate must chain to a caller-supplied anchor, as of the time the token states.
+        checks.Add(CheckTrust(token, info, signer, options));
         return new TimeStampReport(resp, token, info, signer, sig, checks, findings);
+    }
+
+    private static CmsCheck CheckTrust(SignedData token, TstInfo info, Certificate? signer, TimeStampVerifyOptions options)
+    {
+        const string clause = "RFC 5280 §6";
+        if (options.TrustAnchors.Count == 0)
+        {
+            return new CmsCheck("trust", CmsCheckStatus.NotApplicable, "No trust anchors were supplied, so whether the authority's certificate chains to one was not evaluated.", clause);
+        }
+
+        if (signer is null)
+        {
+            return new CmsCheck("trust", CmsCheckStatus.Unsupported, "There is no authority certificate to validate.", clause);
+        }
+
+        ValidationReport v = PathValidator.Validate(signer, new ValidationOptions
+        {
+            TrustAnchors = options.TrustAnchors,
+            Intermediates = [.. token.Certificates, .. options.ExtraCertificates],
+            ReferenceTime = info.GenTime,
+            RequiredExtendedKeyUsage = KnownOids.TimeStamping,
+            Revocation = options.Revocation,
+            RevocationRequired = options.RevocationRequired,
+        });
+        if (v.IsValid)
+        {
+            return v.RevocationSummary is RevocationStatus.Good
+                ? new CmsCheck("trust", CmsCheckStatus.Passed, string.Empty, clause)
+                : new CmsCheck("trust", CmsCheckStatus.Warning, "The authority's certificate chains to a supplied anchor at genTime; revocation status: " + v.RevocationSummary + ".", clause);
+        }
+
+        return new CmsCheck("trust", CmsCheckStatus.Failed, v.DecidingRule?.ToString() ?? v.Verdict.ToString(), clause);
     }
 
     private static bool LooksLikeBareToken(ReadOnlySpan<byte> data)

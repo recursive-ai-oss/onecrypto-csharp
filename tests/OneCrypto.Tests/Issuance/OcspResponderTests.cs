@@ -4,6 +4,14 @@ using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Issuance;
 using RecursiveAI.OneCrypto.Keys;
+using PathValidator = RecursiveAI.OneCrypto.Validation.PathValidator;
+using RevocationData = RecursiveAI.OneCrypto.Validation.RevocationData;
+using RevocationReport = RecursiveAI.OneCrypto.Validation.RevocationReport;
+using RevocationScope = RecursiveAI.OneCrypto.Validation.RevocationScope;
+using TrustAnchor = RecursiveAI.OneCrypto.Validation.TrustAnchor;
+using ValidationOptions = RecursiveAI.OneCrypto.Validation.ValidationOptions;
+using ValidationReport = RecursiveAI.OneCrypto.Validation.ValidationReport;
+using VStatus = RecursiveAI.OneCrypto.Validation.RevocationStatus;
 using RecursiveAI.OneCrypto.X509;
 
 namespace OneCrypto.Tests.Issuance;
@@ -300,6 +308,32 @@ public class OcspResponderTests
         OcspResponse later = r.Handle(plain.Encoded, Now.AddHours(13));
         Assert.NotEqual(stored.Encoded.ToArray(), later.Encoded.ToArray());
         Assert.Equal(OcspCertStatus.Revoked, Only(later).Status);
+    }
+
+    // The client side of a response is the validator's: it checks the responder (CA or delegated, with id-kp-OCSPSigning) against the path and the status of the certificate.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(SigKind.P256)]
+    [InlineData(SigKind.Ed25519)]
+    public void TheValidatorAcceptsOurResponsesThroughTheResponderChain(SigKind? delegated)
+    {
+        OcspResponder r = Make(delegated);
+        foreach ((Certificate cert, VStatus expected) in new[] { (Fx.Good, VStatus.Good), (Fx.Revoked, VStatus.Revoked) })
+        {
+            OcspResponse resp = r.Handle(Request([cert], RandomNumberGenerator.GetBytes(16)).Encoded, Now);
+            var data = new RevocationData { OcspResponses = [resp.BasicResponse!] };
+            ValidationReport v = PathValidator.Validate(cert, new ValidationOptions
+            {
+                TrustAnchors = [TrustAnchor.FromCertificate(Kit.Root.Certificate)],
+                Intermediates = [Kit.Intermediate.Certificate],
+                ReferenceTime = Now.AddMinutes(1),
+                Revocation = data,
+                RevocationRequired = RevocationScope.EndEntity,
+            });
+            RevocationReport target = (v.SelectedPath ?? v.Paths[0]).Certificates[^1].Revocation;
+            Assert.True(expected == target.Status, target.Reason);
+            Assert.Equal(expected == VStatus.Good, v.IsValid);
+        }
     }
 
     [Theory]

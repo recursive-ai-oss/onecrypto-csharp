@@ -45,3 +45,7 @@ requests we build answered by `ocsp -index … -rsigner` and verified by us (sig
 `ocsp -reqout` answered by our handler and accepted by `ocsp -respin … -reqin … -verify_other` (with `-reqin` alone, which checks the nonce echo, and with
 `-issuer -cert -no_nonce`, which prints the status; naming `-cert` together with `-reqin` makes openssl build a new request with a new nonce). Tests:
 `tests/OneCrypto.Tests/Issuance/OcspResponderTests.cs`; fuzz target `ocspresp`.
+
+## Checking a response on the client side
+
+There is no separate OCSP verifier: `PathValidator` takes our `OcspBasicResponse` in `RevocationData.OcspResponses` and checks the responder (the issuing CA, or a delegate with id-kp-OCSPSigning issued by it) and the status of the certificate, reporting it per certificate (`docs/validation.md`). Tests run responses of CA-signed and delegated responders (P-256, Ed25519) through it, expecting good and revoked.
