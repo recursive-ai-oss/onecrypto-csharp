@@ -397,6 +397,11 @@ public class TimeStampTests
     public void OpenSslVerifiesWhatOurAuthorityIssues(SigKind kind, string hash, bool nonce, bool certReq)
     {
         OpenSslTool.RequireOrSkip();
+        if (kind == SigKind.Ed25519)
+        {
+            OpenSslTool.RequireOrSkip(3, 5, "EdDSA signatures over signed attributes in CMS");
+        }
+
         string dir = IssuanceKit.Dir($"ts-b-{kind}-{hash}-{nonce}-{certReq}");
         byte[] data = RandomNumberGenerator.GetBytes(3000);
         string dataFile = IssuanceKit.Write(dir, "data.bin", data);

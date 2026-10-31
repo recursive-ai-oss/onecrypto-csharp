@@ -86,9 +86,9 @@ internal static class Pkcs8Target
                     break;
             }
         }
-        catch (PlatformNotSupportedException)
+        catch (NotSupportedException)
         {
-            // An unknown or unavailable curve is the platform's typed answer.
+            // An unknown or unavailable curve is reported as AlgorithmNotSupportedException.
         }
         catch (CryptographicException)
         {

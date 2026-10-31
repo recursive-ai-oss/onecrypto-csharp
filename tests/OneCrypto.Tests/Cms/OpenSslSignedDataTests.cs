@@ -47,6 +47,11 @@ public class OpenSslSignedDataTests
         Assert.SkipUnless(OpenSslCan(kind) && CmsKeys.IsAvailable(kind), "unavailable here");
         // openssl cms cannot check an EdDSA or ML-DSA signature made over the content itself (no signed attributes).
         Assert.SkipUnless(attrs || kind is not (SigKind.Ed25519 or SigKind.Ed448 or SigKind.MlDsa65), "openssl cannot verify this form");
+        if (attrs && kind is SigKind.Ed25519 or SigKind.Ed448)
+        {
+            OpenSslTool.RequireOrSkip(3, 5, "EdDSA signatures over signed attributes in CMS");
+        }
+
         SignerKit k = CmsKeys.Get(kind);
         string dir = Dir($"ours-{kind}-{attrs}-{detached}");
         SignedData sd = SignedData.Create(Content, [k.Spec(b => b.SignedAttributes = attrs)], new SignedDataOptions { Detached = detached });

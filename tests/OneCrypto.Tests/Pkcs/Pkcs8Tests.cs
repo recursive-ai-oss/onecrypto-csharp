@@ -250,7 +250,19 @@ public class Pkcs8Tests
         string spkiOf = OpenSslTool.Run("pkey", "-in", key, "-pubout").Output.Replace("\r", string.Empty, StringComparison.Ordinal);
 
         using PrivateKeyInfo plain = PrivateKeyInfo.FromPem(File.ReadAllText(key));
-        Assert.Equal(spkiOf.Trim(), SpkiPem(plain.GetPublicKey()).Trim());
+        string ourSpki;
+        try
+        {
+            ourSpki = SpkiPem(plain.GetPublicKey()).Trim();
+        }
+        catch (AlgorithmNotSupportedException e) when (spec.Contains("brainpool", StringComparison.Ordinal))
+        {
+            // The platform lacks the curve and says so with the typed error; the availability table lists it.
+            Assert.Skip(e.Message);
+            return;
+        }
+
+        Assert.Equal(spkiOf.Trim(), ourSpki);
 
         foreach (string[] extra in new[]
         {

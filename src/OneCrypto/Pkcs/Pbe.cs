@@ -421,6 +421,7 @@ internal static class Pbe
         var pt = new PinnedSecret(data.Length - tagLen);
         try
         {
+            Platform.RequireAesGcm();
             using var gcm = new AesGcm(key, tagLen);
             gcm.Decrypt(nonce, data[..^tagLen], data[^tagLen..], pt.Span);
             plaintext = pt;
@@ -634,6 +635,7 @@ internal static class Pbe
         {
             byte[] nonce = RandomNumberGenerator.GetBytes(12);
             ciphertext = new byte[plaintext.Length + 16];
+            Platform.RequireAesGcm();
             using var g = new AesGcm(key.ReadOnlySpan, 16);
             g.Encrypt(nonce, plaintext, ciphertext.AsSpan(0, plaintext.Length), ciphertext.AsSpan(plaintext.Length, 16));
             w.PushSequence();

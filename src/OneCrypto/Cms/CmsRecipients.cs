@@ -473,11 +473,19 @@ public abstract class CmsRecipient
                     {
                         // RFC 5753 §7.1.1: the KDF hash follows the curve's strength.
                         scheme = pub.KeySizeBits <= 256 ? CmsOids.StdDhSha256Kdf : pub.KeySizeBits <= 384 ? CmsOids.StdDhSha384Kdf : CmsOids.StdDhSha512Kdf;
-                        using ECDiffieHellman peer = ECDiffieHellman.Create();
-                        peer.ImportSubjectPublicKeyInfo(pub.Encoded.Span, out _);
-                        using ECDiffieHellman eph = ECDiffieHellman.Create(peer.ExportParameters(false).Curve);
-                        z = eph.DeriveRawSecretAgreement(peer.PublicKey);
-                        originatorSpki = eph.ExportSubjectPublicKeyInfo();
+                        try
+                        {
+                            using ECDiffieHellman peer = ECDiffieHellman.Create();
+                            peer.ImportSubjectPublicKeyInfo(pub.Encoded.Span, out _);
+                            using ECDiffieHellman eph = ECDiffieHellman.Create(peer.ExportParameters(false).Curve);
+                            z = eph.DeriveRawSecretAgreement(peer.PublicKey);
+                            originatorSpki = eph.ExportSubjectPublicKeyInfo();
+                        }
+                        catch (PlatformNotSupportedException e)
+                        {
+                            throw Platform.CurveNotSupported("ECDH key agreement", e);
+                        }
+
                         break;
                     }
 
@@ -606,10 +614,7 @@ public abstract class CmsRecipient
                 throw new ArgumentException("The certificate does not carry an ML-KEM key.");
             }
 
-            if (!MLKem.IsSupported)
-            {
-                throw new PlatformNotSupportedException("ML-KEM is not available on this platform.");
-            }
+            Platform.RequireMlKem();
 
 #pragma warning disable SYSLIB5006 // The platform ML-KEM key import is experimental; this is the only file that touches it, and results say preview.
             using MLKem kem = MLKem.ImportSubjectPublicKeyInfo(_cert.PublicKey.Encoded.Span);
