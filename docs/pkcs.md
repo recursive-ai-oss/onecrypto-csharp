@@ -7,11 +7,13 @@ Normative behaviour of `RecursiveAI.OneCrypto.Pkcs` and `RecursiveAI.OneCrypto.W
 | Container | Reads | Writes |
 |---|---|---|
 | `PrivateKeyInfo` (RFC 5208, RFC 5958 `OneAsymmetricKey`) | v1 and v2 (public key, attributes) for any algorithm; typed access for RSA, EC, Ed25519/Ed448, X25519/X448, ML-DSA, ML-KEM | the same, from platform keys or this library's key types |
-| `EncryptedPrivateKeyInfo` | PBES2 (RFC 8018 §6.2) with PBKDF2 (HMAC-SHA-1/224/256/384/512) or scrypt (RFC 7914 §7), AES-128/192/256-CBC, AES-128/192/256-GCM (RFC 5084), 3DES-CBC; the PKCS#12 PBEs with 3DES (2- and 3-key) and RC2-40/128 | PBES2 only: AES-CBC or AES-GCM with PBKDF2 (SHA-1/256/384/512) or scrypt |
+| `EncryptedPrivateKeyInfo` | PBES2 (RFC 8018 §6.2) with PBKDF2 (HMAC-SHA-1/256/384/512) or scrypt (RFC 7914 §7), AES-128/192/256-CBC, AES-128/192/256-GCM (RFC 5084), 3DES-CBC; the PKCS#12 PBEs with 3DES (2- and 3-key) and RC2-40/128 | PBES2 only: AES-CBC or AES-GCM with PBKDF2 (SHA-1/256/384/512) or scrypt |
 | PEM private keys | `PRIVATE KEY`, `ENCRYPTED PRIVATE KEY`, `RSA PRIVATE KEY`, `EC PRIVATE KEY`, the last two also with `Proc-Type`/`DEK-Info` (AES-128/192/256-CBC, DES-EDE3-CBC) | `PRIVATE KEY`, `ENCRYPTED PRIVATE KEY` |
-| PKCS#12 (RFC 7292) | password-integrity MAC (HMAC with the Appendix B derivation over SHA-1/224/256/384/512) and PBMAC1 (RFC 9579); data and encryptedData safes; key, shrouded key, cert, CRL, secret and nested safe-contents bags; friendlyName and localKeyId | key and secret bags in a data safe, certificates and CRLs in an encrypted safe (PBES2), MAC of either kind |
+| PKCS#12 (RFC 7292) | password-integrity MAC (HMAC with the Appendix B derivation over SHA-1/256/384/512) and PBMAC1 (RFC 9579); data and encryptedData safes; key, shrouded key, cert, CRL, secret and nested safe-contents bags; friendlyName and localKeyId | key and secret bags in a data safe, certificates and CRLs in an encrypted safe (PBES2), MAC of either kind |
 | OpenSSH `openssh-key-v1` (PROTOCOL.key) | RSA, ECDSA P-256/384/521, Ed25519, FIDO `sk-` keys; ciphers `none`, `aes{128,192,256}-ctr`, `aes{128,192,256}-cbc`, `aes{128,256}-gcm@openssh.com`; KDF `none` and `bcrypt` | RSA, ECDSA, Ed25519 with `none`, `aes{128,192,256}-ctr` or `aes{128,256}-gcm@openssh.com` |
 | OpenSSH public keys and certificates | blob, `authorized_keys` line (with options), RFC 4716 file, `*-cert-v01@openssh.com` (RSA, ECDSA, Ed25519) | blob, line, RFC 4716 |
+
+SHA-224 (as a PBKDF2 PRF, MAC hash or PKCS#12 derivation hash) is not read because the platform has no SHA-224.
 
 Not read, with a typed answer (`PkcsStatus.UnsupportedAlgorithm`, `SshError.Unsupported`): the RC4 PKCS#12 PBEs and the PKCS#5 v1.5 password schemes (obsolete; the platform has no RC4), PKCS#12 public-key integrity and privacy modes (signedData, envelopedData), `chacha20-poly1305@openssh.com` and `3des-cbc` private key files, files with more than one OpenSSH key, SLH-DSA private keys, `ssh-dss`.
 

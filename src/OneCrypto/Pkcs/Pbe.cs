@@ -87,10 +87,11 @@ internal static class Pbe
     public const string P12Rc2_128 = "1.2.840.113549.1.12.1.5";
     public const string P12Rc2_40 = "1.2.840.113549.1.12.1.6";
 
+    // SHA-224 is deliberately absent from both tables: the platform has no SHA-224 hash or HMAC, so a file that uses it is reported
+    // as an unsupported algorithm rather than approximated.
     public static string? HashOidName(string oid) => oid switch
     {
         "1.3.14.3.2.26" => "SHA1",
-        "2.16.840.1.101.3.4.2.4" => "SHA224",
         "2.16.840.1.101.3.4.2.1" => "SHA256",
         "2.16.840.1.101.3.4.2.2" => "SHA384",
         "2.16.840.1.101.3.4.2.3" => "SHA512",
@@ -109,7 +110,6 @@ internal static class Pbe
     public static string? HmacOidHash(string oid) => oid switch
     {
         "1.2.840.113549.2.7" => "SHA1",
-        "1.2.840.113549.2.8" => "SHA224",
         "1.2.840.113549.2.9" => "SHA256",
         "1.2.840.113549.2.10" => "SHA384",
         "1.2.840.113549.2.11" => "SHA512",
