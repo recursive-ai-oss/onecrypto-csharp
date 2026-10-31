@@ -23,7 +23,7 @@ public class EaxEncryptRows : IDisposable
     private byte[] _cipher = [];
     private byte[] _bcOut = [];
     private readonly byte[] _nonce2 = RandomNumberGenerator.GetBytes(16);
-    private bool _flip;
+    private bool _flip = true;
     private AesEax _ours = null!;
     private EaxBlockCipher _bc = null!;
 
