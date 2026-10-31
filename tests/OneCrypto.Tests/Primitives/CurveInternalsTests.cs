@@ -193,25 +193,6 @@ public class CurveInternalsTests
     }
 
     [Fact]
-    public void ManagedShake256MatchesThePlatformOne()
-    {
-        Assert.SkipUnless(Shake256.IsSupported, "the platform has no SHAKE256 to compare with");
-        foreach (int len in new[] { 0, 1, 135, 136, 137, 271, 272, 273, 1000, 5000 })
-        {
-            byte[] msg = RandomNumberGenerator.GetBytes(len);
-            foreach (int outLen in new[] { 1, 64, 114, 136, 137, 300 })
-            {
-                byte[] expected = Shake256.HashData(msg, outLen);
-                byte[] got = new byte[outLen];
-                // Split the input over the pieces the signing code uses.
-                int cut = len / 3;
-                EdHash.Shake256Managed(got, msg.AsSpan(0, cut), msg.AsSpan(cut, cut), msg.AsSpan(2 * cut));
-                Assert.Equal(Convert.ToHexString(expected), Convert.ToHexString(got));
-            }
-        }
-    }
-
-    [Fact]
     public void X25519PublicKeyFromTheEdwardsTableMatchesTheLadder()
     {
         for (int i = 0; i < 200; i++)

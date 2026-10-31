@@ -53,7 +53,7 @@ public sealed class AesEax : IDisposable
     /// <param name="tagSizeInBytes">The tag length, 8 to 16 bytes. Defaults to 16.</param>
     /// <exception cref="ArgumentException"><paramref name="key"/> is not a valid AES key size.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="tagSizeInBytes"/> is outside 8 to 16.</exception>
-    /// <exception cref="PlatformNotSupportedException">The platform has no AES.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform has no AES.</exception>
     public AesEax(ReadOnlySpan<byte> key, int tagSizeInBytes = MaxTagSize)
     {
         AeadChecks.ValidateKey(key);

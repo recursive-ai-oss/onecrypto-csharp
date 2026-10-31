@@ -124,5 +124,11 @@ using (var xb4 = RecursiveAI.OneCrypto.Primitives.X448PrivateKey.Generate())
     }
 }
 
+if (!OneCrypto.Smoke.FallbackSmoke.Run())
+{
+    Console.Error.WriteLine("platform-gap code failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
