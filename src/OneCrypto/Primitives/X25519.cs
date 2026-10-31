@@ -78,7 +78,26 @@ public static class X25519
     /// <param name="privateKey">32 bytes.</param>
     /// <param name="publicKey">Receives 32 bytes.</param>
     /// <exception cref="ArgumentException">A span has the wrong length.</exception>
-    public static void DerivePublicKey(ReadOnlySpan<byte> privateKey, Span<byte> publicKey) =>
+    public static void DerivePublicKey(ReadOnlySpan<byte> privateKey, Span<byte> publicKey)
+    {
+        Ed25519.CheckLength(privateKey, KeySize, nameof(privateKey));
+        Ed25519.CheckLength(publicKey, KeySize, nameof(publicKey));
+        // Same result as ScalarMult with u = 9, but through the constant-time fixed-base table: Curve25519's base point is the
+        // image of the Ed25519 base point under u = (1 + y) / (1 - y) (RFC 7748 section 4.1), so [k]B on the Edwards curve
+        // maps to the u-coordinate of the public key. A clamped scalar is never a multiple of the group order (it has bit 254
+        // set, is divisible by 8 and is below 8 times the order), so the result is never the identity and 1 - y is invertible.
+        Span<byte> k = stackalloc byte[32]; // fixed small buffer
+        privateKey.CopyTo(k);
+        k[0] &= 248;
+        k[31] &= 127;
+        k[31] |= 64;
+        Ge25519 p = Ge25519Ops.ScalarMultBase(k);
+        Fe25519.Mul(Fe25519.Add(p.Z, p.Y), Fe25519.Invert(Fe25519.Sub(p.Z, p.Y))).ToBytes(publicKey);
+        CryptographicOperations.ZeroMemory(k);
+    }
+
+    /// <summary>The same computation by the ladder with u = 9; used to cross-check <see cref="DerivePublicKey"/>.</summary>
+    internal static void DerivePublicKeyByLadder(ReadOnlySpan<byte> privateKey, Span<byte> publicKey) =>
         ScalarMult(privateKey, BasePoint, publicKey);
 
     /// <summary>

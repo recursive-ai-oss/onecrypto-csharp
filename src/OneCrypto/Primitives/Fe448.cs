@@ -132,18 +132,19 @@ internal struct Fe448
     public static Fe448 Neg(in Fe448 a) => Sub(Zero, a);
 
     /// <summary>
-    /// Adds the product a·b to a column kept as lo + hi·2^56: the product is split at bit 56, so the column sums never carry
-    /// and need no 128-bit type or comparison. A product of two limbs below 2^57 has hi below 2^59.
+    /// Adds the product a·b to a column kept as lo + hi·2^57, where <paramref name="bShifted"/> is b·2^7. The multiplier's
+    /// 128-bit result is then (a·b)·2^7, so its high word is exactly a·b >> 57 and its low word, shifted back down, is
+    /// a·b mod 2^57: both go straight into plain sums, with no masking, splitting or carry. Requires b below 2^57.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong b)
+    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong bShifted)
     {
-        ulong h = Math.BigMul(a, b, out ulong l);
-        lo += l & Mask;
-        hi += (h << 8) | (l >> 56);
+        ulong h = Math.BigMul(a, bShifted, out ulong l);
+        lo += l >> 7;
+        hi += h;
     }
 
-    /// <summary>Folds the 15 columns (each lo + hi·2^56) of a product back to eight limbs and carries.</summary>
+    /// <summary>Folds the 15 columns (each lo + hi·2^57 = lo + 2·hi·2^56) of a product back to eight limbs and carries.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Fe448 Reduce(ulong l0, ulong h0, ulong l1, ulong h1, ulong l2, ulong h2, ulong l3, ulong h3, ulong l4, ulong h4, ulong l5, ulong h5, ulong l6, ulong h6, ulong l7, ulong h7, ulong l8, ulong h8, ulong l9, ulong h9, ulong l10, ulong h10, ulong l11, ulong h11, ulong l12, ulong h12, ulong l13, ulong h13, ulong l14, ulong h14)
     {
@@ -166,28 +167,28 @@ internal struct Fe448
         l4 += l8; h4 += h8;
         Fe448 r;
         ulong t = l0;
-        ulong c = (t >> 56) + h0;
+        ulong c = (t >> 56) + (h0 << 1);
         r.V0 = t & Mask;
         t = l1 + c;
-        c = (t >> 56) + h1;
+        c = (t >> 56) + (h1 << 1);
         r.V1 = t & Mask;
         t = l2 + c;
-        c = (t >> 56) + h2;
+        c = (t >> 56) + (h2 << 1);
         r.V2 = t & Mask;
         t = l3 + c;
-        c = (t >> 56) + h3;
+        c = (t >> 56) + (h3 << 1);
         r.V3 = t & Mask;
         t = l4 + c;
-        c = (t >> 56) + h4;
+        c = (t >> 56) + (h4 << 1);
         r.V4 = t & Mask;
         t = l5 + c;
-        c = (t >> 56) + h5;
+        c = (t >> 56) + (h5 << 1);
         r.V5 = t & Mask;
         t = l6 + c;
-        c = (t >> 56) + h6;
+        c = (t >> 56) + (h6 << 1);
         r.V6 = t & Mask;
         t = l7 + c;
-        c = (t >> 56) + h7;
+        c = (t >> 56) + (h7 << 1);
         r.V7 = t & Mask;
         r.V0 += c;
         r.V4 += c;
@@ -199,72 +200,72 @@ internal struct Fe448
     public static Fe448 Mul(in Fe448 a, in Fe448 b)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4, a5 = a.V5, a6 = a.V6, a7 = a.V7;
-        ulong b0 = b.V0, b1 = b.V1, b2 = b.V2, b3 = b.V3, b4 = b.V4, b5 = b.V5, b6 = b.V6, b7 = b.V7;
+        ulong c0 = b.V0 << 7, c1 = b.V1 << 7, c2 = b.V2 << 7, c3 = b.V3 << 7, c4 = b.V4 << 7, c5 = b.V5 << 7, c6 = b.V6 << 7, c7 = b.V7 << 7;
         ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0, l5 = 0, h5 = 0, l6 = 0, h6 = 0, l7 = 0, h7 = 0, l8 = 0, h8 = 0, l9 = 0, h9 = 0, l10 = 0, h10 = 0, l11 = 0, h11 = 0, l12 = 0, h12 = 0, l13 = 0, h13 = 0, l14 = 0, h14 = 0;
-        MulAcc(ref l0, ref h0, a0, b0);
-        MulAcc(ref l1, ref h1, a0, b1);
-        MulAcc(ref l1, ref h1, a1, b0);
-        MulAcc(ref l2, ref h2, a0, b2);
-        MulAcc(ref l2, ref h2, a1, b1);
-        MulAcc(ref l2, ref h2, a2, b0);
-        MulAcc(ref l3, ref h3, a0, b3);
-        MulAcc(ref l3, ref h3, a1, b2);
-        MulAcc(ref l3, ref h3, a2, b1);
-        MulAcc(ref l3, ref h3, a3, b0);
-        MulAcc(ref l4, ref h4, a0, b4);
-        MulAcc(ref l4, ref h4, a1, b3);
-        MulAcc(ref l4, ref h4, a2, b2);
-        MulAcc(ref l4, ref h4, a3, b1);
-        MulAcc(ref l4, ref h4, a4, b0);
-        MulAcc(ref l5, ref h5, a0, b5);
-        MulAcc(ref l5, ref h5, a1, b4);
-        MulAcc(ref l5, ref h5, a2, b3);
-        MulAcc(ref l5, ref h5, a3, b2);
-        MulAcc(ref l5, ref h5, a4, b1);
-        MulAcc(ref l5, ref h5, a5, b0);
-        MulAcc(ref l6, ref h6, a0, b6);
-        MulAcc(ref l6, ref h6, a1, b5);
-        MulAcc(ref l6, ref h6, a2, b4);
-        MulAcc(ref l6, ref h6, a3, b3);
-        MulAcc(ref l6, ref h6, a4, b2);
-        MulAcc(ref l6, ref h6, a5, b1);
-        MulAcc(ref l6, ref h6, a6, b0);
-        MulAcc(ref l7, ref h7, a0, b7);
-        MulAcc(ref l7, ref h7, a1, b6);
-        MulAcc(ref l7, ref h7, a2, b5);
-        MulAcc(ref l7, ref h7, a3, b4);
-        MulAcc(ref l7, ref h7, a4, b3);
-        MulAcc(ref l7, ref h7, a5, b2);
-        MulAcc(ref l7, ref h7, a6, b1);
-        MulAcc(ref l7, ref h7, a7, b0);
-        MulAcc(ref l8, ref h8, a1, b7);
-        MulAcc(ref l8, ref h8, a2, b6);
-        MulAcc(ref l8, ref h8, a3, b5);
-        MulAcc(ref l8, ref h8, a4, b4);
-        MulAcc(ref l8, ref h8, a5, b3);
-        MulAcc(ref l8, ref h8, a6, b2);
-        MulAcc(ref l8, ref h8, a7, b1);
-        MulAcc(ref l9, ref h9, a2, b7);
-        MulAcc(ref l9, ref h9, a3, b6);
-        MulAcc(ref l9, ref h9, a4, b5);
-        MulAcc(ref l9, ref h9, a5, b4);
-        MulAcc(ref l9, ref h9, a6, b3);
-        MulAcc(ref l9, ref h9, a7, b2);
-        MulAcc(ref l10, ref h10, a3, b7);
-        MulAcc(ref l10, ref h10, a4, b6);
-        MulAcc(ref l10, ref h10, a5, b5);
-        MulAcc(ref l10, ref h10, a6, b4);
-        MulAcc(ref l10, ref h10, a7, b3);
-        MulAcc(ref l11, ref h11, a4, b7);
-        MulAcc(ref l11, ref h11, a5, b6);
-        MulAcc(ref l11, ref h11, a6, b5);
-        MulAcc(ref l11, ref h11, a7, b4);
-        MulAcc(ref l12, ref h12, a5, b7);
-        MulAcc(ref l12, ref h12, a6, b6);
-        MulAcc(ref l12, ref h12, a7, b5);
-        MulAcc(ref l13, ref h13, a6, b7);
-        MulAcc(ref l13, ref h13, a7, b6);
-        MulAcc(ref l14, ref h14, a7, b7);
+        MulAcc(ref l0, ref h0, a0, c0);
+        MulAcc(ref l1, ref h1, a0, c1);
+        MulAcc(ref l1, ref h1, a1, c0);
+        MulAcc(ref l2, ref h2, a0, c2);
+        MulAcc(ref l2, ref h2, a1, c1);
+        MulAcc(ref l2, ref h2, a2, c0);
+        MulAcc(ref l3, ref h3, a0, c3);
+        MulAcc(ref l3, ref h3, a1, c2);
+        MulAcc(ref l3, ref h3, a2, c1);
+        MulAcc(ref l3, ref h3, a3, c0);
+        MulAcc(ref l4, ref h4, a0, c4);
+        MulAcc(ref l4, ref h4, a1, c3);
+        MulAcc(ref l4, ref h4, a2, c2);
+        MulAcc(ref l4, ref h4, a3, c1);
+        MulAcc(ref l4, ref h4, a4, c0);
+        MulAcc(ref l5, ref h5, a0, c5);
+        MulAcc(ref l5, ref h5, a1, c4);
+        MulAcc(ref l5, ref h5, a2, c3);
+        MulAcc(ref l5, ref h5, a3, c2);
+        MulAcc(ref l5, ref h5, a4, c1);
+        MulAcc(ref l5, ref h5, a5, c0);
+        MulAcc(ref l6, ref h6, a0, c6);
+        MulAcc(ref l6, ref h6, a1, c5);
+        MulAcc(ref l6, ref h6, a2, c4);
+        MulAcc(ref l6, ref h6, a3, c3);
+        MulAcc(ref l6, ref h6, a4, c2);
+        MulAcc(ref l6, ref h6, a5, c1);
+        MulAcc(ref l6, ref h6, a6, c0);
+        MulAcc(ref l7, ref h7, a0, c7);
+        MulAcc(ref l7, ref h7, a1, c6);
+        MulAcc(ref l7, ref h7, a2, c5);
+        MulAcc(ref l7, ref h7, a3, c4);
+        MulAcc(ref l7, ref h7, a4, c3);
+        MulAcc(ref l7, ref h7, a5, c2);
+        MulAcc(ref l7, ref h7, a6, c1);
+        MulAcc(ref l7, ref h7, a7, c0);
+        MulAcc(ref l8, ref h8, a1, c7);
+        MulAcc(ref l8, ref h8, a2, c6);
+        MulAcc(ref l8, ref h8, a3, c5);
+        MulAcc(ref l8, ref h8, a4, c4);
+        MulAcc(ref l8, ref h8, a5, c3);
+        MulAcc(ref l8, ref h8, a6, c2);
+        MulAcc(ref l8, ref h8, a7, c1);
+        MulAcc(ref l9, ref h9, a2, c7);
+        MulAcc(ref l9, ref h9, a3, c6);
+        MulAcc(ref l9, ref h9, a4, c5);
+        MulAcc(ref l9, ref h9, a5, c4);
+        MulAcc(ref l9, ref h9, a6, c3);
+        MulAcc(ref l9, ref h9, a7, c2);
+        MulAcc(ref l10, ref h10, a3, c7);
+        MulAcc(ref l10, ref h10, a4, c6);
+        MulAcc(ref l10, ref h10, a5, c5);
+        MulAcc(ref l10, ref h10, a6, c4);
+        MulAcc(ref l10, ref h10, a7, c3);
+        MulAcc(ref l11, ref h11, a4, c7);
+        MulAcc(ref l11, ref h11, a5, c6);
+        MulAcc(ref l11, ref h11, a6, c5);
+        MulAcc(ref l11, ref h11, a7, c4);
+        MulAcc(ref l12, ref h12, a5, c7);
+        MulAcc(ref l12, ref h12, a6, c6);
+        MulAcc(ref l12, ref h12, a7, c5);
+        MulAcc(ref l13, ref h13, a6, c7);
+        MulAcc(ref l13, ref h13, a7, c6);
+        MulAcc(ref l14, ref h14, a7, c7);
         return Reduce(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4, l5, h5, l6, h6, l7, h7, l8, h8, l9, h9, l10, h10, l11, h11, l12, h12, l13, h13, l14, h14);
     }
 
@@ -273,69 +274,70 @@ internal struct Fe448
     public static Fe448 Square(in Fe448 a)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4, a5 = a.V5, a6 = a.V6, a7 = a.V7;
+        ulong c0 = a0 << 7, c1 = a1 << 7, c2 = a2 << 7, c3 = a3 << 7, c4 = a4 << 7, c5 = a5 << 7, c6 = a6 << 7, c7 = a7 << 7;
         ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0, l5 = 0, h5 = 0, l6 = 0, h6 = 0, l7 = 0, h7 = 0, l8 = 0, h8 = 0, l9 = 0, h9 = 0, l10 = 0, h10 = 0, l11 = 0, h11 = 0, l12 = 0, h12 = 0, l13 = 0, h13 = 0, l14 = 0, h14 = 0;
-        MulAcc(ref l0, ref h0, a0, a0);
-        MulAcc(ref l1, ref h1, a0, a1);
+        MulAcc(ref l0, ref h0, a0, c0);
+        MulAcc(ref l1, ref h1, a0, c1);
         l1 <<= 1;
         h1 <<= 1;
-        MulAcc(ref l2, ref h2, a0, a2);
+        MulAcc(ref l2, ref h2, a0, c2);
         l2 <<= 1;
         h2 <<= 1;
-        MulAcc(ref l2, ref h2, a1, a1);
-        MulAcc(ref l3, ref h3, a0, a3);
-        MulAcc(ref l3, ref h3, a1, a2);
+        MulAcc(ref l2, ref h2, a1, c1);
+        MulAcc(ref l3, ref h3, a0, c3);
+        MulAcc(ref l3, ref h3, a1, c2);
         l3 <<= 1;
         h3 <<= 1;
-        MulAcc(ref l4, ref h4, a0, a4);
-        MulAcc(ref l4, ref h4, a1, a3);
+        MulAcc(ref l4, ref h4, a0, c4);
+        MulAcc(ref l4, ref h4, a1, c3);
         l4 <<= 1;
         h4 <<= 1;
-        MulAcc(ref l4, ref h4, a2, a2);
-        MulAcc(ref l5, ref h5, a0, a5);
-        MulAcc(ref l5, ref h5, a1, a4);
-        MulAcc(ref l5, ref h5, a2, a3);
+        MulAcc(ref l4, ref h4, a2, c2);
+        MulAcc(ref l5, ref h5, a0, c5);
+        MulAcc(ref l5, ref h5, a1, c4);
+        MulAcc(ref l5, ref h5, a2, c3);
         l5 <<= 1;
         h5 <<= 1;
-        MulAcc(ref l6, ref h6, a0, a6);
-        MulAcc(ref l6, ref h6, a1, a5);
-        MulAcc(ref l6, ref h6, a2, a4);
+        MulAcc(ref l6, ref h6, a0, c6);
+        MulAcc(ref l6, ref h6, a1, c5);
+        MulAcc(ref l6, ref h6, a2, c4);
         l6 <<= 1;
         h6 <<= 1;
-        MulAcc(ref l6, ref h6, a3, a3);
-        MulAcc(ref l7, ref h7, a0, a7);
-        MulAcc(ref l7, ref h7, a1, a6);
-        MulAcc(ref l7, ref h7, a2, a5);
-        MulAcc(ref l7, ref h7, a3, a4);
+        MulAcc(ref l6, ref h6, a3, c3);
+        MulAcc(ref l7, ref h7, a0, c7);
+        MulAcc(ref l7, ref h7, a1, c6);
+        MulAcc(ref l7, ref h7, a2, c5);
+        MulAcc(ref l7, ref h7, a3, c4);
         l7 <<= 1;
         h7 <<= 1;
-        MulAcc(ref l8, ref h8, a1, a7);
-        MulAcc(ref l8, ref h8, a2, a6);
-        MulAcc(ref l8, ref h8, a3, a5);
+        MulAcc(ref l8, ref h8, a1, c7);
+        MulAcc(ref l8, ref h8, a2, c6);
+        MulAcc(ref l8, ref h8, a3, c5);
         l8 <<= 1;
         h8 <<= 1;
-        MulAcc(ref l8, ref h8, a4, a4);
-        MulAcc(ref l9, ref h9, a2, a7);
-        MulAcc(ref l9, ref h9, a3, a6);
-        MulAcc(ref l9, ref h9, a4, a5);
+        MulAcc(ref l8, ref h8, a4, c4);
+        MulAcc(ref l9, ref h9, a2, c7);
+        MulAcc(ref l9, ref h9, a3, c6);
+        MulAcc(ref l9, ref h9, a4, c5);
         l9 <<= 1;
         h9 <<= 1;
-        MulAcc(ref l10, ref h10, a3, a7);
-        MulAcc(ref l10, ref h10, a4, a6);
+        MulAcc(ref l10, ref h10, a3, c7);
+        MulAcc(ref l10, ref h10, a4, c6);
         l10 <<= 1;
         h10 <<= 1;
-        MulAcc(ref l10, ref h10, a5, a5);
-        MulAcc(ref l11, ref h11, a4, a7);
-        MulAcc(ref l11, ref h11, a5, a6);
+        MulAcc(ref l10, ref h10, a5, c5);
+        MulAcc(ref l11, ref h11, a4, c7);
+        MulAcc(ref l11, ref h11, a5, c6);
         l11 <<= 1;
         h11 <<= 1;
-        MulAcc(ref l12, ref h12, a5, a7);
+        MulAcc(ref l12, ref h12, a5, c7);
         l12 <<= 1;
         h12 <<= 1;
-        MulAcc(ref l12, ref h12, a6, a6);
-        MulAcc(ref l13, ref h13, a6, a7);
+        MulAcc(ref l12, ref h12, a6, c6);
+        MulAcc(ref l13, ref h13, a6, c7);
         l13 <<= 1;
         h13 <<= 1;
-        MulAcc(ref l14, ref h14, a7, a7);
+        MulAcc(ref l14, ref h14, a7, c7);
         return Reduce(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4, l5, h5, l6, h6, l7, h7, l8, h8, l9, h9, l10, h10, l11, h11, l12, h12, l13, h13, l14, h14);
     }
 

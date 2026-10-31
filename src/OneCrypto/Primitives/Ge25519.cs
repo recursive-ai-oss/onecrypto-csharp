@@ -88,6 +88,20 @@ internal static class Ge25519Ops
         return new Ge25519 { X = Fe25519.Mul(e, f), Y = Fe25519.Mul(g, h), T = Fe25519.Mul(e, h), Z = Fe25519.Mul(f, g) };
     }
 
+    /// <summary>2p without the T coordinate (one multiplication fewer); only valid when the result is doubled again.</summary>
+    private static Ge25519 DoubleNoT(in Ge25519 p)
+    {
+        Fe25519 a = Fe25519.Square(p.X);
+        Fe25519 b = Fe25519.Square(p.Y);
+        Fe25519 c = Fe25519.Square(p.Z);
+        c = Fe25519.Add(c, c);
+        Fe25519 e = Fe25519.Sub(Fe25519.Sub(Fe25519.Square(Fe25519.Add(p.X, p.Y)), a), b);
+        Fe25519 g = Fe25519.Sub(b, a);
+        Fe25519 f = Fe25519.Sub(g, c);
+        Fe25519 h = Fe25519.Neg(Fe25519.Add(a, b));
+        return new Ge25519 { X = Fe25519.Mul(e, f), Y = Fe25519.Mul(g, h), Z = Fe25519.Mul(f, g) };
+    }
+
     public static Ge25519 Negate(in Ge25519 p) =>
         new() { X = Fe25519.Neg(p.X), Y = p.Y, Z = p.Z, T = Fe25519.Neg(p.T) };
 
@@ -274,6 +288,73 @@ internal static class Ge25519Ops
             {
                 r = started ? Add(r, table[w]) : table[w];
                 started = true;
+            }
+        }
+        return r;
+    }
+
+    /// <summary>(2j + 1)·B in precomputed affine form for j in 0..31, for the width-7 digits of verification.</summary>
+    private static readonly Ge25519Niels[] BaseOdd = BuildBaseOdd();
+
+    private static Ge25519Niels[] BuildBaseOdd()
+    {
+        var table = new Ge25519Niels[32];
+        Ge25519 b = Base();
+        Ge25519 b2 = Double(b);
+        Ge25519 acc = b;
+        for (int j = 0; j < 32; j++)
+        {
+            table[j] = ToNiels(acc);
+            acc = Add(acc, b2);
+        }
+        return table;
+    }
+
+    /// <summary>
+    /// [s]B + [k]q for public scalars below 2^256, variable time (verification only): one shared chain of doublings with
+    /// width-7 digits for the fixed base point and width-5 digits for q.
+    /// </summary>
+    public static Ge25519 DoubleScalarMulBaseVartime(ReadOnlySpan<byte> s, ReadOnlySpan<byte> k, in Ge25519 q)
+    {
+        Span<sbyte> ds = stackalloc sbyte[257]; // fixed small buffers
+        Span<sbyte> dk = stackalloc sbyte[257];
+        Wnaf.Compute(s, ds, 7);
+        Wnaf.Compute(k, dk, 5);
+        Span<Ge25519> tq = stackalloc Ge25519[8]; // q, 3q, 5q, ... 15q
+        tq[0] = q;
+        Ge25519 q2 = Double(q);
+        for (int j = 1; j < 8; j++)
+        {
+            tq[j] = Add(tq[j - 1], q2);
+        }
+        int top = 256;
+        while (top >= 0 && ds[top] == 0 && dk[top] == 0)
+        {
+            top--;
+        }
+        Ge25519 r = Ge25519.Identity;
+        for (int i = top; i >= 0; i--)
+        {
+            bool adds = ds[i] != 0 || dk[i] != 0;
+            r = adds ? Double(r) : DoubleNoT(r);
+            int dq = dk[i];
+            if (dq > 0)
+            {
+                r = Add(r, tq[dq >> 1]);
+            }
+            else if (dq < 0)
+            {
+                r = Add(r, Negate(tq[(-dq) >> 1]));
+            }
+            int db = ds[i];
+            if (db > 0)
+            {
+                r = AddNiels(r, BaseOdd[db >> 1]);
+            }
+            else if (db < 0)
+            {
+                Ge25519Niels n = BaseOdd[(-db) >> 1];
+                r = AddNiels(r, new Ge25519Niels { YpX = n.YmX, YmX = n.YpX, XY2D = Fe25519.Neg(n.XY2D) });
             }
         }
         return r;

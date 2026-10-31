@@ -257,10 +257,8 @@ public static class Ed25519
         ScalarField.Store(kl, k);
 
         // R' = [S]B - [k]A, compared with R as an encoding. A non-canonical R can never equal a canonical re-encoding.
-        Ge25519 sB = Ge25519Ops.ScalarMultBase(sBytes);
-        Ge25519 kA = Ge25519Ops.ScalarMultVartime(k, Ge25519Ops.Negate(a));
         Span<byte> check = stackalloc byte[32];
-        Ge25519Ops.Encode(Ge25519Ops.Add(sB, kA), check);
+        Ge25519Ops.Encode(Ge25519Ops.DoubleScalarMulBaseVartime(sBytes, k, Ge25519Ops.Negate(a)), check);
         return check.SequenceEqual(rBytes);
     }
 }

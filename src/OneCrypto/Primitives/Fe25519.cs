@@ -101,29 +101,34 @@ internal struct Fe25519
     public static Fe25519 Neg(in Fe25519 a) => Sub(Zero, a);
 
     /// <summary>
-    /// Adds the product a·b to a column kept as lo + hi·2^51: the product is split at bit 51, so the column sums never carry
-    /// and need no 128-bit type or comparison. With reduced limbs (below 2^51 + a few thousand) and the 19-fold operands,
-    /// a column's hi stays below 2^58, so the final 19-fold carry fits in 64 bits.
+    /// Adds the product a·b to a column kept as lo + hi·2^52, where <paramref name="bShifted"/> is b·2^12. The multiplier's
+    /// 128-bit result is then (a·b)·2^12, so its high word is exactly a·b >> 52 and its low word, shifted back down, is
+    /// a·b mod 2^52: both go straight into plain sums, with no masking, splitting or carry. Requires b below 2^52.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong b)
+    private static void MulAcc(ref ulong lo, ref ulong hi, ulong a, ulong bShifted)
     {
-        ulong h = Math.BigMul(a, b, out ulong l);
-        lo += l & Mask;
-        hi += (h << 13) | (l >> 51);
+        ulong h = Math.BigMul(a, bShifted, out ulong l);
+        lo += l >> 12;
+        hi += h;
     }
 
+    /// <summary>
+    /// Carries the five columns (each lo + hi·2^52 = lo + 2·hi·2^51) into limbs. The non-wrapping and wrapping (times 19,
+    /// because 2^255 = 19) partial sums of a column are kept apart and combined here, which keeps every term of the multiplier
+    /// inputs below 2^52 so the shifted operands fit in 64 bits. With reduced inputs a column's hi stays below 2^57.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Fe25519 Finish(ulong l0, ulong h0, ulong l1, ulong h1, ulong l2, ulong h2, ulong l3, ulong h3, ulong l4, ulong h4)
+    private static Fe25519 Finish(ulong ln0, ulong hn0, ulong lw0, ulong hw0, ulong ln1, ulong hn1, ulong lw1, ulong hw1, ulong ln2, ulong hn2, ulong lw2, ulong hw2, ulong ln3, ulong hn3, ulong lw3, ulong hw3, ulong ln4, ulong hn4, ulong lw4, ulong hw4)
     {
         Fe25519 r;
-        ulong t = l0;
-        ulong c = (t >> 51) + h0;
+        ulong t = ln0 + (19 * lw0);
+        ulong c = (t >> 51) + ((hn0 + (19 * hw0)) << 1);
         r.V0 = t & Mask;
-        t = l1 + c; c = (t >> 51) + h1; r.V1 = t & Mask;
-        t = l2 + c; c = (t >> 51) + h2; r.V2 = t & Mask;
-        t = l3 + c; c = (t >> 51) + h3; r.V3 = t & Mask;
-        t = l4 + c; c = (t >> 51) + h4; r.V4 = t & Mask;
+        t = ln1 + (19 * lw1) + c; c = (t >> 51) + ((hn1 + (19 * hw1)) << 1); r.V1 = t & Mask;
+        t = ln2 + (19 * lw2) + c; c = (t >> 51) + ((hn2 + (19 * hw2)) << 1); r.V2 = t & Mask;
+        t = ln3 + (19 * lw3) + c; c = (t >> 51) + ((hn3 + (19 * hw3)) << 1); r.V3 = t & Mask;
+        t = ln4 + (19 * lw4) + c; c = (t >> 51) + ((hn4 + (19 * hw4)) << 1); r.V4 = t & Mask;
         r.V0 += c * 19; // 2^255 = 19 (mod p)
         c = r.V0 >> 51;
         r.V0 &= Mask;
@@ -136,35 +141,34 @@ internal struct Fe25519
     public static Fe25519 Mul(in Fe25519 a, in Fe25519 b)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4;
-        ulong b0 = b.V0, b1 = b.V1, b2 = b.V2, b3 = b.V3, b4 = b.V4;
-        ulong b1_19 = b1 * 19, b2_19 = b2 * 19, b3_19 = b3 * 19, b4_19 = b4 * 19;
-        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0;
-        MulAcc(ref l0, ref h0, a0, b0);
-        MulAcc(ref l0, ref h0, a1, b4_19);
-        MulAcc(ref l0, ref h0, a2, b3_19);
-        MulAcc(ref l0, ref h0, a3, b2_19);
-        MulAcc(ref l0, ref h0, a4, b1_19);
-        MulAcc(ref l1, ref h1, a0, b1);
-        MulAcc(ref l1, ref h1, a1, b0);
-        MulAcc(ref l1, ref h1, a2, b4_19);
-        MulAcc(ref l1, ref h1, a3, b3_19);
-        MulAcc(ref l1, ref h1, a4, b2_19);
-        MulAcc(ref l2, ref h2, a0, b2);
-        MulAcc(ref l2, ref h2, a1, b1);
-        MulAcc(ref l2, ref h2, a2, b0);
-        MulAcc(ref l2, ref h2, a3, b4_19);
-        MulAcc(ref l2, ref h2, a4, b3_19);
-        MulAcc(ref l3, ref h3, a0, b3);
-        MulAcc(ref l3, ref h3, a1, b2);
-        MulAcc(ref l3, ref h3, a2, b1);
-        MulAcc(ref l3, ref h3, a3, b0);
-        MulAcc(ref l3, ref h3, a4, b4_19);
-        MulAcc(ref l4, ref h4, a0, b4);
-        MulAcc(ref l4, ref h4, a1, b3);
-        MulAcc(ref l4, ref h4, a2, b2);
-        MulAcc(ref l4, ref h4, a3, b1);
-        MulAcc(ref l4, ref h4, a4, b0);
-        return Finish(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4);
+        ulong c0 = b.V0 << 12, c1 = b.V1 << 12, c2 = b.V2 << 12, c3 = b.V3 << 12, c4 = b.V4 << 12;
+        ulong ln0 = 0, hn0 = 0, lw0 = 0, hw0 = 0, ln1 = 0, hn1 = 0, lw1 = 0, hw1 = 0, ln2 = 0, hn2 = 0, lw2 = 0, hw2 = 0, ln3 = 0, hn3 = 0, lw3 = 0, hw3 = 0, ln4 = 0, hn4 = 0, lw4 = 0, hw4 = 0;
+        MulAcc(ref ln0, ref hn0, a0, c0);
+        MulAcc(ref lw0, ref hw0, a1, c4);
+        MulAcc(ref lw0, ref hw0, a2, c3);
+        MulAcc(ref lw0, ref hw0, a3, c2);
+        MulAcc(ref lw0, ref hw0, a4, c1);
+        MulAcc(ref ln1, ref hn1, a0, c1);
+        MulAcc(ref ln1, ref hn1, a1, c0);
+        MulAcc(ref lw1, ref hw1, a2, c4);
+        MulAcc(ref lw1, ref hw1, a3, c3);
+        MulAcc(ref lw1, ref hw1, a4, c2);
+        MulAcc(ref ln2, ref hn2, a0, c2);
+        MulAcc(ref ln2, ref hn2, a1, c1);
+        MulAcc(ref ln2, ref hn2, a2, c0);
+        MulAcc(ref lw2, ref hw2, a3, c4);
+        MulAcc(ref lw2, ref hw2, a4, c3);
+        MulAcc(ref ln3, ref hn3, a0, c3);
+        MulAcc(ref ln3, ref hn3, a1, c2);
+        MulAcc(ref ln3, ref hn3, a2, c1);
+        MulAcc(ref ln3, ref hn3, a3, c0);
+        MulAcc(ref lw3, ref hw3, a4, c4);
+        MulAcc(ref ln4, ref hn4, a0, c4);
+        MulAcc(ref ln4, ref hn4, a1, c3);
+        MulAcc(ref ln4, ref hn4, a2, c2);
+        MulAcc(ref ln4, ref hn4, a3, c1);
+        MulAcc(ref ln4, ref hn4, a4, c0);
+        return Finish(ln0, hn0, lw0, hw0, ln1, hn1, lw1, hw1, ln2, hn2, lw2, hw2, ln3, hn3, lw3, hw3, ln4, hn4, lw4, hw4);
     }
 
     /// <summary>Field squaring; cheaper than <see cref="Mul"/> because each cross product is computed once.</summary>
@@ -172,34 +176,44 @@ internal struct Fe25519
     public static Fe25519 Square(in Fe25519 a)
     {
         ulong a0 = a.V0, a1 = a.V1, a2 = a.V2, a3 = a.V3, a4 = a.V4;
-        ulong a1_19 = a1 * 19, a2_19 = a2 * 19, a3_19 = a3 * 19, a4_19 = a4 * 19;
-        ulong l0 = 0, h0 = 0, l1 = 0, h1 = 0, l2 = 0, h2 = 0, l3 = 0, h3 = 0, l4 = 0, h4 = 0;
-        MulAcc(ref l0, ref h0, a1, a4_19);
-        MulAcc(ref l0, ref h0, a2, a3_19);
-        l0 <<= 1;
-        h0 <<= 1;
-        MulAcc(ref l0, ref h0, a0, a0);
-        MulAcc(ref l1, ref h1, a0, a1);
-        MulAcc(ref l1, ref h1, a2, a4_19);
-        l1 <<= 1;
-        h1 <<= 1;
-        MulAcc(ref l1, ref h1, a3, a3_19);
-        MulAcc(ref l2, ref h2, a0, a2);
-        MulAcc(ref l2, ref h2, a3, a4_19);
-        l2 <<= 1;
-        h2 <<= 1;
-        MulAcc(ref l2, ref h2, a1, a1);
-        MulAcc(ref l3, ref h3, a0, a3);
-        MulAcc(ref l3, ref h3, a1, a2);
-        l3 <<= 1;
-        h3 <<= 1;
-        MulAcc(ref l3, ref h3, a4, a4_19);
-        MulAcc(ref l4, ref h4, a0, a4);
-        MulAcc(ref l4, ref h4, a1, a3);
-        l4 <<= 1;
-        h4 <<= 1;
-        MulAcc(ref l4, ref h4, a2, a2);
-        return Finish(l0, h0, l1, h1, l2, h2, l3, h3, l4, h4);
+        ulong c0 = a0 << 12, c1 = a1 << 12, c2 = a2 << 12, c3 = a3 << 12, c4 = a4 << 12;
+        ulong ln0 = 0, hn0 = 0, lw0 = 0, hw0 = 0, ln1 = 0, hn1 = 0, lw1 = 0, hw1 = 0, ln2 = 0, hn2 = 0, lw2 = 0, hw2 = 0, ln3 = 0, hn3 = 0, lw3 = 0, hw3 = 0, ln4 = 0, hn4 = 0, lw4 = 0, hw4 = 0;
+        MulAcc(ref lw0, ref hw0, a1, c4);
+        MulAcc(ref lw0, ref hw0, a2, c3);
+        ln0 <<= 1;
+        hn0 <<= 1;
+        lw0 <<= 1;
+        hw0 <<= 1;
+        MulAcc(ref ln0, ref hn0, a0, c0);
+        MulAcc(ref ln1, ref hn1, a0, c1);
+        MulAcc(ref lw1, ref hw1, a2, c4);
+        ln1 <<= 1;
+        hn1 <<= 1;
+        lw1 <<= 1;
+        hw1 <<= 1;
+        MulAcc(ref lw1, ref hw1, a3, c3);
+        MulAcc(ref ln2, ref hn2, a0, c2);
+        MulAcc(ref lw2, ref hw2, a3, c4);
+        ln2 <<= 1;
+        hn2 <<= 1;
+        lw2 <<= 1;
+        hw2 <<= 1;
+        MulAcc(ref ln2, ref hn2, a1, c1);
+        MulAcc(ref ln3, ref hn3, a0, c3);
+        MulAcc(ref ln3, ref hn3, a1, c2);
+        ln3 <<= 1;
+        hn3 <<= 1;
+        lw3 <<= 1;
+        hw3 <<= 1;
+        MulAcc(ref lw3, ref hw3, a4, c4);
+        MulAcc(ref ln4, ref hn4, a0, c4);
+        MulAcc(ref ln4, ref hn4, a1, c3);
+        ln4 <<= 1;
+        hn4 <<= 1;
+        lw4 <<= 1;
+        hw4 <<= 1;
+        MulAcc(ref ln4, ref hn4, a2, c2);
+        return Finish(ln0, hn0, lw0, hw0, ln1, hn1, lw1, hw1, ln2, hn2, lw2, hw2, ln3, hn3, lw3, hw3, ln4, hn4, lw4, hw4);
     }
 
     /// <summary>Squares <paramref name="a"/> <paramref name="n"/> times (n is a public constant).</summary>

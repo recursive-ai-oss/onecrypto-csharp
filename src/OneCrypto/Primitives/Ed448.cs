@@ -13,8 +13,8 @@ namespace RecursiveAI.OneCrypto.Primitives;
 /// is below the group order and its padding byte is zero; the public key A and the point R (its first half) are canonical
 /// encodings (y below p, on the curve, the unused bits of the last byte zero, not "negative zero"); and the cofactorless equation
 /// [S]B = R + [k]A holds, with R compared as an encoding. RFC 8032 section 5.2.7 allows this form as well as the cofactored one.</para>
-/// <para><b>Hashing.</b> Ed448 needs SHAKE256, which comes from the platform. On a platform without it the operations throw
-/// <see cref="PlatformNotSupportedException"/> rather than return a wrong answer.</para>
+/// <para><b>Hashing.</b> Ed448 needs SHAKE256. The platform's is used where it exists; otherwise (macOS, for one) a managed
+/// Keccak that is constant time by construction gives identical output, so Ed448 runs on every platform.</para>
 /// </remarks>
 public static class Ed448
 {
@@ -238,10 +238,8 @@ public static class Ed448
         ScalarField.Store(kl, k);
 
         // R' = [S]B - [k]A, compared with R as an encoding.
-        Ge448 sB = Ge448Ops.ScalarMultBase(sBytes[..56]);
-        Ge448 kA = Ge448Ops.ScalarMultVartime(k, Ge448Ops.Negate(a));
         Span<byte> check = stackalloc byte[57];
-        Ge448Ops.Encode(Ge448Ops.Add(sB, kA), check);
+        Ge448Ops.Encode(Ge448Ops.DoubleScalarMulBaseVartime(sBytes[..56], k, Ge448Ops.Negate(a)), check);
         return check.SequenceEqual(rBytes);
     }
 }

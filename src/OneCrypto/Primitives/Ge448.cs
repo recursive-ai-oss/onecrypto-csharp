@@ -264,4 +264,70 @@ internal static class Ge448Ops
         }
         return r;
     }
+
+    /// <summary>(2j + 1)·B in affine form for j in 0..31, for the width-7 digits of verification.</summary>
+    private static readonly Ge448Affine[] BaseOdd = BuildBaseOdd();
+
+    private static Ge448Affine[] BuildBaseOdd()
+    {
+        var table = new Ge448Affine[32];
+        Ge448 b = Base();
+        Ge448 b2 = Double(b);
+        Ge448 acc = b;
+        for (int j = 0; j < 32; j++)
+        {
+            table[j] = ToAffine(acc);
+            acc = Add(acc, b2);
+        }
+        return table;
+    }
+
+    /// <summary>
+    /// [s]B + [k]q for public scalars below 2^448, variable time (verification only): one shared chain of doublings with
+    /// width-7 digits for the fixed base point and width-5 digits for q.
+    /// </summary>
+    public static Ge448 DoubleScalarMulBaseVartime(ReadOnlySpan<byte> s, ReadOnlySpan<byte> k, in Ge448 q)
+    {
+        Span<sbyte> ds = stackalloc sbyte[449]; // fixed small buffers
+        Span<sbyte> dk = stackalloc sbyte[449];
+        Wnaf.Compute(s, ds, 7);
+        Wnaf.Compute(k, dk, 5);
+        Span<Ge448> tq = stackalloc Ge448[8]; // q, 3q, 5q, ... 15q
+        tq[0] = q;
+        Ge448 q2 = Double(q);
+        for (int j = 1; j < 8; j++)
+        {
+            tq[j] = Add(tq[j - 1], q2);
+        }
+        int top = 448;
+        while (top >= 0 && ds[top] == 0 && dk[top] == 0)
+        {
+            top--;
+        }
+        Ge448 r = Ge448.Identity;
+        for (int i = top; i >= 0; i--)
+        {
+            r = Double(r);
+            int dq = dk[i];
+            if (dq > 0)
+            {
+                r = Add(r, tq[dq >> 1]);
+            }
+            else if (dq < 0)
+            {
+                r = Add(r, Negate(tq[(-dq) >> 1]));
+            }
+            int db = ds[i];
+            if (db > 0)
+            {
+                r = AddAffine(r, BaseOdd[db >> 1]);
+            }
+            else if (db < 0)
+            {
+                Ge448Affine n = BaseOdd[(-db) >> 1];
+                r = AddAffine(r, new Ge448Affine { X = Fe448.Neg(n.X), Y = n.Y });
+            }
+        }
+        return r;
+    }
 }
