@@ -20,7 +20,7 @@ if [[ "${1:-}" == "--inner" ]]; then
       echo "cores: $(nproc)"
       echo "flags: $(grep -m1 '^flags' /proc/cpuinfo | cut -d: -f2- | tr ' ' '\n' | grep -E '^(avx|avx2|avx512f|sha_ni|aes|pclmulqdq|bmi2|adx)$' | tr '\n' ' ')"
     else
-      echo "cpu: $(sysctl -n machine.cpu.brand_string 2>/dev/null || uname -m)"
+      echo "cpu: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m)"
       echo "cores: $(sysctl -n hw.ncpu)"
     fi
     echo "dotnet: $(dotnet --version)"
@@ -30,6 +30,7 @@ if [[ "${1:-}" == "--inner" ]]; then
   echo "before: $(load)" > "$outdir/load.log"
   ( while true; do echo "during: $(date -u +%T) $(load)" >> "$outdir/load.log"; sleep 5; done ) &
   sampler=$!
+  disown "$sampler"
   trap 'kill $sampler 2>/dev/null || true' EXIT
   set +e
   "$@"

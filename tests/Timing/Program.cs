@@ -149,7 +149,7 @@ internal static class Program
             }
             else if (OperatingSystem.IsMacOS())
             {
-                var psi = new ProcessStartInfo("sysctl", "-n machine.cpu.brand_string") { RedirectStandardOutput = true };
+                var psi = new ProcessStartInfo("sysctl", "-n machdep.cpu.brand_string") { RedirectStandardOutput = true };
                 using var p = Process.Start(psi);
                 if (p is not null)
                 {
