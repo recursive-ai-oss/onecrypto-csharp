@@ -9,9 +9,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
-    <!-- Comparator only: never referenced from src/. -->
+    <!-- Comparators. Black boxes: restored and called through their public API only. -->
     <PackageReference Include="BouncyCastle.Cryptography" />
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
+    <PackageReference Include="Isopoh.Cryptography.Argon2" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+    <PackageReference Include="NSec.Cryptography" />
   </ItemGroup>
 
   <ItemGroup>
