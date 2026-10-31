@@ -313,6 +313,31 @@ if (Convert.ToHexString(argon) != "0D640DF58D78766C08C037A34A8B53C9D01EF0452D75B
     return 1;
 }
 
+// Key containers: PKCS#8 (plain and PBES2-encrypted), a PKCS#12 file with both MAC kinds, and OpenSSH keys, all without the platform's certificate classes.
+using (var ed = RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate())
+using (RecursiveAI.OneCrypto.Pkcs.PrivateKeyInfo pk = RecursiveAI.OneCrypto.Pkcs.PrivateKeyInfo.FromEd25519(ed))
+{
+    var fast = new RecursiveAI.OneCrypto.Pkcs.Pbes2Options { Iterations = 100 };
+    using var back = RecursiveAI.OneCrypto.Pkcs.EncryptedPrivateKeyInfo.Parse(pk.Encrypt("pw", fast).Encoded.Span).Decrypt("pw");
+    bool wrong = RecursiveAI.OneCrypto.Pkcs.EncryptedPrivateKeyInfo.Parse(pk.Encrypt("pw", fast).Encoded.Span).TryDecrypt("no", out _) == RecursiveAI.OneCrypto.Pkcs.PkcsStatus.WrongPasswordOrCorrupt;
+
+    var bag = RecursiveAI.OneCrypto.Pkcs.Pkcs12Bag.ForPrivateKey(pk, "k");
+    var p12 = RecursiveAI.OneCrypto.Pkcs.Pkcs12File.Create([bag], "pw", new RecursiveAI.OneCrypto.Pkcs.Pkcs12WriteOptions { Encryption = fast, MacIterations = 100 });
+    var p12b = RecursiveAI.OneCrypto.Pkcs.Pkcs12File.Create([bag], "pw", new RecursiveAI.OneCrypto.Pkcs.Pkcs12WriteOptions { Encryption = fast, MacIterations = 100, Mac = RecursiveAI.OneCrypto.Pkcs.Pkcs12MacKind.Pbmac1 });
+    using var opened = RecursiveAI.OneCrypto.Pkcs.Pkcs12File.Parse(p12.Encoded.Span).Open("pw");
+    using var openedB = RecursiveAI.OneCrypto.Pkcs.Pkcs12File.Parse(p12b.Encoded.Span).Open("pw");
+
+    var ssh = RecursiveAI.OneCrypto.Wire.Ssh.SshPrivateKey.FromPem(RecursiveAI.OneCrypto.Wire.Ssh.SshPrivateKey.Create(pk, "c", "pw", new RecursiveAI.OneCrypto.Wire.Ssh.SshKeyWriteOptions { Rounds = 2 }).ToPem());
+    using var sshOpen = ssh.Open("pw");
+    var pub = RecursiveAI.OneCrypto.Wire.Ssh.SshPublicKey.ParseAuthorizedKey(ssh.PublicKey.ToAuthorizedKey("c"));
+    if (!back.Encoded.SequenceEqual(pk.Encoded) || !wrong || opened.PrivateKeys.Count != 1 || openedB.PrivateKeys.Count != 1
+        || !sshOpen.PrivateKey!.Encoded.SequenceEqual(pk.Encoded) || !pub.Equals(ssh.PublicKey))
+    {
+        Console.Error.WriteLine("key containers did not round trip");
+        return 1;
+    }
+}
+
 // Camellia (RFC 3713 Appendix A) and the decrypt-only legacy ciphers (RFC 2144 B.1 for CAST5, the published Twofish known answer).
 using (var cam = new RecursiveAI.OneCrypto.Primitives.Camellia(Convert.FromHexString("0123456789abcdeffedcba9876543210")))
 using (var cast = new RecursiveAI.OneCrypto.Primitives.Cast5(Convert.FromHexString("0123456712345678234567893456789A")))
@@ -330,9 +355,21 @@ using (var two = new RecursiveAI.OneCrypto.Primitives.Twofish(new byte[16]))
     }
 }
 
+if (!OneCrypto.Smoke.LoadSmoke.Run(true))
+{
+    Console.Error.WriteLine("Crypto.Load gave a wrong result");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.FallbackSmoke.Run())
 {
     Console.Error.WriteLine("platform-gap code failed");
+    return 1;
+}
+
+if (!OneCrypto.Smoke.ValidationSmoke.Run())
+{
+    Console.Error.WriteLine("path validation gave the wrong answer");
     return 1;
 }
 

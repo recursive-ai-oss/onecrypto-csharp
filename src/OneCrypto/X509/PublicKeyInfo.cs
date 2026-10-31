@@ -146,7 +146,7 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
         }
     }
 
-    private static KeyAlgorithm Classify(string oid) => oid switch
+    internal static KeyAlgorithm Classify(string oid) => oid switch
     {
         KnownOids.RsaEncryption => KeyAlgorithm.Rsa,
         KnownOids.RsaPss => KeyAlgorithm.RsaPss,

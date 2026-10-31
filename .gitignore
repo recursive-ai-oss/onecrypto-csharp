@@ -20,6 +20,7 @@
 !/tools/
 !/testdata/
 !/docs/
+!/samples/
 
 bin/
 obj/

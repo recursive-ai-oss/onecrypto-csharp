@@ -27,8 +27,13 @@ internal static class Program
         ["pem"] = PemTarget.Run,
         ["x509"] = X509Target.Run,
         ["ocsp"] = OcspTarget.Run,
+        ["pkcs8"] = Pkcs8Target.Run,
+        ["pkcs12"] = Pkcs12Target.Run,
+        ["ssh"] = SshTarget.Run,
         ["verify"] = VerifyTarget.Run,
+        ["validate"] = ValidateTarget.Run,
         ["keys"] = KeysTarget.Run,
+        ["load"] = LoadTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -39,8 +44,13 @@ internal static class Program
         "pem" => PemTarget.Seeds(),
         "x509" => X509Target.Seeds(),
         "ocsp" => OcspTarget.Seeds(),
+        "pkcs8" => Pkcs8Target.Seeds(),
+        "pkcs12" => Pkcs12Target.Seeds(),
+        "ssh" => SshTarget.Seeds(),
         "verify" => VerifyTarget.Seeds(),
+        "validate" => ValidateTarget.Seeds(),
         "keys" => KeysTarget.Seeds(),
+        "load" => LoadTarget.Seeds(),
         _ => [],
     };
 

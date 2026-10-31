@@ -103,9 +103,21 @@ if (tokens < 10 || !inflated.ToArray().AsSpan().SequenceEqual(cms) || PreparedSi
     return 1;
 }
 
+if (!OneCrypto.Smoke.LoadSmoke.Run(false))
+{
+    Console.Error.WriteLine("Crypto.Load gave a wrong result");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.FallbackSmoke.Run())
 {
     Console.Error.WriteLine("platform-gap code failed");
+    return 1;
+}
+
+if (!OneCrypto.Smoke.ValidationSmoke.Run())
+{
+    Console.Error.WriteLine("path validation gave the wrong answer");
     return 1;
 }
 
