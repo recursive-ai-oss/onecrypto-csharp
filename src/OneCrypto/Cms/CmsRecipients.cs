@@ -378,11 +378,11 @@ public abstract class CmsRecipient
         return new KeyAgreementRecipient(certificate, identifier);
     }
 
-    /// <summary>A shared key-encryption key (16, 24 or 32 octets) known by <paramref name="keyIdentifier"/>.</summary>
-    public static CmsRecipient KeyEncryptionKey(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> keyIdentifier)
+    /// <summary>A shared key-encryption key (16, 24 or 32 octets) known by <paramref name="keyIdentifier"/>; <paramref name="padded"/> wraps with RFC 5649 instead of RFC 3394.</summary>
+    public static CmsRecipient KeyEncryptionKey(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> keyIdentifier, bool padded = false)
     {
         _ = CmsCiphers.WrapOid(kek.Length);
-        return new KekRecipient(kek.ToArray(), keyIdentifier.ToArray());
+        return new KekRecipient(kek.ToArray(), keyIdentifier.ToArray(), padded);
     }
 
     /// <summary>A password: PBKDF2-HMAC-SHA-256 derives the key-encryption key (RFC 3211, RFC 8018).</summary>
@@ -546,10 +546,13 @@ public abstract class CmsRecipient
         private readonly byte[] _kek;
         private readonly byte[] _id;
 
-        public KekRecipient(byte[] kek, byte[] id)
+        private readonly bool _padded;
+
+        public KekRecipient(byte[] kek, byte[] id, bool padded)
         {
             _kek = kek;
             _id = id;
+            _padded = padded;
         }
 
         internal override int Version => 4;
@@ -557,8 +560,8 @@ public abstract class CmsRecipient
         internal override byte[] Build(ReadOnlySpan<byte> cek) => DerWriter.Context(2,
             DerWriter.SignedInteger(4),
             DerWriter.Sequence(Octets(_id)),
-            DerWriter.Sequence(DerWriter.Oid(CmsCiphers.WrapOid(_kek.Length))),
-            Octets(CmsCiphers.AesWrap(_kek, cek)));
+            DerWriter.Sequence(DerWriter.Oid(_padded ? CmsCiphers.WrapPadOid(_kek.Length) : CmsCiphers.WrapOid(_kek.Length))),
+            Octets(_padded ? CmsCiphers.AesWrapPadded(_kek, cek) : CmsCiphers.AesWrap(_kek, cek)));
     }
 
     private sealed class PasswordRecipient : CmsRecipient

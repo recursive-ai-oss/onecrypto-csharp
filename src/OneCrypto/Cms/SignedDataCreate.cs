@@ -107,10 +107,12 @@ public sealed partial class SignedData
         return Parse(ci);
     }
 
-    internal static byte[] AssembleBody(SignedDataOptions options, List<SignerPlan> plans, byte[] encapsulated, List<byte[]> signerInfos)
+    internal static int VersionOf(SignedDataOptions options, List<SignerPlan> plans) =>
+        options.ContentType != CmsOids.Data || plans.Any(static p => p.Spec.Identifier == CmsIdentifierKind.SubjectKeyIdentifier) ? 3 : 1;
+
+    /// <summary>The <c>[0]</c> certificates and <c>[1]</c> revocation lists that follow the encapsulated content, as encoded elements.</summary>
+    internal static List<byte[]> CertificateParts(SignedDataOptions options, List<SignerPlan> plans)
     {
-        int version = options.ContentType != CmsOids.Data || plans.Any(static p => p.Spec.Identifier == CmsIdentifierKind.SubjectKeyIdentifier) ? 3 : 1;
-        byte[] digestAlgs = DigestAlgorithmSet(plans);
         var certs = new List<byte[]>();
         void AddCert(Certificate c)
         {
@@ -133,7 +135,7 @@ public sealed partial class SignedData
             AddCert(c);
         }
 
-        var parts = new List<byte[]> { DerWriter.SignedInteger(version), digestAlgs, encapsulated };
+        var parts = new List<byte[]>();
         if (certs.Count > 0)
         {
             parts.Add(DerWriter.Retag(DerWriter.SetOf(certs), 0xA0));
@@ -143,6 +145,14 @@ public sealed partial class SignedData
         {
             parts.Add(DerWriter.Retag(DerWriter.SetOf(options.Crls.Select(static c => c.Encoded.ToArray())), 0xA1));
         }
+
+        return parts;
+    }
+
+    internal static byte[] AssembleBody(SignedDataOptions options, List<SignerPlan> plans, byte[] encapsulated, List<byte[]> signerInfos)
+    {
+        var parts = new List<byte[]> { DerWriter.SignedInteger(VersionOf(options, plans)), DigestAlgorithmSet(plans), encapsulated };
+        parts.AddRange(CertificateParts(options, plans));
 
         // SignerInfos stay in the order given (CMS does not require DER ordering here), so report index i is signer i.
         parts.Add(DerWriter.Set([.. signerInfos]));

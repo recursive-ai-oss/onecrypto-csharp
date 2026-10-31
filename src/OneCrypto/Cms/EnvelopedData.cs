@@ -171,7 +171,7 @@ internal static class RecipientOpener
 
             byte[] kek = CmsCiphers.AgreementKek(ka.KeyEncryptionAlgorithm.Oid, z, wrap, ka.Ukm.Span, kekBytes);
             CryptographicOperations.ZeroMemory(z);
-            byte[]? cek = CmsCiphers.AesUnwrap(kek, rek.EncryptedKey.Span);
+            byte[]? cek = CmsCiphers.Unwrap(wrap.Oid, kek, rek.EncryptedKey.Span);
             CryptographicOperations.ZeroMemory(kek);
             if (cek is not null)
             {
@@ -191,7 +191,7 @@ internal static class RecipientOpener
         }
 
         matched = true;
-        byte[]? cek = CmsCiphers.WrapKeyBytes(ri.KeyEncryptionAlgorithm.Oid) == kek.Length ? CmsCiphers.AesUnwrap(kek, ri.EncryptedKey.Span) : null;
+        byte[]? cek = CmsCiphers.WrapKeyBytes(ri.KeyEncryptionAlgorithm.Oid) == kek.Length ? CmsCiphers.Unwrap(ri.KeyEncryptionAlgorithm.Oid, kek, ri.EncryptedKey.Span) : null;
         CryptographicOperations.ZeroMemory(kek);
         return cek;
     }
@@ -268,7 +268,7 @@ internal static class RecipientOpener
 
         byte[] kek = CmsCiphers.KemKek(ri.Kdf.Oid, ss, ri.Wrap, ri.KekLength, ri.Ukm.Span);
         CryptographicOperations.ZeroMemory(ss);
-        byte[]? cek = CmsCiphers.AesUnwrap(kek, ri.EncryptedKey.Span);
+        byte[]? cek = CmsCiphers.Unwrap(ri.Wrap.Oid, kek, ri.EncryptedKey.Span);
         CryptographicOperations.ZeroMemory(kek);
         return cek;
     }
@@ -298,7 +298,7 @@ internal enum RecipientKind
 /// <summary>
 /// A CMS <c>EnvelopedData</c> (RFC 5652 §6): content encrypted with a random key that each recipient gets in their own way. Kept as received.
 /// </summary>
-public sealed class EnvelopedData
+public sealed partial class EnvelopedData
 {
     private EnvelopedData(int version, ReadOnlyMemory<byte> originator, IReadOnlyList<RecipientInfo> recipients, string contentType, AlgorithmIdentifier alg,
         ReadOnlyMemory<byte> ciphertext, bool hasCiphertext, IReadOnlyList<CmsAttributeEntry>? unprotected, ReadOnlyMemory<byte> encoded, CmsLimits limits)
@@ -475,7 +475,7 @@ public sealed class EnvelopedData
         return Parse(DerWriter.Sequence(DerWriter.Oid(CmsOids.EnvelopedData), DerWriter.Context(0, body)));
     }
 
-    internal static byte[] AssembleBody(IReadOnlyList<CmsRecipient> recipients, List<byte[]> infos, byte[] encryptedContentInfo, CmsEncryptOptions options)
+    internal static int VersionFor(IReadOnlyList<CmsRecipient> recipients, List<byte[]> infos, CmsEncryptOptions options)
     {
         var kinds = new List<RecipientKind>();
         foreach (byte[] i in infos)
@@ -483,7 +483,12 @@ public sealed class EnvelopedData
             kinds.Add(i[0] switch { 0x30 => RecipientKind.KeyTransport, 0xA1 => RecipientKind.KeyAgreement, 0xA2 => RecipientKind.Kek, 0xA3 => RecipientKind.Password, _ => RecipientKind.Other });
         }
 
-        int version = RecipientOpener.EnvelopedVersion(recipients.Select(static r => r.Version), kinds, options.UnprotectedAttributes.Count > 0);
+        return RecipientOpener.EnvelopedVersion(recipients.Select(static r => r.Version), kinds, options.UnprotectedAttributes.Count > 0);
+    }
+
+    internal static byte[] AssembleBody(IReadOnlyList<CmsRecipient> recipients, List<byte[]> infos, byte[] encryptedContentInfo, CmsEncryptOptions options)
+    {
+        int version = VersionFor(recipients, infos, options);
         var parts = new List<byte[]> { DerWriter.SignedInteger(version), DerWriter.Set([.. infos]), encryptedContentInfo };
         if (options.UnprotectedAttributes.Count > 0)
         {

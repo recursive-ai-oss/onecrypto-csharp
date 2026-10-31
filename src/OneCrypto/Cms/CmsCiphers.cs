@@ -307,9 +307,50 @@ internal static class CmsCiphers
     {
         CmsOids.Aes128Wrap => 16,
         CmsOids.Aes192Wrap => 24,
-        CmsOids.Aes256Wrap => 32,
+        CmsOids.Aes256Wrap or CmsOids.Aes256WrapPad => 32,
+        CmsOids.Aes128WrapPad => 16,
+        CmsOids.Aes192WrapPad => 24,
         _ => 0,
     };
+
+    public static bool IsPadded(string wrapOid) => wrapOid is CmsOids.Aes128WrapPad or CmsOids.Aes192WrapPad or CmsOids.Aes256WrapPad;
+
+    /// <summary>The wrap-with-padding identifier (RFC 5649, RFC 3565 §2.3.2) for a KEK of this size.</summary>
+    public static string WrapPadOid(int kekBytes) => kekBytes switch
+    {
+        16 => CmsOids.Aes128WrapPad,
+        24 => CmsOids.Aes192WrapPad,
+        32 => CmsOids.Aes256WrapPad,
+        _ => throw new ArgumentOutOfRangeException(nameof(kekBytes), "AES key wrap needs a 16, 24 or 32 octet key."),
+    };
+
+    /// <summary>Unwraps with the algorithm the identifier names: RFC 3394 from our primitives, RFC 5649 from the platform.</summary>
+    public static byte[]? Unwrap(string wrapOid, ReadOnlySpan<byte> kek, ReadOnlySpan<byte> wrapped)
+    {
+        if (!IsPadded(wrapOid))
+        {
+            return AesUnwrap(kek, wrapped);
+        }
+
+        try
+        {
+            using Aes aes = Aes.Create();
+            aes.Key = kek.ToArray();
+            return aes.DecryptKeyWrapPadded(wrapped);
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>RFC 5649 wrap, by the platform.</summary>
+    public static byte[] AesWrapPadded(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> key)
+    {
+        using Aes aes = Aes.Create();
+        aes.Key = kek.ToArray();
+        return aes.EncryptKeyWrapPadded(key);
+    }
 
     /// <summary>RFC 3394 wrap of a content-encryption or MAC key.</summary>
     public static byte[] AesWrap(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> key)

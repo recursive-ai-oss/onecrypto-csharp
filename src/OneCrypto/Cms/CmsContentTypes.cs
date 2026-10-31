@@ -79,7 +79,7 @@ internal static class ContentTypeReader
 /// A CMS <c>AuthEnvelopedData</c> (RFC 5083): content encrypted and authenticated in one step (AES-GCM, RFC 5084; AES-CCM), with
 /// the key delivered to each recipient as in EnvelopedData. The authenticated attributes are the AEAD's associated data.
 /// </summary>
-public sealed class AuthEnvelopedData
+public sealed partial class AuthEnvelopedData
 {
     private readonly ReadOnlyMemory<byte> _authAttrsEncoded;
 
