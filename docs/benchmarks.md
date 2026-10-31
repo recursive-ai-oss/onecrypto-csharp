@@ -22,7 +22,7 @@ Project: `bench/OneCrypto.Benchmarks` (BenchmarkDotNet, in-process, `MemoryDiagn
 (indicative numbers; the label ends in 'indicative'). `PERF_CLASS=bench` asks for an exclusive benchmark job, for the publishable
 run of a stage. `PERF_CORES` and `PERF_MAX` set the reservation and time limit. It leaves BenchmarkDotNet's reports, `summary.json`, `machine.txt` (CPU, cores, ISA flags, runtime), `load.log`
 (load before, every 5 s during, after) and `publishable.txt` in the output folder. A run is marked not publishable unless it ran as
-class `bench` and the 1-minute load average before and during it stayed at or below 2.0 (Linux) or 1.5 (macOS).
+class `bench` and, on Linux, the 1-minute load average before and during it stayed at or below 2.0; on macOS, whose idle load average sits near 2, the CPU was at least 90% idle just before it started.
 
 ## Comparators (pinned, bench project only)
 
