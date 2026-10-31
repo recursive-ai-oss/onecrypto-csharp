@@ -60,7 +60,7 @@ internal static class VerifyTarget
                     _ = RsaVerifier.VerifyPkcs1(Modulus, Exponent, HashAlgorithmName.SHA256, digest, rest);
                     break;
                 case 4:
-                    _ = RsaVerifier.VerifyPss(Modulus, Exponent, HashAlgorithmName.SHA256, HashAlgorithmName.SHA256, mode >> 3, digest, rest);
+                    _ = RsaVerifier.VerifyPss(Modulus, Exponent, HashAlgorithmName.SHA256, HashAlgorithmName.SHA256, rest.Length >= 4 ? BitConverter.ToInt32(rest[..4]) : mode >> 3, digest, rest);
                     break;
                 case 5:
                     // Public keys from the input: any point, any curve.

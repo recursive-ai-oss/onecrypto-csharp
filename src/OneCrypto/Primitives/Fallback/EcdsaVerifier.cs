@@ -285,7 +285,7 @@ internal static class EcdsaVerifier
         }
     }
 
-    // NIST curves: FIPS 186-5 appendix A.2 (a = -3); Brainpool: RFC 5639 section 3. All have cofactor 1.
+    // NIST curves: the parameters of RFC 5903 section 3 (the same curves as SP 800-186), with a = -3; Brainpool: RFC 5639 section 3. All have cofactor 1.
     private static Curve Create(EcCurve curve) => curve switch
     {
         EcCurve.NistP256 => new(

@@ -236,4 +236,18 @@ public class VerifyOnlyTests(ITestOutputHelper output)
         huge[^1] = 1;
         Assert.Throws<ArgumentException>(() => RsaVerifier.VerifyPkcs1(huge, e, HashAlgorithmName.SHA256, new byte[32], new byte[2100]));
     }
+
+    [Fact]
+    public void AnAbsurdSaltLengthIsAnInvalidSignatureNotACrash()
+    {
+        byte[] n = new byte[256];
+        n[0] = 0x80;
+        n[^1] = 1;
+        byte[] sig = new byte[256];
+        sig[100] = 5;
+        foreach (int salt in new[] { int.MaxValue, int.MaxValue - 1, 100000, 256 })
+        {
+            Assert.False(RsaVerifier.VerifyPss(n, [1, 0, 1], HashAlgorithmName.SHA256, HashAlgorithmName.SHA256, salt, new byte[32], sig));
+        }
+    }
 }

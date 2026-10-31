@@ -104,7 +104,7 @@ internal static class RsaVerifier
 
         ReadOnlySpan<byte> em = full.AsSpan(k - emLen);
         // Section 9.1.2 steps 3 to 6.
-        if (emLen < hLen + saltLength + 2 || em[emLen - 1] != 0xBC)
+        if (saltLength > emLen || emLen < hLen + saltLength + 2 || em[emLen - 1] != 0xBC)
         {
             return false;
         }
