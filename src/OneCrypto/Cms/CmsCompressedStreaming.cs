@@ -21,6 +21,7 @@ public sealed partial class CompressedData
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(output);
         limits ??= CmsLimits.Default;
+        CountingReadStream? counting = null;
         try
         {
             var r = new Asn1StreamReader(message, Asn1Rules.Ber, limits.Asn1);
@@ -46,7 +47,7 @@ public sealed partial class CompressedData
 
             Asn1Token o = r.ReadToken();
             Stream source = OpenContent(r, o);
-            var counting = new CountingReadStream(source);
+            counting = new CountingReadStream(source);
             using var z = new ZLibStream(counting, CompressionMode.Decompress);
             byte[] buffer = new byte[16 * 1024];
             long total = 0;
@@ -70,6 +71,11 @@ public sealed partial class CompressedData
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
         }
+        catch (IOException) when (counting is null || !counting.SourceFaulted)
+        {
+            // The inflater reports some damaged zlib data as an internal IOException (not InvalidDataException); a failure of the caller's own stream is not rewritten.
+            throw new CmsParseException("CompressedData", CmsError.InvalidValue, "the zlib data is damaged");
+        }
     }
 
     /// <summary>The asynchronous twin of <see cref="DecompressStream"/>; same bounds, reading and writing without blocking.</summary>
@@ -82,6 +88,7 @@ public sealed partial class CompressedData
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(output);
         limits ??= CmsLimits.Default;
+        CountingReadStream? counting = null;
         try
         {
             var r = new Asn1StreamReader(message, Asn1Rules.Ber, limits.Asn1);
@@ -110,7 +117,7 @@ public sealed partial class CompressedData
 
             Asn1Token o = await r.ReadTokenAsync(cancellationToken).ConfigureAwait(false);
             Stream source = OpenContent(r, o);
-            var counting = new CountingReadStream(source);
+            counting = new CountingReadStream(source);
             await using var z = new ZLibStream(counting, CompressionMode.Decompress);
             byte[] buffer = new byte[16 * 1024];
             long total = 0;
@@ -133,6 +140,11 @@ public sealed partial class CompressedData
         catch (InvalidDataException e)
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
+        }
+        catch (IOException) when (counting is null || !counting.SourceFaulted)
+        {
+            // The inflater reports some damaged zlib data as an internal IOException (not InvalidDataException); a failure of the caller's own stream is not rewritten.
+            throw new CmsParseException("CompressedData", CmsError.InvalidValue, "the zlib data is damaged");
         }
     }
 
@@ -207,6 +219,9 @@ public sealed partial class CompressedData
     {
         public long Count { get; private set; }
 
+        /// <summary>True once the underlying stream itself has thrown.</summary>
+        public bool SourceFaulted { get; private set; }
+
         public override bool CanRead => true;
 
         public override bool CanSeek => false;
@@ -225,16 +240,32 @@ public sealed partial class CompressedData
 
         public override int Read(Span<byte> buffer)
         {
-            int n = inner.Read(buffer);
-            Count += n;
-            return n;
+            try
+            {
+                int n = inner.Read(buffer);
+                Count += n;
+                return n;
+            }
+            catch
+            {
+                SourceFaulted = true;
+                throw;
+            }
         }
 
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            int n = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-            Count += n;
-            return n;
+            try
+            {
+                int n = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                Count += n;
+                return n;
+            }
+            catch
+            {
+                SourceFaulted = true;
+                throw;
+            }
         }
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>

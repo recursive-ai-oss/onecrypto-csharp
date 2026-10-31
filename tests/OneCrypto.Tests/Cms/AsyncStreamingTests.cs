@@ -547,4 +547,13 @@ public class AsyncStreamingTests
         Assert.Throws<CmsParseException>(() => CompressedData.DecompressStream(new MemoryStream(msg), Stream.Null));
         await Assert.ThrowsAsync<CmsParseException>(() => CompressedData.DecompressStreamAsync(new MemoryStream(msg), Stream.Null));
     }
+
+    /// <summary>A fuzz finding: a zlib stream the inflater rejects with an internal error code is a typed CMS error on every path, not a ZLibException.</summary>
+    [Fact]
+    public async Task CorruptZlibDataIsATypedError()
+    {
+        byte[] msg = Convert.FromBase64String("MFAGCyqGSIb3DQEJEAEJoEAwPgIBADANBgsqhkiG9w0BCRADCDAqBgkqhkiG9w0BBwGgHQQbeLvzSM3JyVcozMzPy8xLVyjPL8pJAQBHgQdM");
+        Assert.Throws<CmsParseException>(() => CompressedData.DecompressStream(new MemoryStream(msg), Stream.Null));
+        await Assert.ThrowsAsync<CmsParseException>(() => CompressedData.DecompressStreamAsync(new MemoryStream(msg), Stream.Null));
+    }
 }

@@ -909,7 +909,7 @@ public sealed partial class CompressedData
                 output.Write(buffer, 0, n);
             }
         }
-        catch (InvalidDataException e)
+        catch (IOException e)
         {
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
         }
