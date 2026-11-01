@@ -206,8 +206,8 @@ internal static class PadesStore
     }
 
     /// <summary>
-    /// Writes the needs into the /DSS dictionary as an incremental update (ISO 32000-2 §12.8.4.2): new streams for objects the store lacks,
-    /// the old entries kept, and one /VRI entry per signature keyed by the hash of its signature (§12.8.4.3). Returns false when nothing
+    /// Writes the needs into the /DSS dictionary as an incremental update (EN 319 142-1 §5.4.2.2, ISO 32000-2 §12.8.4.3): new streams for objects the store lacks,
+    /// the old entries kept, and one /VRI entry per signature keyed by the hash of its signature (ISO 32000-2 §12.8.4.4). Returns false when nothing
     /// new was added.
     /// </summary>
     public static bool Apply(PdfDocument doc, DssStore existing, List<Needs> needs, DateTimeOffset at, bool writeVri)
