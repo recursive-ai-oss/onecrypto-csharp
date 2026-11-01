@@ -417,6 +417,12 @@ internal sealed class MessageProcessor : IDisposable
             switch (f.Tag)
             {
                 case PacketTag.PublicKeyEncryptedSessionKey:
+                    // RFC 9580 §10.3: session keys come before the encrypted data they open, never after a literal packet.
+                    if (layerLiteral)
+                    {
+                        throw new PgpException(PgpFailure.MalformedMessage, "A session key packet follows the literal data (RFC 9580 §10.3).");
+                    }
+
                     if (f.ReadPacket() is PublicKeyEncryptedSessionKeyPacket pk)
                     {
                         pkesks.Add(pk);
@@ -424,6 +430,11 @@ internal sealed class MessageProcessor : IDisposable
 
                     break;
                 case PacketTag.SymmetricKeyEncryptedSessionKey:
+                    if (layerLiteral)
+                    {
+                        throw new PgpException(PgpFailure.MalformedMessage, "A session key packet follows the literal data (RFC 9580 §10.3).");
+                    }
+
                     if (f.ReadPacket() is SymmetricKeyEncryptedSessionKeyPacket sk)
                     {
                         skesks.Add(sk);
@@ -436,6 +447,8 @@ internal sealed class MessageProcessor : IDisposable
                     {
                         using Stream plain = OpenEncrypted(f, pkesks, skesks);
                         ProcessLayer(plain, depth + 1);
+                        pkesks.Clear();
+                        skesks.Clear();
                         terminal = true;
                         break;
                     }
@@ -472,6 +485,11 @@ internal sealed class MessageProcessor : IDisposable
                         }
                         else
                         {
+                            if (ops.Count == 0 && prefix.Count == 0)
+                            {
+                                throw new PgpException(PgpFailure.MalformedMessage, "A signature follows the literal data without a one-pass header (RFC 9580 §10.3).");
+                            }
+
                             Finish(sig, ops, prefix);
                         }
 
@@ -483,6 +501,11 @@ internal sealed class MessageProcessor : IDisposable
                         if (_sawLiteral || layerLiteral)
                         {
                             throw new PgpException(PgpFailure.MalformedMessage, "The message holds more than one literal packet.");
+                        }
+
+                        if (pkesks.Count + skesks.Count > 0)
+                        {
+                            throw new PgpException(PgpFailure.MalformedMessage, "Session key packets are not followed by encrypted data (RFC 9580 §10.3).");
                         }
 
                         layerLiteral = true;
@@ -507,26 +530,24 @@ internal sealed class MessageProcessor : IDisposable
 
         foreach (OpsEntry e in ops)
         {
-            if (!e.Matched)
-            {
-                _r.SignatureList.Add(new PgpSignatureResult(PgpSigStub(e.Op), PgpSignatureStatus.Invalid, null, null,
-                    ["A one-pass signature header has no matching signature packet; the message may be truncated."]));
-            }
-
             e.Hasher.Dispose();
+        }
+
+        // RFC 9580 §10.3: every one-pass header is closed by a signature after the literal data, so a missing one is a truncated or malformed message.
+        if (ops.Any(e => !e.Matched))
+        {
+            throw new PgpException(PgpFailure.MalformedMessage, "A one-pass signature header has no matching signature packet; the message may be truncated.");
+        }
+
+        if (pkesks.Count + skesks.Count > 0)
+        {
+            throw new PgpException(PgpFailure.MalformedMessage, "Session key packets are not followed by encrypted data (RFC 9580 §10.3).");
         }
 
         foreach (PrefixEntry pe in prefix)
         {
             pe.Hasher.Dispose();
         }
-    }
-
-    private static SignaturePacket PgpSigStub(OnePassSignaturePacket op)
-    {
-        // A signature object is needed to report on; rebuild an empty v4 stub carrying the one-pass header's identifiers.
-        byte[] body = [4, op.SignatureTypeId, 0, (byte)op.Hash, 0, 0, 0, 0, 0, 0];
-        return (SignaturePacket)Packet.Create((byte)PacketTag.Signature, body);
     }
 
     private void Finish(SignaturePacket sig, List<OpsEntry> ops, List<PrefixEntry> prefix)
@@ -701,6 +722,13 @@ internal sealed class MessageProcessor : IDisposable
                 foreach (PgpKey key in cert.Keys)
                 {
                     if (key.Packet is not SecretKeyPacket || !Targets(p, key))
+                    {
+                        continue;
+                    }
+
+                    // RFC 9580 §5.2.3.29: a key whose flags do not allow encryption is not a decryption key, even if a message names it.
+                    PgpKeyState state = key.StateAt(_o.Now);
+                    if ((state.IsValid || state.Usage != PgpKeyUsage.None) && (state.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0)
                     {
                         continue;
                     }

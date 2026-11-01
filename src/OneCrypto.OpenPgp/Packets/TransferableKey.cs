@@ -69,7 +69,7 @@ public sealed class TransferableKey
     public KeyPacket Primary { get; }
 
     /// <summary>True for a Transferable Secret Key.</summary>
-    public bool IsSecret => Primary.IsSecret;
+    public bool IsSecret => Primary.IsSecret || Subkeys.Any(k => k.Key.IsSecret);
 
     /// <summary>The signatures between the primary key and the first User ID or subkey (direct key signatures and key revocations).</summary>
     public IReadOnlyList<SignaturePacket> DirectSignatures { get; }
@@ -86,13 +86,20 @@ public sealed class TransferableKey
     /// <summary>Splits a packet sequence into transferable keys: each Public Key or Secret Key packet starts a new one.</summary>
     /// <param name="packets">The packets, for example from <see cref="PacketParser.ParseAll(ReadOnlyMemory{byte}, OpenPgpLimits?)"/>.</param>
     /// <returns>The keys in order; empty for no packets.</returns>
-    /// <exception cref="OpenPgpParseException">The first packet is not a primary key, a public and a secret packet are mixed within one key, or a packet other than a User ID, User Attribute or subkey component starts a component in the wrong place.</exception>
+    /// <exception cref="OpenPgpParseException">The first packet is not a primary key, a packet other than a User ID, User Attribute or subkey component starts a component in the wrong place.</exception>
     public static IReadOnlyList<TransferableKey> ParseAll(IReadOnlyList<Packet> packets)
     {
         ArgumentNullException.ThrowIfNull(packets);
         var keys = new List<TransferableKey>();
         int start = 0;
-        for (int i = 1; i <= packets.Count; i++)
+
+        // RFC 9580 §5.8: Marker packets are ignored wherever they appear before the key.
+        while (start < packets.Count && packets[start].TagId == (byte)PacketTag.Marker)
+        {
+            start++;
+        }
+
+        for (int i = start + 1; i <= packets.Count; i++)
         {
             if (i == packets.Count || packets[i].TagId is (byte)PacketTag.PublicKey or (byte)PacketTag.SecretKey)
             {
@@ -183,11 +190,7 @@ public sealed class TransferableKey
                     users.Add(user);
                     break;
                 case KeyPacket { IsSubkey: true } sub:
-                    if (sub.IsSecret != primary.IsSecret)
-                    {
-                        throw new OpenPgpParseException(OpenPgpError.InvalidStructure, 0, "public and secret key packets are mixed");
-                    }
-
+                    // RFC 9580 §10.2: a secret key may keep some components as public key packets (stripped keys), so the two kinds may mix.
                     subkey = new SubkeyComponent(sub);
                     subkeys.Add(subkey);
                     user = null;

@@ -404,6 +404,14 @@ internal static class SessionKeys
         ReadOnlySpan<byte> kdfp = pm.KdfParameters.Span;
         var hash = (PgpHashAlgorithm)kdfp[1];
         var wrap = (SymmetricAlgorithm)kdfp[2];
+        // RFC 9580 §11.5 (RFC 6637 §13): the key is wrapped with AES key wrap under a KDF hash of at least SHA2-256. A key that
+        // names anything else is not one we encrypt to, rather than a message the recipient cannot be expected to open.
+        if (wrap is not (SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Aes256)
+            || hash is not (PgpHashAlgorithm.Sha256 or PgpHashAlgorithm.Sha384 or PgpHashAlgorithm.Sha512))
+        {
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The recipient's ECDH key names key-wrap parameters that are not acceptable for encryption.");
+        }
+
         byte[] zb;
         byte[] ephPoint;
         if (pm.CurveOid.Span.SequenceEqual(SignatureEngine.Curves.Curve25519Legacy))

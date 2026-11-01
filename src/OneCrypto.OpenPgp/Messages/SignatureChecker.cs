@@ -69,6 +69,12 @@ internal static class SignatureChecker
     {
         var reasons = new List<string>();
         List<PgpKey> candidates = Find(sig, certificates);
+        bool hinted = candidates.Count > 0;
+        if (!hinted)
+        {
+            candidates = AnySigningKey(sig, certificates);
+        }
+
         if (candidates.Count == 0)
         {
             reasons.Add("None of the supplied certificates contains the issuing key.");
@@ -78,6 +84,12 @@ internal static class SignatureChecker
         if (digest is null)
         {
             reasons.Add("The signature could not be matched to the signed data.");
+            return new PgpSignatureResult(sig, PgpSignatureStatus.Invalid, candidates[0], null, reasons);
+        }
+
+        if (!HasNoUnknownCritical(sig))
+        {
+            reasons.Add("The signature has a critical subpacket that is not understood (RFC 9580 §5.2.3.7).");
             return new PgpSignatureResult(sig, PgpSignatureStatus.Invalid, candidates[0], null, reasons);
         }
 
@@ -172,6 +184,13 @@ internal static class SignatureChecker
             return new PgpSignatureResult(sig, PgpSignatureStatus.Valid, k, hashDecision, reasons);
         }
 
+        if (!hinted)
+        {
+            reasons.Clear();
+            reasons.Add("None of the supplied certificates contains the issuing key.");
+            return new PgpSignatureResult(sig, PgpSignatureStatus.UnknownKey, null, null, reasons);
+        }
+
         if (worst == PgpSignatureStatus.Invalid)
         {
             reasons.Add("The signature does not match the data.");
@@ -197,19 +216,50 @@ internal static class SignatureChecker
         return found;
     }
 
+    /// <summary>
+    /// RFC 9580 §5.2.3.7: a signature with a critical subpacket we do not understand is not valid. Notations are never acted on here, so a critical
+    /// notation is one we do not understand either.
+    /// </summary>
+    internal static bool HasNoUnknownCritical(SignaturePacket sig) =>
+        sig.HashedSubpackets.UnrecognizedCritical().Count == 0 && !sig.HashedSubpackets.FindAll(SubpacketType.NotationData).Any(n => n.IsCritical);
+
+    // RFC 9580 §5.2.3.12 and §5.2.3.35: issuer subpackets are hints, and a signature may carry several. A key is a candidate when any of them names it.
     internal static bool Matches(SignaturePacket sig, PgpKey k)
     {
-        bool algorithmOk = sig.Algorithm == k.Algorithm || (sig.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly);
-        if (!algorithmOk)
+        if (!AlgorithmFits(sig, k))
         {
             return false;
         }
 
-        if (sig.IssuerFingerprint is { } fp && fp.Length > 1)
+        if (sig.Version == 3)
         {
-            return fp.Span[1..].SequenceEqual(k.Fingerprint);
+            return sig.V3IssuerKeyId.Span.SequenceEqual(k.KeyId);
         }
 
-        return sig.IssuerKeyId is { } id && id.Span.SequenceEqual(k.KeyId);
+        foreach (SignatureSubpacket s in sig.HashedSubpackets.FindAll(SubpacketType.IssuerFingerprint).Concat(sig.UnhashedSubpackets.FindAll(SubpacketType.IssuerFingerprint)))
+        {
+            if (s.Data.Length > 1 && s.Data.Span[1..].SequenceEqual(k.Fingerprint))
+            {
+                return true;
+            }
+        }
+
+        foreach (SignatureSubpacket s in sig.HashedSubpackets.FindAll(SubpacketType.IssuerKeyId).Concat(sig.UnhashedSubpackets.FindAll(SubpacketType.IssuerKeyId)))
+        {
+            if (s.Data.Length == 8 && s.Data.Span.SequenceEqual(k.KeyId))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    private static bool AlgorithmFits(SignaturePacket sig, PgpKey k) =>
+        sig.Algorithm == k.Algorithm || (sig.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly);
+
+    // When the hints name none of the supplied keys (wrong, missing or foreign), every key of the right algorithm is tried: only a key that
+    // really verifies the signature can make it valid.
+    private static List<PgpKey> AnySigningKey(SignaturePacket sig, IReadOnlyList<PgpCertificate> certificates) =>
+        certificates.SelectMany(c => c.Keys).Where(k => AlgorithmFits(sig, k)).ToList();
 }

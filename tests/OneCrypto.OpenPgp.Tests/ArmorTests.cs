@@ -5,6 +5,16 @@ namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
 public class ArmorTests
 {
+    [Fact]
+    public void ArmorHeadersMayHoldUtf8Text()
+    {
+        // RFC 9580 §6.2: header values are UTF-8; a Comment naming someone with accents is common in real keys.
+        string text = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: Ricarda Álvarez\n\nAAEC\n-----END PGP PUBLIC KEY BLOCK-----\n";
+        ArmorBlock block = Armor.Decode(Encoding.UTF8.GetBytes(text));
+        Assert.Equal([0, 1, 2], block.Data);
+        Assert.Equal("Ricarda Álvarez", Assert.Single(block.Headers).Value);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

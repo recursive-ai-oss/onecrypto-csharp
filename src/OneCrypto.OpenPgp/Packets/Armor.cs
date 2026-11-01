@@ -389,7 +389,7 @@ public sealed class ArmorReadStream : Stream
 
         while (true)
         {
-            line = ReadLine() ?? throw Fail(OpenPgpError.MissingArmorTail, "end of input in the armor headers");
+            line = ReadLine(allowUtf8: true) ?? throw Fail(OpenPgpError.MissingArmorTail, "end of input in the armor headers");
             if (line.Trim(' ', '\t').Length == 0)
             {
                 break;
@@ -590,37 +590,37 @@ public sealed class ArmorReadStream : Stream
         _ => throw new OpenPgpParseException(OpenPgpError.InvalidBase64, 0, "invalid character"),
     };
 
-    private string? ReadLine()
+    // RFC 9580 §6.2: the armor header values are UTF-8 text (a Comment may hold a name with accents); the Radix-64 lines and checksum are 7-bit.
+    private string? ReadLine(bool allowUtf8 = false)
     {
         _lineStart = _source.Position;
-        var sb = new StringBuilder();
+        var line = new List<byte>(80);
         int b;
         while ((b = _source.ReadByte()) >= 0)
         {
             if (b == '\n')
             {
-                if (sb.Length > 0 && sb[^1] == '\r')
+                if (line.Count > 0 && line[^1] == '\r')
                 {
-                    sb.Length--;
+                    line.RemoveAt(line.Count - 1);
                 }
 
-                return sb.ToString();
+                return Encoding.UTF8.GetString([.. line]);
             }
 
-            if (b >= 0x80)
+            if (b >= 0x80 && !allowUtf8)
             {
-                // Armor is 7-bit text; a high bit in a data line is invalid, and header values are limited to ASCII here as well.
                 throw Fail(OpenPgpError.InvalidBase64, "non-ASCII octet");
             }
 
-            sb.Append((char)b);
-            if (sb.Length > _limits.MaxArmorLineLength + 2)
+            line.Add((byte)b);
+            if (line.Count > _limits.MaxArmorLineLength + 2)
             {
                 throw Fail(OpenPgpError.InvalidArmorHeader, "armor line too long");
             }
         }
 
-        return sb.Length > 0 ? sb.ToString() : null;
+        return line.Count > 0 ? Encoding.UTF8.GetString([.. line]) : null;
     }
 
     private OpenPgpParseException Fail(OpenPgpError error, string? detail = null) => new(error, _lineStart, detail);

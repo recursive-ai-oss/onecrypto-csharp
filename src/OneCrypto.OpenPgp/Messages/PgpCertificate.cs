@@ -39,6 +39,9 @@ public sealed class PgpKey
     private readonly object _gate = new();
     private IReadOnlyList<SignaturePacket>? _bindings;
     private IReadOnlyList<SignaturePacket>? _revocations;
+    private readonly Dictionary<SignaturePacket, List<SignaturePacket>> _uidRevocations = [];
+    private readonly Dictionary<SignaturePacket, SignaturePacket> _backSignatures = [];
+    private readonly HashSet<SignaturePacket> _fromUserId = [];
 
     internal PgpKey(PgpCertificate certificate, KeyPacket packet, bool isPrimary, IReadOnlyList<SignaturePacket> signatures)
     {
@@ -68,16 +71,9 @@ public sealed class PgpKey
     /// <summary>The public-key algorithm.</summary>
     public PublicKeyAlgorithm Algorithm => Packet.Algorithm;
 
-    private bool IssuedByPrimary(SignaturePacket s)
-    {
-        KeyPacket p = Certificate.Primary.Packet;
-        if (s.IssuerFingerprint is { } fp)
-        {
-            return fp.Length > 1 && fp.Span[1..].SequenceEqual(p.GetFingerprint());
-        }
-
-        return s.IssuerKeyId is not { } id || id.Span.SequenceEqual(p.GetKeyId());
-    }
+    // RFC 9580 §5.2.3.12: issuer subpackets are hints. A binding is judged by whether the primary key verifies it, so a wrong or foreign
+    // hint neither makes a good binding fail nor makes a bad one pass. A critical subpacket we do not understand voids the signature (§5.2.3.7).
+    private static bool Usable(SignaturePacket s) => SignatureChecker.HasNoUnknownCritical(s);
 
     private static bool Verifies(SignaturePacket s, KeyPacket signer, params ReadOnlyMemory<byte>[] parts)
     {
@@ -108,7 +104,7 @@ public sealed class PgpKey
             {
                 foreach (SignaturePacket s in Certificate.Transferable.DirectSignatures)
                 {
-                    if (s.Type == SignatureType.DirectKey && IssuedByPrimary(s) && Verifies(s, primary, pk))
+                    if (s.Type == SignatureType.DirectKey && Usable(s) && Verifies(s, primary, pk))
                     {
                         good.Add(s);
                     }
@@ -117,13 +113,26 @@ public sealed class PgpKey
                 foreach (UserComponent u in Certificate.Transferable.Users)
                 {
                     byte[] uid = SignatureEngine.UserIdInput(u.Identity);
+                    var revs = new List<SignaturePacket>();
+                    var certs = new List<SignaturePacket>();
                     foreach (SignaturePacket s in u.Signatures)
                     {
                         if (s.Type is SignatureType.GenericCertification or SignatureType.PersonaCertification or SignatureType.CasualCertification or SignatureType.PositiveCertification
-                            && IssuedByPrimary(s) && Verifies(s, primary, pk, uid))
+                            && Usable(s) && Verifies(s, primary, pk, uid))
                         {
-                            good.Add(s);
+                            certs.Add(s);
                         }
+                        else if (s.Type == SignatureType.CertificationRevocation && Usable(s) && Verifies(s, primary, pk, uid))
+                        {
+                            revs.Add(s);
+                        }
+                    }
+
+                    foreach (SignaturePacket c in certs)
+                    {
+                        good.Add(c);
+                        _fromUserId.Add(c);
+                        _uidRevocations[c] = revs;
                     }
                 }
             }
@@ -132,16 +141,22 @@ public sealed class PgpKey
                 byte[] sk = SignatureEngine.KeyInput(Packet);
                 foreach (SignaturePacket s in Signatures)
                 {
-                    if (s.Type != SignatureType.SubkeyBinding || !IssuedByPrimary(s) || !Verifies(s, primary, pk, sk))
+                    if (s.Type != SignatureType.SubkeyBinding || !Usable(s) || !Verifies(s, primary, pk, sk))
                     {
                         continue;
                     }
 
                     // RFC 9580 §5.2.1.8 / §10.1: a signing-capable subkey proves it consents with an embedded primary key binding signature made by the subkey.
                     bool signs = s.KeyFlags is { Length: > 0 } f && (f.Span[0] & 2) != 0;
-                    if (signs && !s.EmbeddedSignatures.Any(e => e.Type == SignatureType.PrimaryKeyBinding && Verifies(e, Packet, pk, sk)))
+                    if (signs)
                     {
-                        continue;
+                        SignaturePacket? back = s.EmbeddedSignatures.FirstOrDefault(e => e.Type == SignatureType.PrimaryKeyBinding && Usable(e) && Verifies(e, Packet, pk, sk));
+                        if (back is null)
+                        {
+                            continue;
+                        }
+
+                        _backSignatures[s] = back;
                     }
 
                     good.Add(s);
@@ -169,7 +184,7 @@ public sealed class PgpKey
             {
                 foreach (SignaturePacket s in Certificate.Transferable.DirectSignatures)
                 {
-                    if (s.Type == SignatureType.KeyRevocation && IssuedByPrimary(s) && Verifies(s, primary, pk))
+                    if (s.Type == SignatureType.KeyRevocation && Usable(s) && Verifies(s, primary, pk))
                     {
                         good.Add(s);
                     }
@@ -180,7 +195,7 @@ public sealed class PgpKey
                 byte[] sk = SignatureEngine.KeyInput(Packet);
                 foreach (SignaturePacket s in Signatures)
                 {
-                    if (s.Type == SignatureType.SubkeyRevocation && IssuedByPrimary(s) && Verifies(s, primary, pk, sk))
+                    if (s.Type == SignatureType.SubkeyRevocation && Usable(s) && Verifies(s, primary, pk, sk))
                     {
                         good.Add(s);
                     }
@@ -192,9 +207,17 @@ public sealed class PgpKey
         }
     }
 
+    private static bool ExpiredAt(SignaturePacket s, long at) => s.ExpirationSeconds is { } e and > 0 && (long)(s.CreationTime ?? 0) + e <= at;
+
+    // RFC 9580 §5.2.3.31: no reason, "key is compromised" and any code we do not know are hard revocations, which invalidate the key at every time;
+    // superseded, retired and "user ID no longer valid" only take effect from the moment they were made.
+    private static bool IsHardRevocation(SignaturePacket r) => r.ReasonForRevocation is not { Code: 1 or 3 or 32 };
+
     /// <summary>
     /// Evaluates the key at <paramref name="at"/>: created, bound by its newest valid self-signature then in force, not expired, not revoked.
-    /// A revocation made later than <paramref name="at"/> does not count, so old signatures stay good (RFC 9580 §5.2.3.31).
+    /// A soft revocation made later than <paramref name="at"/> does not count, so old signatures stay good; a hard one does (RFC 9580 §5.2.3.31).
+    /// Binding signatures and revocations that have themselves expired by then are ignored, as are bindings of a user ID revoked since, and subkey
+    /// bindings whose primary key binding signature has expired.
     /// </summary>
     public PgpKeyState StateAt(DateTimeOffset at)
     {
@@ -209,23 +232,52 @@ public sealed class PgpKey
             return new PgpKeyState(false, "The primary key is not valid at the reference time.", PgpKeyUsage.None, null);
         }
 
-        SignaturePacket? newest = null;
-        PgpKeyUsage? usage = null;
-        uint? expiry = null;
-        long newestFlagTime = -1;
-        long newestExpiryTime = -1;
+        long now = at.ToUnixTimeSeconds();
+        var eligible = new List<SignaturePacket>();
         foreach (SignaturePacket s in Bindings())
         {
             long t = s.CreationTime ?? 0;
-            if (t > at.ToUnixTimeSeconds())
+            if (t > now || ExpiredAt(s, now))
             {
                 continue;
             }
 
-            newest = s;
-            if (s.KeyFlags is { Length: > 0 } f && t >= newestFlagTime)
+            if (_uidRevocations.TryGetValue(s, out List<SignaturePacket>? revs) && revs.Any(r => (r.CreationTime ?? 0) >= t && (r.CreationTime ?? 0) <= now && !ExpiredAt(r, now)))
             {
-                usage = (PgpKeyUsage)(f.Span[0] & 0x2F);
+                continue;
+            }
+
+            if (_backSignatures.TryGetValue(s, out SignaturePacket? back) && ExpiredAt(back, now))
+            {
+                continue;
+            }
+
+            eligible.Add(s);
+        }
+
+        if (eligible.Count == 0)
+        {
+            return new PgpKeyState(false, IsPrimary ? "No valid self-signature binds the primary key." : "No valid binding signature binds the subkey.", PgpKeyUsage.None, null);
+        }
+
+        // RFC 9580 §5.2.3.19: when a user ID is marked primary, the other user IDs do not decide the key's flags or expiry.
+        bool primaryUidMarked = eligible.Any(x => _fromUserId.Contains(x) && x.IsPrimaryUserId);
+        PgpKeyUsage? usage = null;
+        uint? expiry = null;
+        long newestFlagTime = -1;
+        long newestExpiryTime = -1;
+        foreach (SignaturePacket s in eligible)
+        {
+            if (primaryUidMarked && _fromUserId.Contains(s) && !s.IsPrimaryUserId)
+            {
+                continue;
+            }
+
+            long t = s.CreationTime ?? 0;
+            if (s.KeyFlags is { } f && t >= newestFlagTime)
+            {
+                // An empty Key Flags subpacket says the key may do nothing.
+                usage = f.Length > 0 ? (PgpKeyUsage)(f.Span[0] & 0x2F) : PgpKeyUsage.None;
                 newestFlagTime = t;
             }
 
@@ -236,14 +288,15 @@ public sealed class PgpKey
             }
         }
 
-        if (newest is null)
-        {
-            return new PgpKeyState(false, IsPrimary ? "No valid self-signature binds the primary key." : "No valid binding signature binds the subkey.", PgpKeyUsage.None, null);
-        }
-
         foreach (SignaturePacket r in Revocations())
         {
-            if ((r.CreationTime ?? 0) <= at.ToUnixTimeSeconds())
+            long rt = r.CreationTime ?? 0;
+            if (rt <= now && ExpiredAt(r, now))
+            {
+                continue;
+            }
+
+            if (rt <= now || IsHardRevocation(r))
             {
                 return new PgpKeyState(false, "The key is revoked.", PgpKeyUsage.None, null);
             }

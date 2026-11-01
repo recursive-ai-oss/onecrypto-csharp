@@ -90,6 +90,13 @@ public sealed class PgpSecretKey : IDisposable
             throw new PgpException(PgpFailure.Unsupported, "Secret key protection without a string-to-key specifier is not supported.");
         }
 
+        // RFC 9580 §5.5.3: a version 6 key is protected with AEAD or not at all, and Argon2 is only ever used with AEAD. Unauthenticated CFB
+        // protection of such a key is malleable, so it is refused rather than opened.
+        if (p.Usage is 254 or 255 && (sp.Version == 6 || p.S2k.Type == S2kType.Argon2))
+        {
+            return null;
+        }
+
         int keySize = PgpAlgorithms.KeySize(p.Cipher);
         byte[] kdf = PgpAlgorithms.S2k(p.S2k, password, keySize, limits);
         try

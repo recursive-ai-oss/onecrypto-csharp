@@ -94,6 +94,29 @@ public class MessageTests
     }
 
     [Fact]
+    public void SessionKeyPacketsMustBeFollowedByEncryptedData()
+    {
+        // RFC 9580 §10.3: a message that has a session key packet and then plain literal data is malformed, not a plain message.
+        using var enc = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream("x"u8.ToArray()), enc, new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], ForceSeipd1 = true, S2kIterationCode = 0x10 });
+        byte[] all = enc.ToArray();
+        byte[] skesk = all[..(2 + all[1])];
+        byte[] literal = [0xCB, 8, (byte)'b', 0, 0, 0, 0, 0, (byte)'h', (byte)'i'];
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream([.. skesk, .. literal]), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] }));
+        Assert.Equal(PgpFailure.MalformedMessage, e.Failure);
+    }
+
+    [Fact]
+    public void AOnePassHeaderWithoutItsSignatureIsMalformed()
+    {
+        // RFC 9580 §10.3: a one-pass signature header is closed by a signature after the literal data.
+        byte[] onePass = [0xC4, 13, 3, 0, 8, 22, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        byte[] literal = [0xCB, 8, (byte)'b', 0, 0, 0, 0, 0, (byte)'h', (byte)'i'];
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream([.. onePass, .. literal]), Stream.Null, new PgpReadOptions { Now = Now }));
+        Assert.Equal(PgpFailure.MalformedMessage, e.Failure);
+    }
+
+    [Fact]
     public void SmallMessagesDoNotAllocateTheStreamingScratchBuffers()
     {
         // A 1 KiB password message (SEIPD v1) used to allocate several 64 KiB copy buffers per call; they come from a pool now.
