@@ -414,4 +414,19 @@ public class MessageTests
         Assert.Null(SessionKeys.FromChecksummed(good.AsSpan(0, good.Length - 1), v3, padded));
         Assert.Null(SessionKeys.FromChecksummed(new byte[padded ? 8 : 0], v3, padded));
     }
+
+    [Theory]
+    [InlineData(40, 3, 4)] // memory far beyond any limit
+    [InlineData(16, 200, 4)] // too many passes
+    [InlineData(16, 3, 255)] // too many lanes
+    public void Argon2CostBombsInPasswordPacketsAreRefusedBeforeAnyWork(int memoryExponent, int passes, int lanes)
+    {
+        // A version 6 SKESK whose Argon2 parameters ask for more than the limits allow: refused with a typed error, no allocation.
+        byte[] s2k = [4, .. new byte[16], (byte)passes, (byte)lanes, (byte)memoryExponent];
+        byte[] body = [6, (byte)(3 + s2k.Length + 15), 9, 2, (byte)s2k.Length, .. s2k, .. new byte[15], .. new byte[32]];
+        byte[] skesk = [0xC3, (byte)body.Length, .. body];
+        byte[] seipd = [0xD2, 40, 2, 9, 2, 6, 0, 0, 0, 0, .. new byte[32], .. new byte[16]];
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream([.. skesk, .. seipd]), null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("x")] }));
+        Assert.Equal(PgpFailure.LimitExceeded, e.Failure);
+    }
 }
