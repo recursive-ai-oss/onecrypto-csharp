@@ -50,6 +50,13 @@ public class CorpusTests
 
             try
             {
+                // gosop 1.1.0 writes a line feed after a binary (--no-armor) inline-signed message; that byte is not OpenPGP data.
+                if (oracle.StartsWith("gosop", StringComparison.Ordinal) && file.EndsWith("-inline.pgp", StringComparison.Ordinal) && raw[^1] == 0x0A)
+                {
+                    raw = raw[..^1];
+                    unrecognized["gosop: stray line feed after a binary message, trimmed"] = unrecognized.GetValueOrDefault("gosop: stray line feed after a binary message, trimmed") + 1;
+                }
+
                 byte[] binary = Armor.LooksArmored(raw[0]) ? Armor.Decode(raw).Data : raw;
                 IReadOnlyList<Packet> packets = PacketParser.ParseAll(binary);
                 using var ms = new MemoryStream();
@@ -109,6 +116,12 @@ public class CorpusTests
     private static IEnumerable<string> FprFiles() =>
         Directory.Exists(Root) ? Directory.EnumerateFiles(Root, "*.fpr", SearchOption.AllDirectories).Order(StringComparer.Ordinal) : [];
 
+    private static string Canonical(IEnumerable<string> fingerprints)
+    {
+        string[] all = fingerprints.ToArray();
+        return all.Length == 0 ? string.Empty : all[0] + ";" + string.Join(',', all.Skip(1).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void FingerprintsMatchTheOraclesListing()
     {
@@ -127,8 +140,9 @@ public class CorpusTests
                 byte[] raw = File.ReadAllBytes(stem + ext);
                 byte[] binary = Armor.LooksArmored(raw[0]) ? Armor.Decode(raw).Data : raw;
                 var keys = TransferableKey.ParseAll(PacketParser.ParseAll(binary));
-                string ours = string.Join(',', keys.SelectMany(k => k.Packets.OfType<KeyPacket>().Select(p => p.FingerprintHex)));
-                string theirs = string.Join(',', File.ReadAllLines(fpr).Where(l => l.StartsWith("fpr:", StringComparison.Ordinal)).Select(l => l[4..].ToUpperInvariant()));
+                // Primary key first, then the subkeys as a set: tools list subkeys in different orders (by creation, by binding).
+                string ours = Canonical(keys.SelectMany(k => k.Packets.OfType<KeyPacket>().Select(p => p.FingerprintHex)));
+                string theirs = Canonical(File.ReadAllLines(fpr).Where(l => l.StartsWith("fpr:", StringComparison.Ordinal)).Select(l => l[4..].ToUpperInvariant()));
                 if (ours != theirs)
                 {
                     failures.Add($"{stem + ext}: ours {ours} theirs {theirs}");

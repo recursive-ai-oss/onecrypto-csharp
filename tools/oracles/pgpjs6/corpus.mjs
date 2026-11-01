@@ -24,14 +24,12 @@ let failures = 0;
 for (const [name, opts] of variants) {
   try {
     const userIDs = [{ name: `Corpus ${name}`, email: `${name}@corpus.invalid` }];
-    for (const format of ['binary', 'armored']) {
-      const ext = format === 'binary' ? 'pgp' : 'asc';
-      const { privateKey, publicKey } = await openpgp.generateKey({ ...opts, userIDs, format });
-      put('keys', `${name}.${ext}`, privateKey);
-      put('certs', `${name}.${ext}`, publicKey);
-    }
-    const priv = await openpgp.readPrivateKey({ armoredKey: (await openpgp.generateKey({ ...opts, userIDs, format: 'armored' })).privateKey });
+    const priv = (await openpgp.generateKey({ ...opts, userIDs, format: 'object' })).privateKey;
     const pub = priv.toPublic();
+    put('keys', `${name}.pgp`, priv.write());
+    put('keys', `${name}.asc`, priv.armor());
+    put('certs', `${name}.pgp`, pub.write());
+    put('certs', `${name}.asc`, pub.armor());
     // password-protected secret key
     const locked = await openpgp.encryptKey({ privateKey: priv, passphrase: pass });
     put('keys', `${name}-locked.asc`, locked.armor());

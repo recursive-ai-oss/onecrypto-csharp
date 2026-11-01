@@ -292,6 +292,12 @@ public sealed class SecretKeyPacket : KeyPacket
         S2kSpecifier? s2k = null;
         ReadOnlyMemory<byte> iv = default;
         ReadOnlyMemory<byte> parameters = default;
+        if (usage == 0 && version == 5)
+        {
+            // LibrePGP §5.5.3: a version 5 packet always carries the parameter count, even when it is zero.
+            parameters = c.Take(c.Byte("parameter count"), "parameters");
+        }
+
         if (usage != 0)
         {
             if (version >= 5)
@@ -360,11 +366,19 @@ public sealed class SecretKeyPacket : KeyPacket
         if (version == 5)
         {
             // LibrePGP §5.5.3: a four-octet count of the secret material precedes it.
-            secret = c.TakeCounted32("secret key material");
-            if (!c.AtEnd)
+            int secretStart = c.Position + 4;
+            ReadOnlyMemory<byte> counted = c.TakeCounted32("secret key material");
+
+            // The count covers the material and, for protection 254 and 253, the hash or tag; the two-octet checksum of
+            // an unprotected (0) or legacy (255) key follows it.
+            // GnuPG's stubs (the "GNU" S2K with protection 255) carry no checksum, so none is also accepted.
+            int checksum = usage is 0 or 255 ? 2 : 0;
+            if (c.Remaining != checksum && c.Remaining != 0)
             {
                 throw c.Fail(OpenPgpError.TrailingData, "secret key material");
             }
+
+            secret = body.Slice(secretStart, counted.Length + c.Remaining);
         }
         else
         {

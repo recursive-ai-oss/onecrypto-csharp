@@ -24,7 +24,7 @@ for profile in rfc4880 rfc9580; do
     q key delete --cert-file "$w/$n.key" --output "$dest/certs/$n.pgp" >/dev/null 2>&1 || log "key delete $n failed"
     cp "$w/$n.rev" "$dest/sigs/$n-revocation.pgp" 2>/dev/null
     q toolbox armor --help >/dev/null 2>&1
-    q inspect "$dest/certs/$n.pgp" 2>/dev/null | grep -E 'Fingerprint:' | awk '{print "fpr:" toupper($NF)}' > "$dest/certs/$n.fpr"
+    q inspect "$dest/certs/$n.pgp" 2>/dev/null | grep -E '^ *(Fingerprint|Subkey):' | awk '{print "fpr:" toupper($NF)}' > "$dest/certs/$n.fpr"
     cp "$dest/certs/$n.fpr" "$dest/keys/$n.fpr"
     c="$dest/certs/$n.pgp"
     q sign --signer-file "$w/$n.key" --binary --signature-file "$dest/sigs/$n-detached.pgp" "$w/msg" >/dev/null 2>&1 || log "$n detached failed"
