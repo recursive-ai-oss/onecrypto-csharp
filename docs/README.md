@@ -12,6 +12,7 @@ Normative, language-neutral notes on behaviour: verification semantics, policy p
 - [load.md](load.md): `Crypto.Load`: the formats it reads, the sniffing decision table, password rules, limits and errors.
 - [legacy-ciphers.md](legacy-ciphers.md): Camellia and the decrypt-only CAST5, IDEA, Blowfish and Twofish; how they avoid secret-indexed tables, their cost, and how they are checked.
 - [kdf.md](kdf.md): Argon2, scrypt and bcrypt-pbkdf: behaviour, limits, side channels, tests.
+- [gnupg-home.md](gnupg-home.md): reading a GnuPG home (keybox, keyrings, private-keys-v1.d, trust database) and the cert-d certificate directory: layout as settled, gaps, limits, checks.
 - [keys.md](keys.md): key interfaces, signature specs, operating-system keys and two-phase signing (with the serialised state).
 - [openpgp.md](openpgp.md): the OpenPGP packet layer: what is read and preserved, armor, transferable keys, limits, streaming.
 - [pdf.md](pdf.md): the PDF bridge: PAdES levels B-B to B-LTA, augmentation, the verifier's rules and time model, and what OnePDF would need to offer.

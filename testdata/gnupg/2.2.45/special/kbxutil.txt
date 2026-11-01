@@ -1,0 +1,79 @@
+BEGIN-RECORD: 0
+Length: 32
+Type:   Header
+Version: 1
+Flags:   0002 (openpgp)
+created-at: 1793524527
+last-maint: 1793524527
+END-RECORD
+BEGIN-RECORD: 1
+Length: 398
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 94
+Data-Length: 284
+Unhashed: 20
+Key-Count: 1
+Key-Info-Length: 28
+Key-Fpr[0]: 1666DC313E7B30D4C0D7287AD52BFBAD37E85998
+Key-Kid-Off[0]: 32
+Key-Kid[0]: D52BFBAD37E85998
+Key-Flags[0]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 163
+Uid-Len[0]: 46
+Uid[0]: "Test sp-ed25519 <sp-ed25519@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 1
+Sig-Info-Length: 4
+Sig-Expire[0-0]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524527
+Reserved-Space: 0
+Checksum: 6824e8f39e37c68195210197a6a763ef659393d9 [valid]
+END-RECORD
+BEGIN-RECORD: 2
+Length: 1035
+Type:   X.509
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 184
+Data-Length: 831
+Unhashed: 20
+Key-Count: 1
+Key-Info-Length: 28
+Key-Fpr[0]: A7EBCB36B92CF42A53B67D9EDFA80FCF998CD002
+Key-Kid-Off[0]: 0
+Key-Kid[0]: 0000040B03010000
+Key-Flags[0]: 0000
+Serial-No: 316334979A66BF17A9EFACDE07B826907D2D3E7C
+Uid-Count: 2
+Uid-Info-Length: 12
+Issuer-Off: 126
+Issuer-Len: 29
+Issuer: "O=Test,CN=onecrypto x509 test"
+Issuer-Flags: 0000
+Issuer-Validity: 0
+Subject-Off: 155
+Subject-Len: 29
+Subject: "O=Test,CN=onecrypto x509 test"
+Subject-Flags: 0000
+Subject-Validity: 0
+Sig-Count: 1
+Sig-Info-Length: 4
+Sig-Expire[0-0]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524527
+Reserved-Space: 0
+Checksum: e48fb90d5a7653d87b5da4fb6324a24fe5cd6761 [valid]
+END-RECORD
