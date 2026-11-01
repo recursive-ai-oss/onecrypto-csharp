@@ -18,6 +18,9 @@ declare -A DRIVERS=(
 entries=""; missing=""
 for id in "${!DRIVERS[@]}"; do
   p=${DRIVERS[$id]}
+  if [ -x "$p" ] && ! env PATH="$HOME/onecrypto/tools/node/bin:$HOME/dotnet10:/usr/bin:/bin" DOTNET_ROOT="$HOME/dotnet10" "$p" version >/dev/null 2>&1; then
+    echo "driver $id does not answer 'version': left out" | tee -a "$OUT/missing.txt"; continue
+  fi
   if [ -x "$p" ]; then entries="$entries{\"path\":\"$p\",\"id\":\"$id\",\"env\":{\"PATH\":\"$HOME/onecrypto/tools/node/bin:$HOME/dotnet10:/usr/bin:/bin\",\"DOTNET_ROOT\":\"$HOME/dotnet10\",\"DOTNET_NOLOGO\":\"1\"}},"; else missing="$missing $id"; fi
 done
 cfg=$OUT/config.json

@@ -218,7 +218,12 @@ internal static class PgpPacketTarget
         {
             byte[] armored = File.ReadAllBytes(file);
             yield return [3, .. armored];
-            byte[] binary = Armor.Decode(armored).Data;
+            if (!Armor.TryDecode(armored, out ArmorBlock? block, out _) || block is null)
+            {
+                continue; // a cleartext signed message is not Radix-64 data
+            }
+
+            byte[] binary = block.Data;
             foreach (byte mode in new byte[] { 0, 1, 2 })
             {
                 yield return [mode, .. binary];
