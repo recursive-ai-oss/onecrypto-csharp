@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- In the browser runtime, AES (PBES2 and PKCS#12 decryption, CMS and OpenSSH ciphers), triple DES and RC2, and RSA, ECDSA and ECDH key objects now fail with `AlgorithmNotSupportedException` naming the algorithm and platform, not the runtime's `PlatformNotSupportedException`.
+- `SshPublicKey.ToPublicKeyInfo` builds RSA and ECDSA keys from their numbers instead of through the platform, so it works where the platform has no RSA or ECDSA.
+
+### Added
+
+- The browser-wasm suite runs in a pinned headless Chromium and is compared case by case with Node and a native run ([docs/browser.md](docs/browser.md)).
+
 ### Changed
 
 - The validator's internal review (not an external audit) is closed: all eight findings and observations O1–O5 and O7 are fixed; O6, about report contents only, is open. See `docs/validation-review.md`. The validator stays a preview.

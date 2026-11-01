@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The same suite as tests/BrowserSuite, run natively: the reference its verdicts are compared with. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).BrowserSuiteNative</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Common/BrowserSuite.cs" Link="BrowserSuite.cs" />
+    <Compile Include="../BrowserSuite/Program.cs" Link="Program.cs" />
+    <EmbeddedResource Include="$(SuiteData)" LogicalName="suite-data.json" Condition="'$(SuiteData)' != ''" />
+  </ItemGroup>
+
+  <ItemGroup>
+
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>

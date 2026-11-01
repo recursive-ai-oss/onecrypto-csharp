@@ -475,7 +475,7 @@ public abstract class CmsRecipient
                         scheme = pub.KeySizeBits <= 256 ? CmsOids.StdDhSha256Kdf : pub.KeySizeBits <= 384 ? CmsOids.StdDhSha384Kdf : CmsOids.StdDhSha512Kdf;
                         try
                         {
-                            using ECDiffieHellman peer = ECDiffieHellman.Create();
+                            using ECDiffieHellman peer = Platform.CreateEcdh("ECDH key agreement");
                             peer.ImportSubjectPublicKeyInfo(pub.Encoded.Span, out _);
                             using ECDiffieHellman eph = ECDiffieHellman.Create(peer.ExportParameters(false).Curve);
                             z = eph.DeriveRawSecretAgreement(peer.PublicKey);

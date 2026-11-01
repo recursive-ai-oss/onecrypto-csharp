@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Primitives;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto.Keys;
 
@@ -286,7 +287,7 @@ public static class PrivateKey
 
             try
             {
-                using ECDiffieHellman other = ECDiffieHellman.Create();
+                using ECDiffieHellman other = Platform.CreateEcdh("ECDH key agreement");
                 other.ImportSubjectPublicKeyInfo(peer.Encoded.Span, out _);
                 using ECDiffieHellmanPublicKey pub = other.PublicKey;
                 return Key.DeriveRawSecretAgreement(pub);

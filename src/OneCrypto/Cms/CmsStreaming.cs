@@ -2,6 +2,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Wire.Cms;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto;
 
@@ -418,7 +419,7 @@ public sealed partial class EnvelopedData
         w.BeginIndefinite(Asn1Tag.Context(0, true));
         try
         {
-            using Aes aes = Aes.Create();
+            using Aes aes = Platform.CreateAes();
             using ICryptoTransform enc = aes.CreateEncryptor(cek, iv);
             using (var cs = new CryptoStream(new CmsStream.SegmentSink(w), enc, CryptoStreamMode.Write, leaveOpen: true))
             {
@@ -521,7 +522,7 @@ public sealed partial class EnvelopedData
             bool ok = true;
             try
             {
-                using Aes aes = Aes.Create();
+                using Aes aes = Platform.CreateAes();
                 using ICryptoTransform dec = aes.CreateDecryptor(cek, iv);
                 using var cs = new CryptoStream(plaintextOutput, dec, CryptoStreamMode.Write, leaveOpen: true);
                 byte[] buffer = new byte[CmsStream.Chunk];

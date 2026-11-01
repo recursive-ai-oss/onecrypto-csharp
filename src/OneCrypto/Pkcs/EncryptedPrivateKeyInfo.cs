@@ -319,7 +319,7 @@ public static class PrivateKeyPem
         {
             if (kind == 0)
             {
-                using Aes a = Aes.Create();
+                using Aes a = Platform.CreateAes();
                 a.SetKey(key.ReadOnlySpan);
                 a.DecryptCbc(b.Data, iv, buf.Span, PaddingMode.None);
             }
