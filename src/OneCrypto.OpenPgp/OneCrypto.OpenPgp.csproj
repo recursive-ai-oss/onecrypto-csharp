@@ -1,7 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>OpenPGP for OneCrypto: RFC 9580, RFC 4880 and LibrePGP messages and keys. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <IsPackable>true</IsPackable>
+    <Description>OpenPGP for OneCrypto: the packet layer of RFC 9580, RFC 9980 and LibrePGP (packets, signature subpackets, ASCII armor, transferable keys), lossless and with resource limits. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <PackageTags>cryptography;openpgp;pgp;rfc9580;rfc4880;librepgp;armor;nativeaot;trimmable</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Tests" />
+    <InternalsVisibleTo Include="$(LibName).Fuzz" />
+    <InternalsVisibleTo Include="$(LibName).AotSmoke" />
+    <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
 
 </Project>
