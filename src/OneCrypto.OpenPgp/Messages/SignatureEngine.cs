@@ -316,6 +316,14 @@ internal static class SignatureEngine
             return false;
         }
 
+        internal static readonly byte[] X25519Oid = [0x2B, 0x65, 0x6E];
+
+        /// <summary>
+        /// Curve25519 for ECDH under either name: the legacy OID of RFC 9580 §9.2 and 1.3.101.110, which GnuPG 2.5 puts in the ECDH keys it makes. Both carry the
+        /// point as 0x40 and 32 octets and the scalar as a big-endian MPI.
+        /// </summary>
+        internal static bool IsCurve25519(ReadOnlySpan<byte> oid) => oid.SequenceEqual(Curve25519Legacy) || oid.SequenceEqual(X25519Oid);
+
         internal static readonly byte[] Curve25519Legacy = [0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01];
         internal static readonly byte[] Ed25519Legacy = [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01];
     }

@@ -512,7 +512,21 @@ public static partial class PgpMessageWriter
         }
 
         // A key that lists its AEAD modes and leaves OCB out (an EAX-only key from the rfc4880bis days) is not sent OCB Encrypted Data.
-        bool AcceptsOcb(PgpKey k) => k.PreferredAeadModes(o.Now) is { Length: > 0 } modes ? modes.Span.Contains((byte)AeadAlgorithm.Ocb) : true;
+        // Both lists count: the legacy one (subpacket 34, a list of modes) and the ciphersuite one (subpacket 39, cipher and mode pairs).
+        bool AcceptsOcb(PgpKey k)
+        {
+            ReadOnlySpan<byte> modes = k.PreferredAeadModes(o.Now).Span;
+            ReadOnlySpan<byte> suites = k.PreferredAeadSuites(o.Now).Span;
+            bool listed = !modes.IsEmpty || !suites.IsEmpty;
+            bool ocb = modes.Contains((byte)AeadAlgorithm.Ocb);
+            for (int i = 1; i < suites.Length; i += 2)
+            {
+                ocb |= suites[i] == (byte)AeadAlgorithm.Ocb;
+            }
+
+            return !listed || ocb;
+        }
+
         bool allOcb = keys.All(k => (k.Packet.Version == 5 || (k.Features(o.Now) & 0x02) != 0) && AcceptsOcb(k));
         if (allOcb)
         {

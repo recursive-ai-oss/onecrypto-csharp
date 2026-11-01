@@ -1,2 +1,2 @@
 gpg (GnuPG) 2.4.8
-kyber-*, sec-kyber-*, pub-kyber-*: GnuPG 2.5.24 (ONECRYPTO_KYBER=1); everything else as above
+kyber-*, sec-kyber-*, pub-kyber-*, v5x-*: GnuPG 2.5.24 (ONECRYPTO_KYBER=1; v5x is `--quick-gen-key ... ed25519/v5` with `cv25519/v5` under 2.5, whose ECDH key names Curve25519 by 1.3.101.110); everything else as above

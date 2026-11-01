@@ -131,7 +131,7 @@ internal static class SessionKeys
         byte[] zb;
         ReadOnlySpan<byte> eph = p.Values[0].Span;
         List<byte[]> sec = key.SecretParts();
-        if (pubm.CurveOid.Span.SequenceEqual(SignatureEngine.Curves.Curve25519Legacy))
+        if (SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
         {
             if (eph.Length != 33 || eph[0] != 0x40)
             {
@@ -425,7 +425,7 @@ internal static class SessionKeys
 
         byte[] zb;
         byte[] ephPoint;
-        if (pm.CurveOid.Span.SequenceEqual(SignatureEngine.Curves.Curve25519Legacy))
+        if (SignatureEngine.Curves.IsCurve25519(pm.CurveOid.Span))
         {
             byte[] eSec = RandomNumberGenerator.GetBytes(32);
             byte[] ePub = new byte[32];

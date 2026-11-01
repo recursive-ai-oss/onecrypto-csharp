@@ -192,6 +192,18 @@ public class LibrePgpTests
     // A flip in the packet framing that leaves the encrypted payload intact may still decrypt (for example a length header): it releases the true plaintext only.
     private static bool IsHarmlessFlip(byte[] good, int i) => i < 2;
 
+    // GnuPG 2.5 makes its version 5 ECDH keys with the OID 1.3.101.110 instead of the legacy Curve25519 one (v5x-*.gpg, throwaway keys from 2.5.24).
+    // tools/oracles/librepgp-interop.sh checks both directions against gpg with such a key; this keeps the round trip in the suite.
+    [Fact]
+    public void AnEcdhKeyNamedByTheNativeX25519OidEncryptsAndDecrypts()
+    {
+        PgpCertificate pub = Cert("v5x-pub.gpg");
+        PgpCertificate secret = Cert("v5x-sec.gpg");
+        using var enc = new MemoryStream();
+        Write(new MemoryStream("native oid"u8.ToArray()), enc, new PgpWriteOptions { Now = Now, Recipients = [pub] });
+        Assert.Equal("native oid", Read(enc.ToArray(), new PgpReadOptions { Now = Now, SecretKeys = [secret] }));
+    }
+
     [Fact]
     public void AVersion5KeySignsVersion5SignaturesAndTheyVerify()
     {
