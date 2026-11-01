@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <PackageValidationBaselineVersion>0.2.0-preview.1</PackageValidationBaselineVersion>
     <Description>PAdES signing (B-B to B-LTA), validation data and document time-stamps, and PDF signature validation with the OneCrypto path validator, on OnePDF. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
     <PackageTags>pdf;pades;cades;rfc3161;timestamp;signature;ltv;nativeaot;trimmable</PackageTags>
   </PropertyGroup>

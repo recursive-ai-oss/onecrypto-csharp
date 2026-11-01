@@ -26,7 +26,7 @@ public class PadesRoundTripTests
     internal static PadesReport Verify(byte[] pdf, PadesVerifyOptions options)
     {
         using PdfDocument doc = PdfDocument.Open(pdf);
-        return doc.VerifyPades(pdf, options);
+        return doc.VerifyPades(options);
     }
 
     private static PdfSignatureVerifyOptions OnePdfTrusting(DateTimeOffset at) => new()
@@ -215,16 +215,29 @@ public class PadesRoundTripTests
         Assert.True(report.AllValid, report.Summary);
     }
 
-    [Fact]
-    public void KeysThatSignTheAttributesThemselvesAreRefusedWithTheSeamNamed()
+    [Theory]
+    [InlineData(KeyKind.Ed25519)]
+    [InlineData(KeyKind.Ed448)]
+    [InlineData(KeyKind.MlDsa65)]
+    public void KeysThatSignTheAttributesThemselvesRoundTripAtEveryLevel(KeyKind kind)
     {
-        using Primitives.Ed25519PrivateKey key = Primitives.Ed25519PrivateKey.Generate();
-        ISigningKey sk = PrivateKey.FromEd25519(key);
-        TestSigner rsa = Kit.Signer(KeyKind.Rsa2048);
-        using var doc = PdfDocument.Open(PadesKit.Pdf(), new PdfOpenOptions { AllowEditing = true });
-        var e = Assert.Throws<PadesException>(() => doc.SignPades(new MemoryStream(), sk, rsa.Certificate));
-        Assert.Equal(PadesError.UnsupportedKey, e.Reason);
-        Assert.Contains("external-signer", e.Message, StringComparison.Ordinal);
+        if (kind == KeyKind.MlDsa65 && !MLDsa.IsSupported)
+        {
+            return;
+        }
+
+        TestSigner signer = Kit.Signer(kind);
+        DateTimeOffset at = Kit.Now;
+        DateTimeOffset later = at.AddHours(1);
+        foreach (PadesLevel level in new[] { PadesLevel.Basic, PadesLevel.Timestamped, PadesLevel.LongTerm, PadesLevel.LongTermArchive })
+        {
+            byte[] pdf = Sign(signer, Options(level, at, FreshRevocation(at, signer)));
+            PadesReport report = Verify(pdf, Kit.Verify(later));
+            PadesSignatureReport sig = report.Signatures.Single(static s => s.Kind == PadesSignatureKind.Signature);
+            Assert.True(sig.IsValid, $"{kind} {level}: " + string.Join("; ", sig.Checks.Where(static c => c.Status is CmsCheckStatus.Failed or CmsCheckStatus.Unsupported).Select(static c => c.Rule + ": " + c.Reason)));
+            Assert.Equal(level, sig.Level);
+            Assert.True(report.AllValid, report.Summary);
+        }
     }
 
     [Fact]

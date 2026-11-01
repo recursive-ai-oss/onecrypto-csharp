@@ -64,8 +64,9 @@ public sealed partial class SignedData
             basic = b;
             return true;
         }
-        catch (Asn1ParseException)
+        catch (Exception e) when (e is Asn1ParseException or X509ParseException)
         {
+            // BasicResponse decodes lazily, so a malformed one throws here; it is not an OCSP response we can use.
             return false;
         }
     }

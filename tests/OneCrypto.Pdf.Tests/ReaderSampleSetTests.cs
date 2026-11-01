@@ -32,12 +32,12 @@ public class ReaderSampleSetTests
         {
             File.WriteAllBytes(Path.Combine(outDir!, file), pdf);
             using PdfDocument doc = PdfDocument.Open(pdf);
-            PadesReport report = doc.VerifyPades(pdf, kit.Verify(at.AddMinutes(5)));
+            PadesReport report = doc.VerifyPades(kit.Verify(at.AddMinutes(5)));
             string verdict = report.Signatures.Count == 0 ? "no signatures" : $"{(report.AllValid ? "valid" : "not valid")}; level {report.Signatures[0].Level}";
             manifest.AppendLine($"| {file} | {key} | {level} | {verdict} | {expected} |");
         }
 
-        foreach ((KeyKind kind, string name, bool pss) in new[] { (KeyKind.Rsa2048, "rsa", false), (KeyKind.P256, "ecdsa-p256", false), (KeyKind.Rsa2048, "rsa-pss", true) })
+        foreach ((KeyKind kind, string name, bool pss) in new[] { (KeyKind.Rsa2048, "rsa", false), (KeyKind.P256, "ecdsa-p256", false), (KeyKind.Rsa2048, "rsa-pss", true), (KeyKind.Ed25519, "ed25519", false) })
         {
             TestSigner signer = kit.Signer(kind);
             foreach ((PadesLevel level, string lname) in new[] { (PadesLevel.Basic, "b-b"), (PadesLevel.Timestamped, "b-t"), (PadesLevel.LongTerm, "b-lt"), (PadesLevel.LongTermArchive, "b-lta") })
@@ -62,6 +62,11 @@ public class ReaderSampleSetTests
                     PadesLevel.LongTerm => "signature valid; time-stamp valid; \"signature is LTV enabled\" (validation data in the document)",
                     _ => "as B-LT, plus a valid document time-stamp over the whole file",
                 };
+                if (kind == KeyKind.Ed25519)
+                {
+                    expected = "Ed25519 is in PDF 2.0 (ISO/TS 32002): a reader that implements it shows: " + expected + ". An older reader may show an unknown or unsupported signature algorithm: note which";
+                }
+
                 Add($"{name}-{lname}.pdf", pdf, pss ? "RSA-2048 PSS" : name, level.ToString(), expected);
             }
         }

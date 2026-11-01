@@ -193,14 +193,43 @@ public enum Pkcs12MacKind
     Pbmac1,
 }
 
-/// <summary>How to write a PKCS#12 file. Defaults: AES-256-CBC with PBKDF2-HMAC-SHA-256 for keys and certificates, and an HMAC-SHA-256 MAC with the PKCS#12 derivation.</summary>
+/// <summary>
+/// How to write a PKCS#12 file. Defaults (the <see cref="DotNetCompatible"/> preset): AES-256-CBC with PBKDF2-HMAC-SHA-256 for keys
+/// and certificates, and an HMAC-SHA-256 MAC with the PKCS#12 derivation, at iteration counts that the platform's
+/// <c>X509CertificateLoader</c> opens with its default limits.
+/// </summary>
+/// <remarks>
+/// The platform loader refuses a file whose MAC or any one key derivation exceeds 300,000 iterations, or whose derivations sum to
+/// more than 1,000,000 (<c>Pkcs12LoadLimitExceededException</c>). <see cref="DotNetCompatible"/> stays under both, and lowers the
+/// per-derivation count when a file needs more than three derivations so that the sum still fits.
+/// </remarks>
 public sealed class Pkcs12WriteOptions
 {
-    /// <summary>The defaults.</summary>
+    /// <summary>The defaults: the same as <see cref="DotNetCompatible"/>.</summary>
     public static Pkcs12WriteOptions Default { get; } = new();
 
-    /// <summary>Encryption of shrouded keys and of the certificate container.</summary>
-    public Pbes2Options Encryption { get; init; } = Pbes2Options.Default;
+    /// <summary>
+    /// 300,000 PBKDF2-HMAC-SHA-256 iterations for each key, the certificate container and the MAC, so a typical file (one key, one
+    /// certificate container, one MAC) costs 900,000 in all. Opens in <c>X509CertificateLoader</c> with default limits on every platform.
+    /// That is above the 1,000 minimum of NIST SP 800-132 §5.2 and RFC 8018 §4.2 by a wide margin, and a factor of two below the 600,000
+    /// that current password-storage guidance gives for PBKDF2-HMAC-SHA-256; for a key file at rest the password's strength matters far
+    /// more than that factor.
+    /// </summary>
+    public static Pkcs12WriteOptions DotNetCompatible { get; } = new();
+
+    /// <summary>
+    /// 600,000 iterations everywhere with no overall budget. <b>The platform's <c>X509CertificateLoader</c> refuses these files with its
+    /// default limits</b> (it needs <c>Pkcs12LoaderLimits</c> raised by the caller); OpenSSL, this library and other tools open them.
+    /// </summary>
+    public static Pkcs12WriteOptions StrongIncompatibleWithDotNet { get; } = new()
+    {
+        Encryption = new Pbes2Options { Iterations = 600_000 },
+        MacIterations = 600_000,
+        IterationBudget = null,
+    };
+
+    /// <summary>Encryption of shrouded keys and of the certificate container. Default AES-256-CBC with PBKDF2-HMAC-SHA-256, 300,000 iterations.</summary>
+    public Pbes2Options Encryption { get; init; } = new Pbes2Options { Iterations = 300_000 };
 
     /// <summary>True (default) to encrypt the container with the certificates, as OpenSSL does. False writes it in the clear.</summary>
     public bool EncryptCertificates { get; init; } = true;
@@ -211,8 +240,15 @@ public sealed class Pkcs12WriteOptions
     /// <summary>The MAC hash: SHA-1, SHA-256, SHA-384 or SHA-512. Default SHA-256.</summary>
     public HashAlgorithmName MacHash { get; init; } = HashAlgorithmName.SHA256;
 
-    /// <summary>The MAC key-derivation iteration count. Default 600,000.</summary>
-    public int MacIterations { get; init; } = 600_000;
+    /// <summary>The MAC key-derivation iteration count. Default 300,000.</summary>
+    public int MacIterations { get; init; } = 300_000;
+
+    /// <summary>
+    /// Upper bound on the sum of PBKDF2 iterations over every key, the certificate container and the MAC (default 900,000, under the
+    /// platform loader's total of 1,000,000). When the file would exceed it, the writer lowers the per-derivation count (never below
+    /// 10,000) so the sum fits. Null disables the budget. Applies to PBKDF2 only.
+    /// </summary>
+    public int? IterationBudget { get; init; } = 900_000;
 }
 
 /// <summary>The decrypted content of a PKCS#12 file. Dispose it to zero the keys.</summary>
@@ -252,6 +288,12 @@ public sealed class Pkcs12Contents : IDisposable
 
     /// <summary>The private-key bags (plain and decrypted shrouded ones) in file order.</summary>
     public IReadOnlyList<PrivateKeyInfo> PrivateKeys => [.. AllBags().Where(b => b.PrivateKey is not null).Select(b => b.PrivateKey!)];
+
+    /// <summary>
+    /// The bags that hold a private key (plain or decrypted shrouded), in file order. Each carries its <see cref="Pkcs12Bag.FriendlyName"/>
+    /// (PKCS#9 friendlyName, RFC 2985 §5.5.1) and <see cref="Pkcs12Bag.LocalKeyId"/>.
+    /// </summary>
+    public IReadOnlyList<Pkcs12Bag> PrivateKeyBags => [.. AllBags().Where(b => b.PrivateKey is not null)];
 
     /// <summary>The certificate bag whose localKeyId equals that of <paramref name="keyBag"/>, or null.</summary>
     public Pkcs12Bag? FindCertificateFor(Pkcs12Bag keyBag)
@@ -814,6 +856,9 @@ public sealed class Pkcs12File
     {
         ArgumentNullException.ThrowIfNull(bags);
         options ??= Pkcs12WriteOptions.Default;
+        List<Pkcs12Bag> bagList = [.. bags];
+        options = FitBudget(options, bagList);
+        bags = bagList;
         var keyBags = new Asn1Writer();
         var certBags = new Asn1Writer();
         keyBags.PushSequence();
@@ -922,6 +967,59 @@ public sealed class Pkcs12File
         }
 
         return Create(bags, password, options);
+    }
+
+    // Keeps the sum of PBKDF2 iterations under options.IterationBudget by lowering the per-derivation count. The platform loader
+    // refuses a file whose derivations sum to more than its total limit, however few iterations each one has.
+    private static Pkcs12WriteOptions FitBudget(Pkcs12WriteOptions o, List<Pkcs12Bag> bags)
+    {
+        if (o.IterationBudget is not int budget)
+        {
+            return o;
+        }
+
+        int uses = 0;
+        bool anyCerts = false;
+        foreach (Pkcs12Bag b in bags)
+        {
+            uses += b.Kind == Pkcs12BagKind.ShroudedKey ? 1 : 0;
+            anyCerts |= b.Kind is Pkcs12BagKind.Certificate or Pkcs12BagKind.Crl;
+        }
+
+        uses += anyCerts && o.EncryptCertificates ? 1 : 0;
+        uses += o.Mac != Pkcs12MacKind.None ? 1 : 0;
+        if (uses == 0)
+        {
+            return o;
+        }
+
+        int cap = Math.Max(10_000, budget / uses);
+        Pbes2Options e = o.Encryption;
+        bool pbkdf2 = e.Kdf == Pbes2Kdf.Pbkdf2;
+        if (o.MacIterations <= cap && (!pbkdf2 || e.Iterations <= cap))
+        {
+            return o;
+        }
+
+        return new Pkcs12WriteOptions
+        {
+            EncryptCertificates = o.EncryptCertificates,
+            Mac = o.Mac,
+            MacHash = o.MacHash,
+            IterationBudget = o.IterationBudget,
+            MacIterations = Math.Min(o.MacIterations, cap),
+            Encryption = !pbkdf2 ? e : new Pbes2Options
+            {
+                Cipher = e.Cipher,
+                Kdf = e.Kdf,
+                Prf = e.Prf,
+                Iterations = Math.Min(e.Iterations, cap),
+                SaltLength = e.SaltLength,
+                ScryptCost = e.ScryptCost,
+                ScryptBlockSize = e.ScryptBlockSize,
+                ScryptParallelism = e.ScryptParallelism,
+            },
+        };
     }
 
     private static void WriteBag(Asn1Writer w, Pkcs12Bag b, ReadOnlySpan<char> password, Pkcs12WriteOptions options)

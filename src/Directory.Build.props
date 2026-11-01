@@ -37,7 +37,22 @@
     <None Include="$(MSBuildThisFileDirectory)../LICENSE-MIT" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../LICENSE-APACHE" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
-    <None Include="$(MSBuildThisFileDirectory)PACKAGE.md" Pack="true" PackagePath="/README.md" />
   </ItemGroup>
+
+  <!-- The package readme links to the changelog and licences of the release being packed: {VERSION} in PACKAGE.md becomes
+       $(PackageVersion), the one place the version is written (the root props file), and the release tag is v<version>. -->
+  <Target Name="StampPackageReadme" BeforeTargets="_GetPackageFiles;GenerateNuspec" Condition="'$(IsPackable)' == 'true'">
+    <PropertyGroup>
+      <!-- A package with its own PACKAGE.md beside its project file uses that; the others use the shared one. -->
+      <ReadmeSource>$(MSBuildThisFileDirectory)PACKAGE.md</ReadmeSource>
+      <ReadmeSource Condition="Exists('$(MSBuildProjectDirectory)/PACKAGE.md')">$(MSBuildProjectDirectory)/PACKAGE.md</ReadmeSource>
+      <StampedReadme>$(IntermediateOutputPath)PACKAGE.stamped.md</StampedReadme>
+      <ReadmeText>$([System.IO.File]::ReadAllText('$(ReadmeSource)').Replace('{VERSION}', '$(PackageVersion)'))</ReadmeText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(StampedReadme)" Lines="$([MSBuild]::Escape($(ReadmeText)))" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <None Include="$(StampedReadme)" Pack="true" PackagePath="/README.md" />
+    </ItemGroup>
+  </Target>
 
 </Project>

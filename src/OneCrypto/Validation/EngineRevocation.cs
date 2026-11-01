@@ -84,54 +84,62 @@ internal sealed partial class Engine
                 break;
             }
 
-            RevocationReasons coverage = Applicable(v, issuer, crl, out string? why);
-            if (coverage == RevocationReasons.None)
+            try
             {
-                notes.Add($"a CRL from {crl.Issuer} does not apply: {why}");
-                continue;
-            }
-
-            if (!UsableCrl(crl, issuer, path, anchor, out PublicKeyInfo? signerKey, out string? bad, out bool stale) || signerKey is null)
-            {
-                notes.Add($"a CRL from {crl.Issuer} is not usable: {bad}");
-                continue;
-            }
-
-            if (stale)
-            {
-                // RFC 5280 §6.3.3 (a) wants a current CRL, so a stale one cannot show a certificate is good. What it can still show is a revocation that
-                // nothing undoes: §5.3.1 makes every reason except certificateHold final, so a stale but authentic CRL that lists the certificate
-                // for another reason is as good as a current one for that purpose. A hold may have been lifted since, so it is not relied on.
-                Finding? old = StatusIn(v, crl, null, coverage);
-                if (old is { Status: RevocationStatus.Revoked } && old.RevReason != RevocationReason.CertificateHold)
+                RevocationReasons coverage = Applicable(v, issuer, crl, out string? why);
+                if (coverage == RevocationReasons.None)
                 {
-                    return old with { Reason = old.Reason + $"; the CRL is stale (nextUpdate {crl.NextUpdate:u}) but a revocation for this reason is permanent" };
+                    notes.Add($"a CRL from {crl.Issuer} does not apply: {why}");
+                    continue;
                 }
 
-                notes.Add(old is { Status: RevocationStatus.Revoked }
-                    ? $"a stale CRL (nextUpdate {crl.NextUpdate:u}) from {crl.Issuer} lists the certificate on hold; the hold may since have been lifted, so it is not relied on"
-                    : $"a CRL from {crl.Issuer} is stale (nextUpdate {crl.NextUpdate:u}) and does not list the certificate");
-                continue;
-            }
+                if (!UsableCrl(crl, issuer, path, anchor, out PublicKeyInfo? signerKey, out string? bad, out bool stale) || signerKey is null)
+                {
+                    notes.Add($"a CRL from {crl.Issuer} is not usable: {bad}");
+                    continue;
+                }
 
-            // Delta CRLs refine a complete CRL (§5.2.4, §6.3.3 (c)–(d)).
-            CertificateRevocationList? delta = FindDelta(crl, data, signerKey, notes);
-            Finding? f = StatusIn(v, crl, delta, coverage);
-            if (f is { Status: RevocationStatus.Revoked })
-            {
-                return f;
-            }
+                if (stale)
+                {
+                    // RFC 5280 §6.3.3 (a) wants a current CRL, so a stale one cannot show a certificate is good. What it can still show is a revocation that
+                    // nothing undoes: §5.3.1 makes every reason except certificateHold final, so a stale but authentic CRL that lists the certificate
+                    // for another reason is as good as a current one for that purpose. A hold may have been lifted since, so it is not relied on.
+                    Finding? old = StatusIn(v, crl, null, coverage);
+                    if (old is { Status: RevocationStatus.Revoked } && old.RevReason != RevocationReason.CertificateHold)
+                    {
+                        return old with { Reason = old.Reason + $"; the CRL is stale (nextUpdate {crl.NextUpdate:u}) but a revocation for this reason is permanent" };
+                    }
 
-            if (_o.RevocationModel == RevocationModel.PastTime && crl.ThisUpdate < _o.ReferenceTime)
-            {
-                notes.Add($"a CRL from {crl.Issuer} was issued before the reference time and cannot show the certificate was not revoked then");
-                continue;
-            }
+                    notes.Add(old is { Status: RevocationStatus.Revoked }
+                        ? $"a stale CRL (nextUpdate {crl.NextUpdate:u}) from {crl.Issuer} lists the certificate on hold; the hold may since have been lifted, so it is not relied on"
+                        : $"a CRL from {crl.Issuer} is stale (nextUpdate {crl.NextUpdate:u}) and does not list the certificate");
+                    continue;
+                }
 
-            covered |= coverage;
-            if (f is { Status: RevocationStatus.Good } && (covered & AllReasons) == AllReasons)
+                // Delta CRLs refine a complete CRL (§5.2.4, §6.3.3 (c)–(d)).
+                CertificateRevocationList? delta = FindDelta(crl, data, signerKey, notes);
+                Finding? f = StatusIn(v, crl, delta, coverage);
+                if (f is { Status: RevocationStatus.Revoked })
+                {
+                    return f;
+                }
+
+                if (_o.RevocationModel == RevocationModel.PastTime && crl.ThisUpdate < _o.ReferenceTime)
+                {
+                    notes.Add($"a CRL from {crl.Issuer} was issued before the reference time and cannot show the certificate was not revoked then");
+                    continue;
+                }
+
+                covered |= coverage;
+                if (f is { Status: RevocationStatus.Good } && (covered & AllReasons) == AllReasons)
+                {
+                    return f with { Reason = "no applicable CRL lists the certificate, and the CRLs together cover every revocation reason" };
+                }
+            }
+            catch (X509ParseException e)
             {
-                return f with { Reason = "no applicable CRL lists the certificate, and the CRLs together cover every revocation reason" };
+                // A CRL or CRL entry whose extension cannot be decoded is unusable; it never aborts the validation.
+                notes.Add($"a CRL from {crl.Issuer} is not usable: an extension cannot be decoded ({e.Message})");
             }
         }
 
@@ -545,6 +553,7 @@ internal sealed partial class Engine
             ReferenceTime = _o.ReferenceTime,
             Policy = _o.Policy,
             ApplyAnchorNameConstraints = _o.ApplyAnchorNameConstraints,
+            StrictAnchorStructure = _o.StrictAnchorStructure,
             CheckAnchorValidity = _o.CheckAnchorValidity,
             StrictStructure = false,
             Limits = _l,
@@ -600,8 +609,20 @@ internal sealed partial class Engine
                 continue;
             }
 
-            System.Numerics.BigInteger? dNo = d.Number;
-            System.Numerics.BigInteger? dBase = d.BaseNumber;
+            // A delta CRL whose numbering cannot be decoded is skipped on its own; it does not make the base CRL unusable.
+            System.Numerics.BigInteger? dNo;
+            System.Numerics.BigInteger? dBase;
+            try
+            {
+                dNo = d.Number;
+                dBase = d.BaseNumber;
+            }
+            catch (X509ParseException)
+            {
+                notes.Add("a delta CRL has an extension that cannot be decoded");
+                continue;
+            }
+
             if (baseNo is null || dNo is null || dBase is null || dBase > baseNo || dNo <= baseNo)
             {
                 continue;

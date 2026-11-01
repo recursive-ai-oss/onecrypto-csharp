@@ -16,6 +16,9 @@ public enum KeyKind
     Rsa2048,
     P256,
     P384,
+    Ed25519,
+    Ed448,
+    MlDsa65,
 }
 
 /// <summary>A signer: certificate, key and the chain to embed.</summary>
@@ -89,6 +92,9 @@ internal sealed class PadesKit
             {
                 KeyKind.Rsa2048 => PrivateKey.FromRsa(RSA.Create(2048), ownsKey: true),
                 KeyKind.P256 => PrivateKey.FromECDsa(ECDsa.Create(ECCurve.NamedCurves.nistP256), ownsKey: true),
+                KeyKind.Ed25519 => PrivateKey.FromEd25519(Primitives.Ed25519PrivateKey.Generate(), ownsKey: true),
+                KeyKind.Ed448 => PrivateKey.FromEd448(Primitives.Ed448PrivateKey.Generate(), ownsKey: true),
+                KeyKind.MlDsa65 => PrivateKey.FromMLDsa(MLDsa.GenerateKey(MLDsaAlgorithm.MLDsa65), ownsKey: true),
                 _ => PrivateKey.FromECDsa(ECDsa.Create(ECCurve.NamedCurves.nistP384), ownsKey: true),
             };
             Certificate cert = Intermediate.Issue(key.PublicKey, DistinguishedName.Create((KnownOids.CommonName, name ?? $"Test Signer {kind}")), new CertificateIssueOptions
@@ -160,16 +166,17 @@ internal sealed class PadesKit
     }
 
     /// <summary>A one-page PDF 1.7 with a line of text.</summary>
-    public static byte[] Pdf(string text = "Hello, signature")
+    public static byte[] Pdf(string text = "Hello, signature", string pageExtra = "", string? extraObject = null)
     {
         string stream = $"BT /F1 18 Tf 40 700 Td ({text}) Tj ET";
         string[] objects =
         [
             "<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> {pageExtra}>>",
             $"<< /Length {stream.Length} >>\nstream\n{stream}\nendstream",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            .. extraObject is null ? Array.Empty<string>() : [extraObject],
         ];
         var sb = new StringBuilder("%PDF-1.7\n%\u00e2\u00e3\u00cf\u00d3\n");
         var offsets = new List<int>();

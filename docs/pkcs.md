@@ -46,9 +46,20 @@ An OpenSSH private key file is limited to 1 MiB (OpenSSH itself stops at 256 KiB
 
 `Pkcs12File.TryOpen` verifies the MAC before decrypting anything and refuses a file with no MAC (`PkcsStatus.IntegrityMissing`) unless `requireMac` is false. A file that opens has every safe decrypted and every bag read; there is no partial result.
 
-## Write defaults
+## Write defaults and the two presets
 
-PBKDF2-HMAC-SHA-256, 600,000 iterations, AES-256-CBC, a 16-byte random salt, for shrouded keys, the certificate safe and the MAC. The MAC is the classic HMAC-SHA-256 with the PKCS#12 derivation because every reader supports it; PBMAC1 is one option away. OpenSSH keys use `aes256-ctr` and 16 bcrypt rounds, the `ssh-keygen` defaults. Triple DES and RC2 are never written.
+Shrouded keys, the certificate safe and the MAC use PBKDF2-HMAC-SHA-256, AES-256-CBC and a 16-byte random salt. The MAC is the classic HMAC-SHA-256 with the PKCS#12 derivation because every reader supports it; PBMAC1 (RFC 9579) is one option away. OpenSSH keys use `aes256-ctr` and 16 bcrypt rounds, the `ssh-keygen` defaults. Triple DES and RC2 are never written.
+
+**The platform loader's limit.** .NET's `X509CertificateLoader.LoadPkcs12*` refuses a file when any one PBKDF2 or MAC derivation uses more than 300,000 iterations or all derivations together use more than 1,000,000 (`Pkcs12LoaderLimits.Defaults`: `MacIterationLimit` 300,000, `IndividualKdfIterationLimit` 300,000, `TotalKdfIterationLimit` 1,000,000); the exception is `Pkcs12LoadLimitExceededException`. Probed on .NET 10.0 with files from `openssl pkcs12 -iter N`: 299,999 and 300,000 load, 300,001 does not; a file whose derivations sum to 900,000 loads. The limits belong to the loader, not to the format: OpenSSL and this library open any count up to their own limits.
+
+| Preset | Iterations | Opens in `X509CertificateLoader` with default limits |
+|---|---|---|
+| `Pkcs12WriteOptions.DotNetCompatible` (the default, also `Pkcs12WriteOptions.Default` and `new Pkcs12WriteOptions()`) | 300,000 for each key, the certificate safe and the MAC; the per-derivation count is lowered so that the sum stays within 900,000 (`IterationBudget`) when a file has more than three derivations | yes |
+| `Pkcs12WriteOptions.StrongIncompatibleWithDotNet` | 600,000 everywhere, no budget | **no**: `Pkcs12LoadLimitExceededException` unless the caller raises `Pkcs12LoaderLimits` |
+
+Why 300,000 is enough for a key file at rest: NIST SP 800-132 §5.2 and RFC 8018 §4.2 set a floor of 1,000 iterations and ask for as many as the user can bear; 300,000 is 300 times that floor. The file is attacked offline, so the password's entropy, not the factor of two between the presets, decides the cost of an attack; a 300,000-iteration PBKDF2-HMAC-SHA-256 file is half as expensive to guess against as a 600,000 one, which is why the strong preset stays available for callers who control the reading side (OpenSSL, this library, or .NET with `Pkcs12LoaderLimits` raised). A default that .NET cannot open is not usable as a default. The standalone PBES2 default for `EncryptedPrivateKeyInfo` and PEM `ENCRYPTED PRIVATE KEY` stays 600,000: the platform's loader for those has no such limit.
+
+`Pkcs12Contents.PrivateKeyBags` lists the bags that hold a private key, each with its `FriendlyName` (PKCS#9 friendlyName, RFC 2985 §5.5.1) and `LocalKeyId`.
 
 ## Experiments that settled behaviour the specifications leave open
 

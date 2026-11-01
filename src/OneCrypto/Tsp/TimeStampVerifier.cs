@@ -35,6 +35,16 @@ public sealed class TimeStampVerifyOptions
     /// <summary>CRLs and OCSP responses the path validation may use; null means revocation is not checked and the report says so.</summary>
     public RevocationData? Revocation { get; init; }
 
+    /// <summary>
+    /// How revocation data is judged against the token's genTime (default <see cref="RevocationModel.Current"/>: data must exist by genTime). A signature
+    /// time-stamp whose authority's revocation data was collected afterwards, as long-term validation does, needs <see cref="RevocationModel.PastTime"/> with
+    /// <see cref="RevocationDataTime"/> set to the time that data is proven to have existed (EN 319 102-1 §5.6.2.1).
+    /// </summary>
+    public RevocationModel RevocationModel { get; init; } = RevocationModel.Current;
+
+    /// <summary>The instant the supplied revocation data is judged fresh at when <see cref="RevocationModel"/> is <see cref="RevocationModel.PastTime"/>; see <see cref="ValidationOptions.RevocationDataTime"/>.</summary>
+    public DateTimeOffset? RevocationDataTime { get; init; }
+
     /// <summary>Whether a revocation answer is required for every certificate of the authority's path (default false: unknown revocation is reported, not fatal).</summary>
     public RevocationScope RevocationRequired { get; init; } = RevocationScope.None;
 }
@@ -62,6 +72,20 @@ public sealed class TimeStampReport
 
     /// <summary>The token, or null when there is none or it could not be read.</summary>
     public SignedData? Token { get; }
+
+    /// <summary>Like <see cref="Token"/>, for code that wants a non-null value: the token, or a typed error saying it is absent.</summary>
+    /// <returns>The token.</returns>
+    /// <exception cref="TimeStampParseException">There is no token, or it could not be read; <see cref="Checks"/> says why.</exception>
+    public SignedData RequireToken() =>
+        Token ?? throw new TimeStampParseException("Time-stamp token", "The time-stamp report has no token: " + (Checks.FirstOrDefault(static c => c.Status is CmsCheckStatus.Failed or CmsCheckStatus.Unsupported)?.Reason ?? "it could not be read."));
+
+    /// <summary>Gets the token without a null check: false when there is none or it could not be read.</summary>
+    /// <param name="token">The token.</param>
+    public bool TryGetToken([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SignedData? token)
+    {
+        token = Token;
+        return token is not null;
+    }
 
     /// <summary>The TSTInfo, or null when it could not be read.</summary>
     public TstInfo? Info { get; }
@@ -233,6 +257,8 @@ public static class TimeStampVerifier
             RequiredExtendedKeyUsage = KnownOids.TimeStamping,
             Revocation = options.Revocation,
             RevocationRequired = options.RevocationRequired,
+            RevocationModel = options.RevocationModel,
+            RevocationDataTime = options.RevocationDataTime,
         });
         if (v.IsValid)
         {

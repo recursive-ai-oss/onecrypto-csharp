@@ -12,7 +12,7 @@ namespace RecursiveAI.OneCrypto.Pdf;
 /// <summary>
 /// Verifies the signatures and document time-stamps of a PDF with OneCrypto's CMS verifier, RFC 3161 verifier and path validator,
 /// on top of OnePDF's byte-range, digest, modification and attack checks. The verdict of each signature is OnePDF's verdict and the
-/// bridge's together: the bridge adds rules and never removes one. Bad input is reported, never thrown.
+/// bridge's together: the bridge adds rules and never removes one. Bad input is reported, never thrown; the one exception is a file that changed after it was opened (<see cref="PadesError.SourceChanged"/>).
 /// </summary>
 /// <remarks>
 /// <para>Time follows EN 319 102-1 §5.4 and §5.6: the instant a signature is judged at is the earliest time a <em>trusted</em> time-stamp
@@ -20,7 +20,6 @@ namespace RecursiveAI.OneCrypto.Pdf;
 /// time written in the file is a claim and is never used. Revocation data comes from the signature, the document security store
 /// (/DSS and the signature's /VRI entry) and the options; nothing is fetched except through the async sources the caller passes to
 /// <see cref="VerifyAsync"/>. A chain with no revocation data is reported with revocation <c>Unknown</c>, never as "good".</para>
-/// <para>The file bytes are needed because OnePDF's public model does not expose them: pass the same bytes the document was opened from.</para>
 /// </remarks>
 public static class PadesVerifier
 {
@@ -41,34 +40,50 @@ public static class PadesVerifier
 
         using (document)
         {
-            return Verify(document, pdf, options, cancellationToken);
+            return Run(document, pdf, options, useSources: false, cancellationToken).AsTask().GetAwaiter().GetResult();
         }
     }
 
     /// <summary>Verifies an opened document. Sources in the options are ignored: use <see cref="VerifyAsync"/> to let them look things up.</summary>
-    /// <param name="document">The document, opened from <paramref name="pdf"/>.</param>
-    /// <param name="pdf">The bytes it was opened from.</param>
+    /// <param name="document">The document. Its original bytes are read through <see cref="PdfDocument.OpenRead"/>, so in-memory edits are not part of what is verified.</param>
     /// <param name="options">Anchors, reference time and policy.</param>
     /// <param name="cancellationToken">Checked between signatures.</param>
     /// <returns>The report.</returns>
-    public static PadesReport Verify(PdfDocument document, ReadOnlyMemory<byte> pdf, PadesVerifyOptions options, CancellationToken cancellationToken = default)
+    /// <exception cref="PadesException">Reason <see cref="PadesError.SourceChanged"/>: the file changed after the document was opened.</exception>
+    public static PadesReport Verify(PdfDocument document, PadesVerifyOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(options);
-        return Run(document, pdf, options, useSources: false, cancellationToken).AsTask().GetAwaiter().GetResult();
+        return Run(document, ReadOriginal(document), options, useSources: false, cancellationToken).AsTask().GetAwaiter().GetResult();
     }
 
-    /// <summary>Like <see cref="Verify(PdfDocument, ReadOnlyMemory{byte}, PadesVerifyOptions, CancellationToken)"/>, asking the options' certificate and revocation sources for what is missing.</summary>
-    /// <param name="document">The document, opened from <paramref name="pdf"/>.</param>
-    /// <param name="pdf">The bytes it was opened from.</param>
+    /// <summary>Like <see cref="Verify(PdfDocument, PadesVerifyOptions, CancellationToken)"/>, asking the options' certificate and revocation sources for what is missing.</summary>
+    /// <param name="document">The document, read as in <see cref="Verify(PdfDocument, PadesVerifyOptions, CancellationToken)"/>.</param>
     /// <param name="options">Anchors, reference time, policy and sources.</param>
     /// <param name="cancellationToken">Cancels the lookups.</param>
     /// <returns>The report.</returns>
-    public static ValueTask<PadesReport> VerifyAsync(PdfDocument document, ReadOnlyMemory<byte> pdf, PadesVerifyOptions options, CancellationToken cancellationToken = default)
+    /// <exception cref="PadesException">Reason <see cref="PadesError.SourceChanged"/>: the file changed after the document was opened.</exception>
+    public static ValueTask<PadesReport> VerifyAsync(PdfDocument document, PadesVerifyOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(options);
-        return Run(document, pdf, options, useSources: true, cancellationToken);
+        return Run(document, ReadOriginal(document), options, useSources: true, cancellationToken);
+    }
+
+    // The verifier hashes ranges of the original file, so it works on the file as opened and never on a re-serialisation.
+    private static byte[] ReadOriginal(PdfDocument document)
+    {
+        try
+        {
+            using Stream original = document.OpenRead();
+            using MemoryStream copy = new();
+            original.CopyTo(copy);
+            return copy.ToArray();
+        }
+        catch (PdfSourceChangedException e)
+        {
+            throw new PadesException(PadesError.SourceChanged, "The file changed after the document was opened; open it again to verify it.", e);
+        }
     }
 
     private sealed class Stamp
@@ -168,7 +183,7 @@ public static class PadesVerifier
     /// the core RFC 3161 verifier on a request built from that digest. A token without a nonce cannot be told from a replay, which the
     /// verifier reports as not applicable; the imprint is what binds it to this data.
     /// </summary>
-    private static (TimeStampReport? Report, IReadOnlyList<CmsCheck> Checks, bool Trusted) CheckToken(ReadOnlyMemory<byte> tokenBytes, Func<HashAlgorithmName, byte[]> digestOf, PadesVerifyOptions options, IReadOnlyList<Certificate> pool, RevocationData revocation)
+    private static (TimeStampReport? Report, IReadOnlyList<CmsCheck> Checks, bool Trusted) CheckToken(ReadOnlyMemory<byte> tokenBytes, Func<HashAlgorithmName, byte[]> digestOf, PadesVerifyOptions options, IReadOnlyList<Certificate> pool, RevocationData revocation, DateTimeOffset? revocationDataTime = null)
     {
         var checks = new List<CmsCheck>();
         if (!SignedData.TryParse(tokenBytes, out SignedData? token, null, allowTrailingZeros: true) || token is null || !token.HasEncapsulatedContent || token.EncapsulatedContentType != CmsOids.TstInfo)
@@ -212,6 +227,9 @@ public static class PadesVerifier
             Policy = options.Policy,
             TrustAnchors = options.TrustAnchors,
             Revocation = revocation,
+            // Data a later document time-stamp covers was collected after this token was made; it is judged at the time that time-stamp proves.
+            RevocationModel = revocationDataTime is null ? RevocationModel.Current : RevocationModel.PastTime,
+            RevocationDataTime = revocationDataTime,
         });
         CmsCheck? trust = report.Find("trust");
         bool trusted = options.TrustAnchors.Count > 0 && report.IsValid && trust is { Status: CmsCheckStatus.Passed or CmsCheckStatus.Warning };
@@ -253,9 +271,16 @@ public static class PadesVerifier
 
         (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(contents, hash =>
         {
+            // The signed bytes come from OnePDF's own accessor, so the digest covers exactly what its model says the ranges are.
             using IncrementalHash h = IncrementalHash.CreateHash(hash);
-            h.AppendData(pdf.Span[..(int)a]);
-            h.AppendData(pdf.Span.Slice((int)b, (int)c));
+            using Stream signed = s.OpenSignedData() ?? PdfLayout.SignedContent(pdf, a, b, c);
+            byte[] buffer = new byte[1 << 16];
+            int n;
+            while ((n = signed.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                h.AppendData(buffer, 0, n);
+            }
+
             return h.GetHashAndReset();
         }, options, pool, MergeRevocation(options, dss, null, null));
         return new PadesTimestamp(true, s.FieldName, report, tokenChecks, b + c, a, trusted);
@@ -309,6 +334,18 @@ public static class PadesVerifier
         r.Checks.FirstOrDefault(static c => c.Status is CmsCheckStatus.Failed or CmsCheckStatus.Unsupported) is { } f ? f.Rule + ": " + f.Reason : "The token is not valid.";
 
     // ---- signatures ------------------------------------------------------------------------------------------------------
+
+    /// <summary>True when OnePDF left the signature or digest check open (an algorithm it does not support) and found nothing else wrong.</summary>
+    private static bool OnePdfDefersToBridge(PdfSignatureVerification one, bool requireKeyUsage) =>
+        (one.Integrity == PdfCheckStatus.NotChecked || one.SignatureCheck == PdfCheckStatus.NotChecked)
+        && one.ByteRange == PdfByteRangeStatus.Valid
+        && one.Integrity != PdfCheckStatus.Invalid
+        && one.SignatureCheck != PdfCheckStatus.Invalid
+        && one.Chain is PdfChainStatus.Trusted or PdfChainStatus.NotChecked
+        && (one.KeyUsage != PdfCheckStatus.Invalid || !requireKeyUsage)
+        && (one.Timestamp is null || one.Timestamp.IsValid)
+        && one.Revocation != PdfRevocationStatus.Revoked
+        && one.Coverage != PdfSignatureCoverage.EarlierRevisionDisallowedChanges;
 
     private static async ValueTask<PadesSignatureReport> SignatureReport(
         PdfSignature s,
@@ -394,7 +431,8 @@ public static class PadesVerifier
         {
             RevocationData rd = MergeRevocation(options, dss, vri, cms);
             ReadOnlyMemory<byte> signature = signer.Signature;
-            (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(attr.Values[0], hash => CryptographicOperations.HashData(hash, signature.Span), options, pool, rd);
+            (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(attr.Values[0], hash => CryptographicOperations.HashData(hash, signature.Span), options, pool, rd,
+                options.RevocationDataTime ?? CoveringTime(dss, vri, [.. stamps.Select(static t => t.Result)], options.ReferenceTime));
             sigStamp = new PadesTimestamp(false, null, report, tokenChecks, 0, 0, trusted);
             timestamps.Add(sigStamp);
         }
@@ -432,7 +470,7 @@ public static class PadesVerifier
         ValidationReport? embedded = null;
         if (cms is not null && signer is not null && rangeOk)
         {
-            using Stream content = PdfLayout.SignedContent(pdf, a, b, c);
+            using Stream content = s.OpenSignedData() ?? PdfLayout.SignedContent(pdf, a, b, c);
             cmsReport = cms.Verify(content, new SignedDataVerifyOptions
             {
                 ExtraCertificates = pool,
@@ -457,13 +495,32 @@ public static class PadesVerifier
         }
 
         PdfSignatureVerification one = s.Verify(OnePdfOptions(options, anchors, pool, at), ct);
+        // OnePDF cannot check EdDSA or ML-DSA signatures (it reports the integrity or signature check as not checked, and the chain with it).
+        // When everything else it can judge is fine and the bridge verified the CMS signature itself, the bridge's verdict stands in, and the
+        // report says so: the verdict for those signatures comes from this package, not from OnePDF.
+        bool bridgeCmsPassed = checks.Any(static k => k.Rule == "cms-signature" && k.Status == CmsCheckStatus.Passed);
+        bool delegated = !one.IsValid && bridgeCmsPassed && OnePdfDefersToBridge(one, options.RequireSigningKeyUsage);
         checks.Add(one.IsValid
             ? new CmsCheck("onepdf", CmsCheckStatus.Passed, string.Empty, "ISO 32000-2 §12.8")
-            : new CmsCheck("onepdf", CmsCheckStatus.Failed, one.Warnings.Count > 0 ? one.Warnings[0] : "OnePDF does not accept the signature.", "ISO 32000-2 §12.8"));
+            : delegated
+                ? new CmsCheck("onepdf", CmsCheckStatus.Warning, "OnePDF does not check this signature algorithm; the verdict is the bridge's.", "ISO 32000-2 §12.8")
+                : new CmsCheck("onepdf", CmsCheckStatus.Failed, OnePdfReason(one), "ISO 32000-2 §12.8"));
 
         PadesLevel level = LevelOf(s, cms, cmsReport, chain, embedded, timestamps, dss, vri, checks);
-        bool valid = one.IsValid && checks.All(static k => k.Status is not (CmsCheckStatus.Failed or CmsCheckStatus.Unsupported));
+        bool valid = (one.IsValid || delegated) && checks.All(static k => k.Status is not (CmsCheckStatus.Failed or CmsCheckStatus.Unsupported));
         return new PadesSignatureReport(one, PadesSignatureKind.Signature, checks, cmsReport, chain, timestamps, proof, at, valid ? level : PadesLevel.None, valid);
+    }
+
+    // Names the change that OnePDF refuses when that is the cause, because its first warning is often an unrelated note (for example that no revocation data was supplied).
+    private static string OnePdfReason(PdfSignatureVerification one)
+    {
+        PdfSignatureChange? refused = one.Changes.FirstOrDefault(static c => !c.Allowed);
+        if (refused is not null)
+        {
+            return "OnePDF reports a change after the signature that its permission level does not allow: " + refused.Description + ".";
+        }
+
+        return one.Warnings.Count > 0 ? one.Warnings[0] : "OnePDF does not accept the signature.";
     }
 
     private static CmsCheck ChainCheck(ValidationReport chain, PadesVerifyOptions options)
@@ -529,12 +586,8 @@ public static class PadesVerifier
         return (full, embedded);
     }
 
-    /// <summary>
-    /// The instant stored revocation data is judged fresh at. Data covered by a trusted document time-stamp existed when it was made, so
-    /// the earliest such time-stamp that covers every stored object is used; otherwise the newest issue time among the data (the
-    /// collection time is not proven, so each object is judged as of the latest one's issue).
-    /// </summary>
-    private static DateTimeOffset? DataTime(RevocationData data, DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
+    /// <summary>The time of the earliest trusted document time-stamp that covers every stored object, or null when none does or the store is empty.</summary>
+    private static DateTimeOffset? CoveringTime(DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
     {
         long newest = -1;
         foreach (StoredItem<Certificate> i in dss.Certificates.Concat(vri?.Certificates ?? []))
@@ -554,6 +607,21 @@ public static class PadesVerifier
             {
                 return cov;
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The instant stored revocation data is judged fresh at. Data covered by a trusted document time-stamp existed when it was made, so
+    /// the earliest such time-stamp that covers every stored object is used; otherwise the newest issue time among the data (the
+    /// collection time is not proven, so each object is judged as of the latest one's issue).
+    /// </summary>
+    private static DateTimeOffset? DataTime(RevocationData data, DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
+    {
+        if (CoveringTime(dss, vri, timestamps, reference) is { } covering)
+        {
+            return covering;
         }
 
         DateTimeOffset? best = null;

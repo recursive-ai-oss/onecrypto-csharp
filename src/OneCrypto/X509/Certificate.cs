@@ -211,6 +211,23 @@ public sealed class Certificate : IEquatable<Certificate>
     /// <exception cref="X509ParseException">The extension is malformed.</exception>
     public AuthorityKeyIdentifier? AuthorityKeyIdentifier => Extensions.Get<AuthorityKeyIdentifier>();
 
+    /// <summary>Decodes the extension <typeparamref name="T"/> without throwing, for code that handles received certificates.</summary>
+    /// <param name="value">The decoded value; null when the extension is absent or malformed.</param>
+    /// <returns>True when the extension is absent or decodes; false when it is present but malformed (callers decide what that means: a matcher treats it as no match, a check reports it).</returns>
+    public bool TryGetExtension<T>(out T? value)
+        where T : class, IExtensionValue<T>
+    {
+        try
+        {
+            return Extensions.TryGet(out value);
+        }
+        catch (X509ParseException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
     /// <summary>Reads a certificate with the default limits.</summary>
     /// <param name="encoded">DER (or BER) of one certificate and nothing else. The object keeps this memory: do not change it.</param>
     /// <exception cref="X509ParseException">The octets are not a certificate, or exceed the limits.</exception>

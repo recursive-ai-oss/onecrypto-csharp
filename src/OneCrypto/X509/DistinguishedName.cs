@@ -90,9 +90,47 @@ public sealed class DistinguishedName : IEquatable<DistinguishedName>
     /// <summary>The relative distinguished names in encoded order (most significant first).</summary>
     public IReadOnlyList<RelativeDistinguishedName> Rdns => _rdns ??= Decode(Encoded, X509Limits.Default);
 
-    /// <summary>Checks the structure of <paramref name="encoded"/> and wraps it. Decoding of the parts is deferred.</summary>
+    /// <summary>
+    /// Checks the structure of DER <paramref name="encoded"/> (the octets of an X.501 Name, as they appear in a certificate) and wraps it. Decoding of the
+    /// parts is deferred. The input is bytes; for text such as <c>"CN=Example,O=Org"</c> use <see cref="FromString"/> or <see cref="Parse(string)"/>.
+    /// </summary>
     /// <exception cref="X509ParseException">The octets are not a Name or exceed the limits.</exception>
     public static DistinguishedName Parse(ReadOnlyMemory<byte> encoded) => Parse(encoded, X509Limits.Default);
+
+    /// <summary>The same as <see cref="Parse(ReadOnlyMemory{byte})"/>, named for its input: DER octets of an X.501 Name, not text.</summary>
+    /// <param name="der">The Name's SEQUENCE.</param>
+    /// <exception cref="X509ParseException">The octets are not a Name or exceed the limits.</exception>
+    public static DistinguishedName FromDer(ReadOnlyMemory<byte> der) => Parse(der, X509Limits.Default);
+
+    /// <summary>The same as <see cref="Parse(ReadOnlyMemory{byte}, X509Limits)"/>, named for its input: DER octets of an X.501 Name, not text.</summary>
+    /// <param name="der">The Name's SEQUENCE.</param>
+    /// <param name="limits">The limits to enforce.</param>
+    /// <exception cref="X509ParseException">The octets are not a Name or exceed the limits.</exception>
+    public static DistinguishedName FromDer(ReadOnlyMemory<byte> der, X509Limits limits) => Parse(der, limits);
+
+    /// <summary>Like <see cref="FromDer(ReadOnlyMemory{byte})"/> but returns false on failure.</summary>
+    public static bool TryFromDer(ReadOnlyMemory<byte> der, out DistinguishedName? name) => TryParse(der, out name);
+
+    /// <summary>Reads an RFC 4514 string; the same as <see cref="FromString"/>. The input is text, not DER (for DER use <see cref="FromDer(ReadOnlyMemory{byte})"/>).</summary>
+    /// <param name="rfc4514">The text, such as <c>"CN=Example,O=Org"</c>.</param>
+    /// <exception cref="FormatException">The text is not a valid RFC 4514 string.</exception>
+    public static DistinguishedName Parse(string rfc4514) => FromString(rfc4514);
+
+    /// <summary>Like <see cref="FromString"/> but returns false when the text is not a valid RFC 4514 string.</summary>
+    public static bool TryFromString(string rfc4514, out DistinguishedName? name)
+    {
+        ArgumentNullException.ThrowIfNull(rfc4514);
+        try
+        {
+            name = FromString(rfc4514);
+            return true;
+        }
+        catch (Exception e) when (e is FormatException or ArgumentException)
+        {
+            name = null;
+            return false;
+        }
+    }
 
     /// <summary>Checks the structure of <paramref name="encoded"/> against <paramref name="limits"/>.</summary>
     public static DistinguishedName Parse(ReadOnlyMemory<byte> encoded, X509Limits limits)
@@ -347,7 +385,7 @@ public sealed class DistinguishedName : IEquatable<DistinguishedName>
         return new DistinguishedName(DerWriter.Sequence([.. items]));
     }
 
-    /// <summary>Reads an RFC 4514 string ("CN=Example,O=Org"): keywords or dotted types, backslash escapes, <c>#hex</c> values and <c>+</c> for multi-valued names.</summary>
+    /// <summary>Reads an RFC 4514 <b>string</b> ("CN=Example,O=Org"; for DER octets see <see cref="FromDer(ReadOnlyMemory{byte})"/>): keywords or dotted types, backslash escapes, <c>#hex</c> values and <c>+</c> for multi-valued names.</summary>
     /// <exception cref="FormatException">The text is not a valid RFC 4514 string.</exception>
     public static DistinguishedName FromString(string rfc4514)
     {

@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
+    <!-- Only the tests see both packages: the adapter test plugs the time-stamp client into the bridge's option. -->
+    <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
   </ItemGroup>
 
 </Project>
