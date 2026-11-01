@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `RecursiveAI.OneCrypto.Pdf`, the PDF bridge on OnePDF 1.15.1 (a new package, not yet released): PAdES signing from B-B to B-LTA with any RSA or ECDSA `ISigningKey` (signature time-stamp, document security store, document time-stamp; the time-stamp authority and revocation sources are the caller's), augmentation of signed files and archive time-stamp renewal, and verification that adds OneCrypto's CMS verifier, RFC 3161 verifier and path validator (past-time model through signature and document time-stamps, the store's contents, per-rule reports, the PAdES level) to OnePDF's own verdict without weakening it. EdDSA and ML-DSA keys are refused until OnePDF offers a prepare/complete signing seam. See `docs/pdf.md`.
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).
