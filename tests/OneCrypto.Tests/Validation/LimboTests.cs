@@ -142,6 +142,9 @@ public class LimboTests
                 RequiredExtendedKeyUsage = eku ?? (server ? KnownOids.ServerAuth : KnownOids.ClientAuth),
                 RequiredKeyUsage = ku,
                 MaxIntermediates = depth,
+                // The corpus expects roots with a non-critical or missing basicConstraints, a critical identifier and the like to be refused, which is the
+                // opt-in holding an anchor to the CA-certificate rules. The default accepts such roots (RFC 5937 §2); docs/validation.md says so.
+                StrictAnchorStructure = true,
                 Revocation = crls.Count > 0 ? new RevocationData { Crls = crls } : null,
                 RevocationRequired = crls.Count > 0 ? RevocationScope.AllCertificates : RevocationScope.None,
                 UnknownRevocationIsFatal = crls.Count > 0,
