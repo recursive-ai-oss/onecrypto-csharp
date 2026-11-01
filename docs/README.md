@@ -16,6 +16,7 @@ Normative, language-neutral notes on behaviour: verification semantics, policy p
 - [gnupg-home.md](gnupg-home.md): reading a GnuPG home (keybox, keyrings, private-keys-v1.d, trust database) and the cert-d certificate directory: layout as settled, gaps, limits, checks.
 - [keys.md](keys.md): key interfaces, signature specs, operating-system keys and two-phase signing (with the serialised state).
 - [openpgp.md](openpgp.md): the OpenPGP packet layer: what is read and preserved, armor, transferable keys, limits, streaming.
+- [openpgp-trust.md](openpgp-trust.md): the flow-based web of trust and the classic GnuPG trust model: rules, settled behaviour, limits and checks.
 - [pdf.md](pdf.md): the PDF bridge: PAdES levels B-B to B-LTA, augmentation, the verifier's rules and time model, and what OnePDF would need to offer.
 - [policy.md](policy.md): `CryptoPolicy`, the reference-time contract, the dated rules and the presets.
 - [sop.md](sop.md): the `onecrypto sop` command, the interoperability scoreboard and how to run it.

@@ -364,6 +364,24 @@ public sealed class PgpKey
         return result;
     }
 
+    /// <summary>The newest valid self-signature's legacy Preferred AEAD Algorithms (subpacket 34); empty when the key lists none.</summary>
+    internal ReadOnlyMemory<byte> PreferredAeadModes(DateTimeOffset at)
+    {
+        ReadOnlyMemory<byte> result = default;
+        long newest = -1;
+        foreach (SignaturePacket s in Certificate.Primary.Bindings().Concat(Bindings()))
+        {
+            long t = s.CreationTime ?? 0;
+            if (t <= at.ToUnixTimeSeconds() && t >= newest && s.PreferredAeadAlgorithms is { } p)
+            {
+                result = p;
+                newest = t;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>The newest valid self-signature's preferred AEAD ciphersuites (RFC 9580 §5.2.3.15), as pairs of cipher and AEAD identifiers.</summary>
     internal ReadOnlyMemory<byte> PreferredAeadSuites(DateTimeOffset at)
     {
@@ -421,6 +439,9 @@ public sealed class PgpCertificate
     /// <summary>True when the certificate carries secret key packets.</summary>
     public bool HasSecretKeyMaterial => Transferable.IsSecret;
 
+    /// <summary>This certificate without its secret key material (the same object when it has none).</summary>
+    public PgpCertificate ToPublicCertificate() => HasSecretKeyMaterial ? new PgpCertificate(Transferable.ToPublic()) : this;
+
     /// <summary>Wraps a parsed transferable key.</summary>
     public static PgpCertificate FromTransferable(TransferableKey key)
     {
@@ -473,7 +494,8 @@ public sealed class PgpCertificate
         foreach (PgpKey k in Keys)
         {
             PgpKeyState st = k.StateAt(at);
-            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448;
+            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448
+                or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448;
             // A stripped secret key keeps some components as public packets: only a component with secret material can sign (RFC 9580 §10.2).
             bool canUse = !HasSecretKeyMaterial || k.Packet is SecretKeyPacket;
             if (st.IsValid && algOk && canUse && (st.Usage & PgpKeyUsage.Sign) != 0 && (best is null || k.Packet.CreationTime > best.Packet.CreationTime))
@@ -486,10 +508,31 @@ public sealed class PgpCertificate
     }
 
     /// <summary>The public form of this certificate, written as binary packets.</summary>
-    public byte[] ExportPublic()
+    public byte[] ExportPublic() => ExportPublic(false);
+
+    /// <summary>The public form of this certificate, as binary packets or as an ASCII-armored <c>PGP PUBLIC KEY BLOCK</c> (RFC 9580 §6.2).</summary>
+    public byte[] ExportPublic(bool armor) => Write(Transferable.ToPublic(), armor, "PGP PUBLIC KEY BLOCK");
+
+    /// <summary>
+    /// The certificate as it is held: with its secret key packets when it has them (an ASCII-armored <c>PGP PRIVATE KEY BLOCK</c>), otherwise the public form.
+    /// Secret keys are written as they are, protected or not.
+    /// </summary>
+    public byte[] Export(bool armor = false) => Write(Transferable, armor, HasSecretKeyMaterial ? "PGP PRIVATE KEY BLOCK" : "PGP PUBLIC KEY BLOCK");
+
+    private static byte[] Write(TransferableKey key, bool armor, string label)
     {
         using var ms = new MemoryStream();
-        Transferable.ToPublic().WriteTo(ms);
+        if (armor)
+        {
+            using var a = new ArmorWriteStream(ms, label, leaveOpen: true);
+            key.WriteTo(a);
+            a.Complete();
+        }
+        else
+        {
+            key.WriteTo(ms);
+        }
+
         return ms.ToArray();
     }
 }

@@ -1,0 +1,38 @@
+{
+ "name": "f22-expired-certification",
+ "text": "the certification expired before the reference time",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "5EE13F9599F6FF4CC368498E5C602AE6CAA67A2A",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "9992C888E68B1074A8600EEDF6816A69BAAE054C",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "5EE13F9599F6FF4CC368498E5C602AE6CAA67A2A"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "9992C888E68B1074A8600EEDF6816A69BAAE054C",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "9992C888E68B1074A8600EEDF6816A69BAAE054C",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

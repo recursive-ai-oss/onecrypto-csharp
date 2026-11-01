@@ -1,0 +1,53 @@
+{
+ "oracle": "gnupg-2.4.8",
+ "results": [
+  {
+   "query": {
+    "target": "17F450C656D05692368FC3CE5BDDACF61D4EEA79",
+    "targetName": "b",
+    "userId": "B <b@example.org>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "B <b@example.org>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "A59DC7BBA8279978D09E78824CC029D80E3BB8D7",
+    "targetName": "t",
+    "userId": "T <t@example.org>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "T <t@example.org>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "17F450C656D05692368FC3CE5BDDACF61D4EEA79",
+    "targetName": "b",
+    "userId": "B <b@example.org>",
+    "at": 1739232000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "B <b@example.org>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-02-11 00:00:00\n"
+  }
+ ]
+}

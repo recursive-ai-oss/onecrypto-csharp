@@ -1,0 +1,133 @@
+{
+ "oracle": "gnupg-2.5.24",
+ "results": [
+  {
+   "query": {
+    "target": "DC36E724CD53B8DF8324D99C8650C721BEBD0D08",
+    "targetName": "k1",
+    "userId": "K1 <k1@corp.example>",
+    "at": 1748736000
+   },
+   "pub": "m",
+   "uids": [
+    {
+     "userId": "K1 <k1@corp.example>",
+     "validity": "m"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "9C16DF6BC2B5F6A9EE491C69F7C0142AA322151C",
+    "targetName": "k2",
+    "userId": "K2 <k2@example.org>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "K2 <k2@example.org>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "6A7C818F80BFD743BF04B9E8E54BCAB5EE769B6A",
+    "targetName": "k3",
+    "userId": "K3 <k3@example.org>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "K3 <k3@example.org>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "20B95C3ACFC769DF3C2FDA26F488807227AE538E",
+    "targetName": "k4",
+    "userId": "K4 <k4@corp.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "K4 <k4@corp.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "D26C0C1F54D3A87B166CBAD0F5B11D43BD6F1462",
+    "targetName": "k5",
+    "userId": "K5 <k5@example.org>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "K5 <k5@example.org>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "864D86CE18134F0E641535A4AA606A146B8A1009",
+    "targetName": "k6",
+    "userId": "K6 <k6@example.org>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "K6 <k6@example.org>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "6461050501D91506F53C0F072BA774428CA65548",
+    "targetName": "k7",
+    "userId": "K7 <k7@corp.example>",
+    "at": 1748736000
+   },
+   "pub": "e",
+   "uids": [
+    {
+     "userId": "K7 <k7@corp.example>",
+     "validity": "e"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "F3BBDFE39FBB980F599E13F00AB97B6E3C0B749A",
+    "targetName": "k8",
+    "userId": "K8 <k8@example.org>",
+    "at": 1748736000
+   },
+   "pub": "e",
+   "uids": [
+    {
+     "userId": "K8 <k8@example.org>",
+     "validity": "e"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  }
+ ]
+}

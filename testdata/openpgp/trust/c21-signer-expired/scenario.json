@@ -1,0 +1,45 @@
+{
+ "name": "c21-signer-expired",
+ "text": "the signer's key has expired",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "E2A55E9E43D70B2973F21F242F2747907C75BA51",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "9DB08C29D1A4D6C1A97A71351B807D7E8C0D5B33",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "9FE2450800C6A171B58E4B1490DB9029885825CD",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "E2A55E9E43D70B2973F21F242F2747907C75BA51": "u",
+  "9DB08C29D1A4D6C1A97A71351B807D7E8C0D5B33": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "9FE2450800C6A171B58E4B1490DB9029885825CD",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "9DB08C29D1A4D6C1A97A71351B807D7E8C0D5B33",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

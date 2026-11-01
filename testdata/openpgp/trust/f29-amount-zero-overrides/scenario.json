@@ -1,0 +1,32 @@
+{
+ "name": "f29-amount-zero-overrides",
+ "text": "a newer certification with amount 0 withdraws the earlier one",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "94251B22C4C54AA5BFAC5261EB5F3D1D5D147616",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "9D45AA54253922C217207FA13AB5CBEF8314CFE4",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "94251B22C4C54AA5BFAC5261EB5F3D1D5D147616"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "9D45AA54253922C217207FA13AB5CBEF8314CFE4",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "name": "f03-two-partial-paths",
+ "text": "two introducers at amount 60 each certify t: the paths add up to 120",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "989AED06EEA5CB84A743E5DB43E00A9FB4E5E7C5",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "x": {
+   "fingerprint": "939B5A40E38D14C0520D8B62FE51ECA63A0564A7",
+   "userIds": [
+    "X <x@example.org>"
+   ]
+  },
+  "y": {
+   "fingerprint": "2FA4F3949D568918175D7178477AFCD62D20CE93",
+   "userIds": [
+    "Y <y@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "42AC4742AA8246CBEC20B736942F6309413DCD5F",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "989AED06EEA5CB84A743E5DB43E00A9FB4E5E7C5"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "42AC4742AA8246CBEC20B736942F6309413DCD5F",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

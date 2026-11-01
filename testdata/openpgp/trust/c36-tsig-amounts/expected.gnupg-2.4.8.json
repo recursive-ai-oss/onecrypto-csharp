@@ -1,0 +1,101 @@
+{
+ "oracle": "gnupg-2.4.8",
+ "results": [
+  {
+   "query": {
+    "target": "1AE3FC104687E472613A2F0771777A72BD423917",
+    "targetName": "t30",
+    "userId": "T30 <t30@example.org>",
+    "at": 1748736000
+   },
+   "pub": "q",
+   "uids": [
+    {
+     "userId": "T30 <t30@example.org>",
+     "validity": "q"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "8C96202E47E833771B0D9641B6EEAA20521F2222",
+    "targetName": "t59",
+    "userId": "T59 <t59@example.org>",
+    "at": 1748736000
+   },
+   "pub": "q",
+   "uids": [
+    {
+     "userId": "T59 <t59@example.org>",
+     "validity": "q"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "D356C97A8D593B0011221D51531AE9B51753C4CD",
+    "targetName": "t60",
+    "userId": "T60 <t60@example.org>",
+    "at": 1748736000
+   },
+   "pub": "m",
+   "uids": [
+    {
+     "userId": "T60 <t60@example.org>",
+     "validity": "m"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "CFEED365363A9D1C64A69227A510BB0AEB05B546",
+    "targetName": "t90",
+    "userId": "T90 <t90@example.org>",
+    "at": 1748736000
+   },
+   "pub": "m",
+   "uids": [
+    {
+     "userId": "T90 <t90@example.org>",
+     "validity": "m"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "7CAC199B9895980ACB1BE21A39C5DD4431D879F7",
+    "targetName": "t119",
+    "userId": "T119 <t119@example.org>",
+    "at": 1748736000
+   },
+   "pub": "m",
+   "uids": [
+    {
+     "userId": "T119 <t119@example.org>",
+     "validity": "m"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "0A552CE6F6843AE51E84D929F159C7688AFB32B4",
+    "targetName": "t120",
+    "userId": "T120 <t120@example.org>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "T120 <t120@example.org>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "name": "f30-user-id-revoked",
+ "text": "the target revoked the user ID",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "99F1FF24C6B1249B79EC24585128E54573032985",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "C05362D0963B3667059F031A0827234B76141B45",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "99F1FF24C6B1249B79EC24585128E54573032985"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "C05362D0963B3667059F031A0827234B76141B45",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "C05362D0963B3667059F031A0827234B76141B45",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1738800000
+  }
+ ]
+}

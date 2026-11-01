@@ -1,0 +1,32 @@
+{
+ "name": "c25-target-key-expired",
+ "text": "the signed key has expired",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "FC4ED22BD63176E2F5F87AAB3F0F7E9EACC5D65A",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "A71606E799F4D8BFD1DF3DB7158954ABAE5E1B6F",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "FC4ED22BD63176E2F5F87AAB3F0F7E9EACC5D65A": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A71606E799F4D8BFD1DF3DB7158954ABAE5E1B6F",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,52 @@
+{
+ "name": "c31-cycle",
+ "text": "b and c sign each other; a signs b",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "2FD1F2341453199C0A3C1A0E8FE225C77E6A1524",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "E938A986404FF64CEAE400A3BE06C303E82268DD",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "0BD782F3C7BC7EC50147BAD9DD70583815B07EA4",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "78A6B1C6A8A5F10AD69671E6B929D4F1D9573A53",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "2FD1F2341453199C0A3C1A0E8FE225C77E6A1524": "u",
+  "E938A986404FF64CEAE400A3BE06C303E82268DD": "f",
+  "0BD782F3C7BC7EC50147BAD9DD70583815B07EA4": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "78A6B1C6A8A5F10AD69671E6B929D4F1D9573A53",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "0BD782F3C7BC7EC50147BAD9DD70583815B07EA4",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

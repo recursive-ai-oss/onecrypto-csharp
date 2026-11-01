@@ -34,43 +34,71 @@ internal static class SignatureEngine
         }
     }
 
-    internal static IncrementalHash Start(PgpHashAlgorithm hash, ReadOnlySpan<byte> salt)
+    internal static PgpHash Start(PgpHashAlgorithm hash, ReadOnlySpan<byte> salt)
     {
-        var h = IncrementalHash.CreateHash(PgpAlgorithms.HashName(hash));
+        var h = new PgpHash(hash);
         if (!salt.IsEmpty)
         {
-            h.AppendData(salt);
+            h.Append(salt);
         }
 
         return h;
     }
 
-    /// <summary>Appends the signed header and the trailer (RFC 9580 §5.2.4) and returns the digest.</summary>
-    internal static byte[] Finish(IncrementalHash h, byte version, ReadOnlySpan<byte> signedHeader)
+    /// <summary>The literal-data fields a version 5 document signature covers: format, file name (length-prefixed) and date.</summary>
+    internal static byte[] LiteralMeta(byte format, ReadOnlySpan<byte> fileName, uint date)
     {
-        h.AppendData(signedHeader);
-        if (version >= 4)
+        byte[] r = new byte[6 + fileName.Length];
+        r[0] = format;
+        r[1] = (byte)fileName.Length;
+        fileName.CopyTo(r.AsSpan(2));
+        BinaryPrimitives.WriteUInt32BigEndian(r.AsSpan(2 + fileName.Length), date);
+        return r;
+    }
+
+    /// <summary>Appends the signed header and the trailer (RFC 9580 §5.2.4) and returns the digest.</summary>
+    internal static byte[] Finish(PgpHash h, byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default)
+    {
+        h.Append(signedHeader);
+        if (version == 5)
+        {
+            // draft-koch-librepgp §5.2.4: a version 5 document signature also hashes the literal packet's format, file name and date before the trailer.
+            // The trailer's eight-octet count covers the signature header only (settled against GnuPG 2.4 and 2.5: counting these fields too does not verify).
+            h.Append(literalMeta);
+            Span<byte> trailer = new byte[10];
+            trailer[0] = version;
+            trailer[1] = 0xFF;
+            BinaryPrimitives.WriteUInt64BigEndian(trailer[2..], (ulong)signedHeader.Length);
+            h.Append(trailer);
+        }
+        else if (version >= 4)
         {
             // The trailer: version, 0xFF, and the length of everything hashed from the header (four octets, big endian).
             Span<byte> trailer = new byte[6];
             trailer[0] = version;
             trailer[1] = 0xFF;
             BinaryPrimitives.WriteUInt32BigEndian(trailer[2..], (uint)signedHeader.Length);
-            h.AppendData(trailer);
+            h.Append(trailer);
         }
 
-        byte[] digest = h.GetHashAndReset();
+        byte[] digest = h.Finish();
         return digest;
     }
 
-    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed.</summary>
-    internal static byte[] KeyInput(KeyPacket key)
+    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed, framed for a signature made by a key of the same version.</summary>
+    internal static byte[] KeyInput(KeyPacket key) => KeyInput(key, key.Version);
+
+    /// <summary>
+    /// RFC 9580 §5.2.4: the framing follows the version of the signature, not of the key it covers: a version 4 signature hashes 0x99 and a two-octet length,
+    /// a version 6 signature 0x9B and a four-octet length (0x9A for version 5), so a third-party certification of a key of another version is framed by its issuer.
+    /// </summary>
+    internal static byte[] KeyInput(KeyPacket key, int signatureVersion)
     {
         ReadOnlySpan<byte> body = key.PublicBody.Span;
-        if (key.Version >= 5)
+        if (signatureVersion >= 5)
         {
             byte[] b = new byte[5 + body.Length];
-            b[0] = key.Version == 5 ? (byte)0x9A : (byte)0x9B;
+            b[0] = signatureVersion == 5 ? (byte)0x9A : (byte)0x9B;
             BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(1), (uint)body.Length);
             body.CopyTo(b.AsSpan(5));
             return b;
@@ -96,10 +124,10 @@ internal static class SignatureEngine
     /// <summary>Hashes a signature over the given parts and returns the digest.</summary>
     internal static byte[] Digest(SignaturePacket sig, params ReadOnlyMemory<byte>[] parts)
     {
-        using IncrementalHash h = Start(sig.Hash, sig.Salt.Span);
+        using PgpHash h = Start(sig.Hash, sig.Salt.Span);
         foreach (ReadOnlyMemory<byte> p in parts)
         {
-            h.AppendData(p.Span);
+            h.Append(p.Span);
         }
 
         return Finish(h, sig.Version, sig.SignedHeader.Span);
@@ -117,6 +145,13 @@ internal static class SignatureEngine
             return false;
         }
 
+        // RFC 9580 §5.2.3: the signature names the algorithm of the key that made it. A signature by a key of another algorithm (a third-party
+        // certification checked against the wrong key) cannot verify, and its values must not be read as this key's.
+        if (!SameSigningFamily(key.Algorithm, sig.Algorithm))
+        {
+            return false;
+        }
+
         PublicKeyMaterial pub = key.Material;
         IReadOnlyList<ReadOnlyMemory<byte>> sv = sig.Material.Values;
         if (!sig.Material.IsKnown)
@@ -124,15 +159,39 @@ internal static class SignatureEngine
             throw new PgpException(PgpFailure.Unsupported, $"The signature algorithm {(byte)sig.Algorithm} is not supported.");
         }
 
+        // RFC 9580 §5.2.3: each algorithm has a fixed number of signature fields; a signature with fewer cannot verify (and its fields must not be indexed).
+        int fields = sig.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448 => 1,
+            PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Dsa or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            _ => 0,
+        };
+        int keyFields = key.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            PublicKeyAlgorithm.Dsa => 4,
+            _ => 1,
+        };
+        if (sv.Count < fields || pub.Values.Count < keyFields)
+        {
+            return false;
+        }
+
         switch (sig.Algorithm)
         {
             case PublicKeyAlgorithm.Rsa:
             case PublicKeyAlgorithm.RsaSignOnly:
                 {
-                    using var rsa = RSA.Create();
                     byte[] n = pub.Values[0].ToArray();
-                    ImportPublicRsa(rsa, n, pub.Values[1].ToArray());
                     byte[] s = LeftPad(sv[0].Span, n.Length);
+                    if (PgpHash.IsManaged(sig.Hash))
+                    {
+                        // The platform cannot name these hashes in a PKCS#1 verification; our verify-only RSA takes the finished digest.
+                        return RecursiveAI.OneCrypto.Primitives.Fallback.RsaVerifier.VerifyPkcs1(n, pub.Values[1].Span, PgpAlgorithms.HashName(sig.Hash), digest, s);
+                    }
+
+                    using var rsa = RSA.Create();
+                    ImportPublicRsa(rsa, n, pub.Values[1].ToArray());
                     return rsa.VerifyHash(digest, s, PgpAlgorithms.HashName(sig.Hash), RSASignaturePadding.Pkcs1);
                 }
 
@@ -219,6 +278,9 @@ internal static class SignatureEngine
         }
     }
 
+    private static bool SameSigningFamily(PublicKeyAlgorithm key, PublicKeyAlgorithm signature) =>
+        key == signature || (key is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && signature is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly);
+
     internal static byte[] LeftPad(ReadOnlySpan<byte> value, int length)
     {
         if (value.Length > length)
@@ -287,6 +349,14 @@ internal static class SignatureEngine
             size = 0;
             return false;
         }
+
+        internal static readonly byte[] X25519Oid = [0x2B, 0x65, 0x6E];
+
+        /// <summary>
+        /// Curve25519 for ECDH under either name: the legacy OID of RFC 9580 §9.2 and 1.3.101.110, which GnuPG 2.5 puts in the ECDH keys it makes. Both carry the
+        /// point as 0x40 and 32 octets and the scalar as a big-endian MPI.
+        /// </summary>
+        internal static bool IsCurve25519(ReadOnlySpan<byte> oid) => oid.SequenceEqual(Curve25519Legacy) || oid.SequenceEqual(X25519Oid);
 
         internal static readonly byte[] Curve25519Legacy = [0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01];
         internal static readonly byte[] Ed25519Legacy = [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01];

@@ -1,0 +1,45 @@
+{
+ "name": "f34-two-roots",
+ "text": "two roots, only one reaches t",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "3FE12E76BC3E08DD27AF2779D82494B3DB7FCA79",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "417D5444A2C0B6DC0999945D76B89CC8276C0383",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "51C8D7B3835E36EC1244637B9D55931BB1855A50",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "AD61B44BC06D3A154FEA6FC9BEF74405DB158E25",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "3FE12E76BC3E08DD27AF2779D82494B3DB7FCA79",
+  "AD61B44BC06D3A154FEA6FC9BEF74405DB158E25"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "51C8D7B3835E36EC1244637B9D55931BB1855A50",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

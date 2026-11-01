@@ -1,0 +1,51 @@
+{
+ "name": "c22-certification-expired",
+ "text": "the root's certification of b expired",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "BB7753AD2A7E139C29B0C5BD1C1B6A1C6ABA3A21",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "17F450C656D05692368FC3CE5BDDACF61D4EEA79",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "A59DC7BBA8279978D09E78824CC029D80E3BB8D7",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "BB7753AD2A7E139C29B0C5BD1C1B6A1C6ABA3A21": "u",
+  "17F450C656D05692368FC3CE5BDDACF61D4EEA79": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "17F450C656D05692368FC3CE5BDDACF61D4EEA79",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "A59DC7BBA8279978D09E78824CC029D80E3BB8D7",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "17F450C656D05692368FC3CE5BDDACF61D4EEA79",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

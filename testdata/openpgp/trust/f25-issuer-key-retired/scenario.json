@@ -1,0 +1,44 @@
+{
+ "name": "f25-issuer-key-retired",
+ "text": "the issuer's key was retired after certifying: certifications made before still count",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "EC071FF262DD3E51EC37AA20FEAAC92EF1D88FD9",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "C6A769EC30F10E22637148C351756222763DBA0C",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "BC2EE65A92E69D3AB328DF2D3F4657F13CACC4CF",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "EC071FF262DD3E51EC37AA20FEAAC92EF1D88FD9"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "BC2EE65A92E69D3AB328DF2D3F4657F13CACC4CF",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "BC2EE65A92E69D3AB328DF2D3F4657F13CACC4CF",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

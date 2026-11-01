@@ -32,6 +32,7 @@
     <Compile Include="../Common/OpenPgpSmoke.cs" Link="OpenPgpSmoke.cs" />
     <Compile Include="../Common/DiscoverySmoke.cs" Link="DiscoverySmoke.cs" />
     <Compile Include="../Common/GnuPGSmoke.cs" Link="GnuPGSmoke.cs" />
+    <Compile Include="../Common/TrustSmoke.cs" Link="TrustSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>

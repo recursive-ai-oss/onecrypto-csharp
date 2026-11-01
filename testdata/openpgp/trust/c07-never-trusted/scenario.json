@@ -1,0 +1,39 @@
+{
+ "name": "c07-never-trusted",
+ "text": "an introducer marked never trusted does not count",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "F2C0F1AA43ADCB47163229D1BD0AD56EBDB537AC",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "4AF19E216712E4EB232C4849B84ED12646914C88",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "4E01B086B2D637DA42682CA36D0BC2E018844004",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "F2C0F1AA43ADCB47163229D1BD0AD56EBDB537AC": "u",
+  "4AF19E216712E4EB232C4849B84ED12646914C88": "n"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "4E01B086B2D637DA42682CA36D0BC2E018844004",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

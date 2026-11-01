@@ -1,0 +1,50 @@
+{
+ "name": "f05-depth-exhausted",
+ "text": "a trusts b to depth 1 only; b's introducer c cannot be followed",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "EEBEA09701D5BE19ED1D35CB28A57571AAF99096",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "1471CF26CE6BA576DE50B6C1595F4E167F3F792D",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "995A43185B23DE2A92A420161E744EE9CDF43186",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "930B1B19712411AC40EF46F9FDDA67D16EDCBC47",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "EEBEA09701D5BE19ED1D35CB28A57571AAF99096"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "930B1B19712411AC40EF46F9FDDA67D16EDCBC47",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "995A43185B23DE2A92A420161E744EE9CDF43186",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

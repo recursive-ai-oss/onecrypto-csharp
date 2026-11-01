@@ -1,0 +1,21 @@
+{
+ "oracle": "gnupg-2.5.24",
+ "results": [
+  {
+   "query": {
+    "target": "4E01B086B2D637DA42682CA36D0BC2E018844004",
+    "targetName": "t",
+    "userId": "T <t@example.org>",
+    "at": 1748736000
+   },
+   "pub": "q",
+   "uids": [
+    {
+     "userId": "T <t@example.org>",
+     "validity": "q"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  }
+ ]
+}

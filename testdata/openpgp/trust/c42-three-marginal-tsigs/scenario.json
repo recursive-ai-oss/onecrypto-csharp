@@ -1,0 +1,50 @@
+{
+ "name": "c42-three-marginal-tsigs",
+ "text": "three trust signatures of amount 60 add up",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "EB2C3058520F383064CAB616B2CA1503C0AE4479",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "EBAE51A4FB745048E8F18AF2849DDED9276FA406",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "093C5D4C6117EECF1383D179C9E679E7BBBDF10F",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "81ADA9D2B96BF01196C4BF5E6913F872159B7588",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "39E95903079585FBE596FC2BEB652CD54125082E",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "EB2C3058520F383064CAB616B2CA1503C0AE4479": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "39E95903079585FBE596FC2BEB652CD54125082E",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

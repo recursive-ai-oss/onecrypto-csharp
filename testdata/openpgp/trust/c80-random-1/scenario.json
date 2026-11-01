@@ -1,0 +1,126 @@
+{
+ "name": "c80-random-1",
+ "text": "a random web of 9 certificates (seed 1)",
+ "kind": "classic",
+ "keys": {
+  "k0": {
+   "fingerprint": "A913562761F4E667632445DC0AB75D5FE67FA2FF",
+   "userIds": [
+    "K0 <k0@example.org>"
+   ]
+  },
+  "k1": {
+   "fingerprint": "F699CF8F8523364D3BDE77FDF2ADF4DF728C4E8D",
+   "userIds": [
+    "K1 <k1@corp.example>"
+   ]
+  },
+  "k2": {
+   "fingerprint": "FC3C62E435C1B6360FD418431725878152D7D154",
+   "userIds": [
+    "K2 <k2@example.org>"
+   ]
+  },
+  "k3": {
+   "fingerprint": "E328C2667C6DD6E7154137E3E521BB3F07B6048C",
+   "userIds": [
+    "K3 <k3@example.org>"
+   ]
+  },
+  "k4": {
+   "fingerprint": "E5ADCC0074E90FB6725B163C283BA013204BE49E",
+   "userIds": [
+    "K4 <k4@corp.example>"
+   ]
+  },
+  "k5": {
+   "fingerprint": "F7AF361E717F5BFAFA246ADF1811665E483F115C",
+   "userIds": [
+    "K5 <k5@example.org>"
+   ]
+  },
+  "k6": {
+   "fingerprint": "0BEBBCF661BDBCCC413A638A6B225A62E64C2D17",
+   "userIds": [
+    "K6 <k6@example.org>"
+   ]
+  },
+  "k7": {
+   "fingerprint": "AFA053DB777536B1C40AA4D15867C0A218E5E916",
+   "userIds": [
+    "K7 <k7@corp.example>"
+   ]
+  },
+  "k8": {
+   "fingerprint": "5FCA87B25C62691B9B44DEF03B64EBD226D1BDFF",
+   "userIds": [
+    "K8 <k8@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "A913562761F4E667632445DC0AB75D5FE67FA2FF"
+ ],
+ "ownertrust": {
+  "A913562761F4E667632445DC0AB75D5FE67FA2FF": "u",
+  "F699CF8F8523364D3BDE77FDF2ADF4DF728C4E8D": "q",
+  "FC3C62E435C1B6360FD418431725878152D7D154": "m",
+  "E328C2667C6DD6E7154137E3E521BB3F07B6048C": "q",
+  "E5ADCC0074E90FB6725B163C283BA013204BE49E": "q",
+  "F7AF361E717F5BFAFA246ADF1811665E483F115C": "n",
+  "0BEBBCF661BDBCCC413A638A6B225A62E64C2D17": "f",
+  "AFA053DB777536B1C40AA4D15867C0A218E5E916": "m",
+  "5FCA87B25C62691B9B44DEF03B64EBD226D1BDFF": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "F699CF8F8523364D3BDE77FDF2ADF4DF728C4E8D",
+   "targetName": "k1",
+   "userId": "K1 <k1@corp.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "FC3C62E435C1B6360FD418431725878152D7D154",
+   "targetName": "k2",
+   "userId": "K2 <k2@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "E328C2667C6DD6E7154137E3E521BB3F07B6048C",
+   "targetName": "k3",
+   "userId": "K3 <k3@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "E5ADCC0074E90FB6725B163C283BA013204BE49E",
+   "targetName": "k4",
+   "userId": "K4 <k4@corp.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "F7AF361E717F5BFAFA246ADF1811665E483F115C",
+   "targetName": "k5",
+   "userId": "K5 <k5@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "0BEBBCF661BDBCCC413A638A6B225A62E64C2D17",
+   "targetName": "k6",
+   "userId": "K6 <k6@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "AFA053DB777536B1C40AA4D15867C0A218E5E916",
+   "targetName": "k7",
+   "userId": "K7 <k7@corp.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "5FCA87B25C62691B9B44DEF03B64EBD226D1BDFF",
+   "targetName": "k8",
+   "userId": "K8 <k8@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

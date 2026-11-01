@@ -1,0 +1,32 @@
+{
+ "name": "f36-local-certification",
+ "text": "a certification marked not exportable still counts for the local user",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "79F6D7FE79AD2341DFF165BEB018A568479E6AE7",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "6235C7D734E0A4CE58BEDAF072BB39BB95C0ECBC",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "79F6D7FE79AD2341DFF165BEB018A568479E6AE7"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "6235C7D734E0A4CE58BEDAF072BB39BB95C0ECBC",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

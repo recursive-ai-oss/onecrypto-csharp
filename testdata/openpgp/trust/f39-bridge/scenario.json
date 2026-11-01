@@ -1,0 +1,50 @@
+{
+ "name": "f39-bridge",
+ "text": "a bridge between two branches",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "CF1830717FB10694BBE05236BEE5C2690F6D2ACA",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "7C47052C9C445EDCFF6E6513706AECCB8A9E5CC2",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "x": {
+   "fingerprint": "46841E7266F78A9C543A6416CEDCB17136CE380C",
+   "userIds": [
+    "X <x@example.org>"
+   ]
+  },
+  "y": {
+   "fingerprint": "174DD0EDB5098B79372DAEB6DF1703A8B2F146E4",
+   "userIds": [
+    "Y <y@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "EA73E17E0BAE846179DE0E85BC8136987EEE5985",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "CF1830717FB10694BBE05236BEE5C2690F6D2ACA"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "EA73E17E0BAE846179DE0E85BC8136987EEE5985",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

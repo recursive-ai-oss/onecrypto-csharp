@@ -1,0 +1,44 @@
+{
+ "name": "f24-issuer-key-revoked-hard",
+ "text": "the issuer's key was revoked as compromised after certifying: no certification of it counts",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "FDF0E82B48B705809052271FFD151B13AB856890",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "22FC82909FD51B13D02C6ADE434A48A5CE8212DC",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "29EA51E0902F9D80D64F31184EA217F9BE9D8C41",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "FDF0E82B48B705809052271FFD151B13AB856890"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "29EA51E0902F9D80D64F31184EA217F9BE9D8C41",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "29EA51E0902F9D80D64F31184EA217F9BE9D8C41",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

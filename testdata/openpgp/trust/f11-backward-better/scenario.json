@@ -1,0 +1,56 @@
+{
+ "name": "f11-backward-better",
+ "text": "the draft's backward-propagation example: the longer-capped branch is avoided, giving 120",
+ "kind": "flow",
+ "keys": {
+  "root": {
+   "fingerprint": "53CC6C55A606D173C5C4A666B86A5616A46F2277",
+   "userIds": [
+    "Root <root@example.org>"
+   ]
+  },
+  "a": {
+   "fingerprint": "5B66F78ADB8020CE838BB90BECC65826D2D5F7B3",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "ACF069084213EB90D037430A3CDE77E0192261E4",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "A1ABDED0B63F9E5F90AB2E0F97C1F7CC3B4972BC",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "E69B0F90E5B30B15A452CD00159E4D77F5037DC2",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "target": {
+   "fingerprint": "D7B56894BF4C1A77283090A4198E75751C6FD38B",
+   "userIds": [
+    "Target <target@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "53CC6C55A606D173C5C4A666B86A5616A46F2277"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "D7B56894BF4C1A77283090A4198E75751C6FD38B",
+   "targetName": "target",
+   "userId": "Target <target@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "name": "f12-forward-better",
+ "text": "the draft's second example, where a forward search would do better",
+ "kind": "flow",
+ "keys": {
+  "root": {
+   "fingerprint": "DE2B3E785680043C1F6F7BC32A752A2748306C3E",
+   "userIds": [
+    "Root <root@example.org>"
+   ]
+  },
+  "a": {
+   "fingerprint": "EF94A384092DA5E41C6A6EDB61ADE857A790E0AA",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "BCB1CA8B34F97B97AE7B581E7F02851E556C1D6A",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "359C4CA6D01DD4025778EB87CFE501FE84AC0200",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "target": {
+   "fingerprint": "0ED39EA8118AD1F2CD72D22ADB5330EA06824325",
+   "userIds": [
+    "Target <target@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "DE2B3E785680043C1F6F7BC32A752A2748306C3E"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "0ED39EA8118AD1F2CD72D22ADB5330EA06824325",
+   "targetName": "target",
+   "userId": "Target <target@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "name": "f17-regex-intermediate-not-matched",
+ "text": "the draft's example: the expression need not match the intermediate introducer",
+ "kind": "flow",
+ "keys": {
+  "ed": {
+   "fingerprint": "9325F89F2270434373AAF80EFCC99495AE0B8B1B",
+   "userIds": [
+    "Ed <ed@example.org>"
+   ]
+  },
+  "ca": {
+   "fingerprint": "0E7DD632A817214D168ABC5B77AB0F41B3BF4484",
+   "userIds": [
+    "Ca <ca@nsa.gov>"
+   ]
+  },
+  "fbi": {
+   "fingerprint": "8A9262A01403D6975FECEC3856D29F79DA1AF12F",
+   "userIds": [
+    "Fbi <fbi@fbi.gov>"
+   ]
+  },
+  "paul": {
+   "fingerprint": "8CFFA3EFBEF8F49918C12574A7D5BD94E767D75E",
+   "userIds": [
+    "Paul <paul@nsa.gov>"
+   ]
+  }
+ },
+ "roots": [
+  "9325F89F2270434373AAF80EFCC99495AE0B8B1B"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "8CFFA3EFBEF8F49918C12574A7D5BD94E767D75E",
+   "targetName": "paul",
+   "userId": "Paul <paul@nsa.gov>",
+   "at": 1748736000
+  },
+  {
+   "target": "8A9262A01403D6975FECEC3856D29F79DA1AF12F",
+   "targetName": "fbi",
+   "userId": "Fbi <fbi@fbi.gov>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -104,5 +104,17 @@ internal static class PgpMessageTarget
             PgpMessageWriter.Write(new MemoryStream(Encoding.ASCII.GetBytes("fuzz seed message")), enc, new PgpWriteOptions { Now = Now, Recipients = [cert], ForceSeipd1 = v1 });
             yield return [0, .. enc.ToArray()];
         }
+
+        // LibrePGP OCB Encrypted Data, and bzip2-compressed messages (one hand-made, one from GnuPG).
+        using (var ocb = new MemoryStream())
+        {
+            PgpMessageWriter.Write(new MemoryStream(Encoding.ASCII.GetBytes("fuzz seed message")), ocb, new PgpWriteOptions { Now = Now, Recipients = [cert], ForceLibrePgp = true });
+            yield return [0, .. ocb.ToArray()];
+        }
+
+        foreach (string name in new[] { "msg-bzip2-literal.pgp", "msg-bzip2.gpg", "msg-v5-ocbed.gpg", "msg-pw-ocbed.gpg" })
+        {
+            yield return [0, .. File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(Data("x"))!, "..", "librepgp", name))];
+        }
     }
 }

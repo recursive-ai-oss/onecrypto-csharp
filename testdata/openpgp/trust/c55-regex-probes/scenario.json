@@ -1,0 +1,542 @@
+{
+ "name": "c55-regex-probes",
+ "text": "which expressions GnuPG accepts on a trust signature for the user ID 'Tee One <tee@one.example>' | 0=@one\\.example ## 1=one\\.example ## 2=one.example ## 3=<tee@one\\.example> ## 4=<tee@one\\.example>$ ## 5=<[^>]+@one\\.example> ## 6=[^>]+@one\\.example>$ ## 7=<[^>]*@one\\.example>$ ## 8=<[^>]+[@.]one\\.example>$ ## 9=[@.]one\\.example>$ ## 10=\\.example>$ ## 11=example>$ ## 12=>$ ## 13=^Tee ## 14=Tee ## 15=Tee One ## 16=(one)\\.example ## 17=one|two ## 18=<tee ## 19=.* ## 20=[a-z]+@one ## 21=tee@one ## 22=e@o ## 23=<[^>]*@one\\.example>$ ## 24=<.+@one\\.example>$ ## 25=t.e@one ## 26=tee\\@one ## 27=T\\ee ## 28=tee@one\\.example>",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "5BCEDCF72ABEAA9CF94B5D8EB24D5AF2F191F60B",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b0": {
+   "fingerprint": "9EC2A5138DDE7F4FFE209B6B063524BB9805C67B",
+   "userIds": [
+    "B0 <b0@example.org>"
+   ]
+  },
+  "t0": {
+   "fingerprint": "7AA447EEBFEFCA60621EF28B77962D7786C02A0C",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b1": {
+   "fingerprint": "BDBBC5AC8DE798DF194D607F7D3CBA7273457FF8",
+   "userIds": [
+    "B1 <b1@example.org>"
+   ]
+  },
+  "t1": {
+   "fingerprint": "32DE325E764959CDECD740379F4CBE723A52875C",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b2": {
+   "fingerprint": "45193A9586F37460353F6BA2BA8501D54BECCD25",
+   "userIds": [
+    "B2 <b2@example.org>"
+   ]
+  },
+  "t2": {
+   "fingerprint": "BC7D90EAE34048838296C4E78E4B36A7C9A8DB29",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b3": {
+   "fingerprint": "1617B14A9C8A57DC85EDC2C385D0048AE69E150C",
+   "userIds": [
+    "B3 <b3@example.org>"
+   ]
+  },
+  "t3": {
+   "fingerprint": "867A8E135ACFD45FC701D018A60A1E32C84E81F5",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b4": {
+   "fingerprint": "7A4E948D264A3CD4C1ECDCAF68FA16E374C9C28A",
+   "userIds": [
+    "B4 <b4@example.org>"
+   ]
+  },
+  "t4": {
+   "fingerprint": "2FFD03EB08A93B608DE801998A08E64022DBBDF1",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b5": {
+   "fingerprint": "2EB52A67D0CD054133C8F87EB346160628247E89",
+   "userIds": [
+    "B5 <b5@example.org>"
+   ]
+  },
+  "t5": {
+   "fingerprint": "CA3AF82601EAE9FA00997E00051FE16C6CF4FA0A",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b6": {
+   "fingerprint": "79411DB2F519A2C863699D1C50BA84189D5D59FD",
+   "userIds": [
+    "B6 <b6@example.org>"
+   ]
+  },
+  "t6": {
+   "fingerprint": "E860D5A519A01261D1F383577DF40F3DB2FFA200",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b7": {
+   "fingerprint": "979906C053F4060D73C0F2EC8BF7048C98C3D648",
+   "userIds": [
+    "B7 <b7@example.org>"
+   ]
+  },
+  "t7": {
+   "fingerprint": "798FEBC38D503BE5D56854E506F9D62DE2C6CDCF",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b8": {
+   "fingerprint": "681536D5895F8F05D570C225BF63BD98E952B676",
+   "userIds": [
+    "B8 <b8@example.org>"
+   ]
+  },
+  "t8": {
+   "fingerprint": "ABA70339CC431212D1DE6955FB19B75D06D15A3D",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b9": {
+   "fingerprint": "889D835ED1AEF8D8D666E59EB8CE6C8CD0A97678",
+   "userIds": [
+    "B9 <b9@example.org>"
+   ]
+  },
+  "t9": {
+   "fingerprint": "D094204FBEA8E5494CA4811F3072C07BD4988779",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b10": {
+   "fingerprint": "351286B1363D75F0DE85C20730ED8CAA5C0D5C4F",
+   "userIds": [
+    "B10 <b10@example.org>"
+   ]
+  },
+  "t10": {
+   "fingerprint": "B62041F28B984B3EDAC5602D2F2DA0CC6F17F9B9",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b11": {
+   "fingerprint": "BD6A6A67870CD515B89989045994A7F425C49EA3",
+   "userIds": [
+    "B11 <b11@example.org>"
+   ]
+  },
+  "t11": {
+   "fingerprint": "618C2009D597E963E8A77F2092BCE91DE4F3B4CF",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b12": {
+   "fingerprint": "AEBA784C957989531A73CB9A275F2D75CFD3679D",
+   "userIds": [
+    "B12 <b12@example.org>"
+   ]
+  },
+  "t12": {
+   "fingerprint": "CD7151891F22BC5D303CA145B8EEF590551620E2",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b13": {
+   "fingerprint": "D7AE38245E39BB835A93B94946A445A8063BEB10",
+   "userIds": [
+    "B13 <b13@example.org>"
+   ]
+  },
+  "t13": {
+   "fingerprint": "0DE04434771F76D5709A914909C896884EC1D2E9",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b14": {
+   "fingerprint": "737A3C005F2A02359AF0DEC28AAA2A2B6A2B3FE0",
+   "userIds": [
+    "B14 <b14@example.org>"
+   ]
+  },
+  "t14": {
+   "fingerprint": "10D6E945ED4017530A167975E2C1E8E7C5F2F7F8",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b15": {
+   "fingerprint": "99E0E690F9E590DD85BC3CA34F174192D73B47DD",
+   "userIds": [
+    "B15 <b15@example.org>"
+   ]
+  },
+  "t15": {
+   "fingerprint": "5E5CC2EBAC3A576E52E5BA87E968CC60A18B812A",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b16": {
+   "fingerprint": "8E0214F86C1C1400CFD2D2FE0F02E02F3C520791",
+   "userIds": [
+    "B16 <b16@example.org>"
+   ]
+  },
+  "t16": {
+   "fingerprint": "E52701FDCFBAF9E0233C865F793788E95FD4682B",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b17": {
+   "fingerprint": "C4E72EFCA859213B659A00430429BC8476741359",
+   "userIds": [
+    "B17 <b17@example.org>"
+   ]
+  },
+  "t17": {
+   "fingerprint": "443BDDCEDDC22E323A10E61AB856C81E041428EE",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b18": {
+   "fingerprint": "5A4C7C8B158301F01E31D46C4D9E0BD2E25F0D22",
+   "userIds": [
+    "B18 <b18@example.org>"
+   ]
+  },
+  "t18": {
+   "fingerprint": "D781ECBCACA152207084C64708B0C5F3A9E4F190",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b19": {
+   "fingerprint": "8AAF3113A67DE7852D6605BEDC21155AA1196426",
+   "userIds": [
+    "B19 <b19@example.org>"
+   ]
+  },
+  "t19": {
+   "fingerprint": "72E6CCAA385908CF924E8EABF4291A58395D4671",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b20": {
+   "fingerprint": "FC3BFDBEAF54FFFE57EC26116F74B2FC47AD494C",
+   "userIds": [
+    "B20 <b20@example.org>"
+   ]
+  },
+  "t20": {
+   "fingerprint": "B343D6E47168AECB73857F4A1241324D82E2D862",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b21": {
+   "fingerprint": "06DA6FE4B5E04B1670EE0E5C4C860D4394A0C72A",
+   "userIds": [
+    "B21 <b21@example.org>"
+   ]
+  },
+  "t21": {
+   "fingerprint": "2FDDA82AD89D050E7EB8946CE058EB4C8F7DB76E",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b22": {
+   "fingerprint": "FE42CE0DE68EAF1E3E35FDE53028F87247F8D421",
+   "userIds": [
+    "B22 <b22@example.org>"
+   ]
+  },
+  "t22": {
+   "fingerprint": "A450E6E465A14C36438D1BF86CAA8110C99337E0",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b23": {
+   "fingerprint": "FA8CED911BA1F65E08D7ED341EC287B25BD7CDB4",
+   "userIds": [
+    "B23 <b23@example.org>"
+   ]
+  },
+  "t23": {
+   "fingerprint": "74C3B31B66E6B194780DA5D45621652AB6F832BA",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b24": {
+   "fingerprint": "F30C2F9B34413F861C2D2FA4B4012A44BDF6387B",
+   "userIds": [
+    "B24 <b24@example.org>"
+   ]
+  },
+  "t24": {
+   "fingerprint": "E0EB3918327258F91D7C7D593F3A0679782D3B89",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b25": {
+   "fingerprint": "C0D629E24D1B746E9A4BE351EE75D0CB6DFCECB4",
+   "userIds": [
+    "B25 <b25@example.org>"
+   ]
+  },
+  "t25": {
+   "fingerprint": "BB6142DBF51AD5164972EE6C94C3F3C7D3FDE40D",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b26": {
+   "fingerprint": "DCD6C51F2B07F41FAA2D13770E3F3D6283480A14",
+   "userIds": [
+    "B26 <b26@example.org>"
+   ]
+  },
+  "t26": {
+   "fingerprint": "E69EBB2B10CC7D88BB6A39A5075068A6BD381EF2",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b27": {
+   "fingerprint": "80FE01A1E7C38BDCF87B91AC94089E2C41580710",
+   "userIds": [
+    "B27 <b27@example.org>"
+   ]
+  },
+  "t27": {
+   "fingerprint": "BF28E976130E451D8F63622772A94BB8F06BDF1F",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  },
+  "b28": {
+   "fingerprint": "BB2A570068F9398D7C1FE320BF0DD69F366F896A",
+   "userIds": [
+    "B28 <b28@example.org>"
+   ]
+  },
+  "t28": {
+   "fingerprint": "B8C2B1F7F329EAEC2F6A4AA8DA0A2A25C55C4153",
+   "userIds": [
+    "Tee One <tee@one.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "5BCEDCF72ABEAA9CF94B5D8EB24D5AF2F191F60B": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "7AA447EEBFEFCA60621EF28B77962D7786C02A0C",
+   "targetName": "t0",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "32DE325E764959CDECD740379F4CBE723A52875C",
+   "targetName": "t1",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "BC7D90EAE34048838296C4E78E4B36A7C9A8DB29",
+   "targetName": "t2",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "867A8E135ACFD45FC701D018A60A1E32C84E81F5",
+   "targetName": "t3",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "2FFD03EB08A93B608DE801998A08E64022DBBDF1",
+   "targetName": "t4",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "CA3AF82601EAE9FA00997E00051FE16C6CF4FA0A",
+   "targetName": "t5",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "E860D5A519A01261D1F383577DF40F3DB2FFA200",
+   "targetName": "t6",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "798FEBC38D503BE5D56854E506F9D62DE2C6CDCF",
+   "targetName": "t7",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "ABA70339CC431212D1DE6955FB19B75D06D15A3D",
+   "targetName": "t8",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "D094204FBEA8E5494CA4811F3072C07BD4988779",
+   "targetName": "t9",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "B62041F28B984B3EDAC5602D2F2DA0CC6F17F9B9",
+   "targetName": "t10",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "618C2009D597E963E8A77F2092BCE91DE4F3B4CF",
+   "targetName": "t11",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "CD7151891F22BC5D303CA145B8EEF590551620E2",
+   "targetName": "t12",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "0DE04434771F76D5709A914909C896884EC1D2E9",
+   "targetName": "t13",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "10D6E945ED4017530A167975E2C1E8E7C5F2F7F8",
+   "targetName": "t14",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "5E5CC2EBAC3A576E52E5BA87E968CC60A18B812A",
+   "targetName": "t15",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "E52701FDCFBAF9E0233C865F793788E95FD4682B",
+   "targetName": "t16",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "443BDDCEDDC22E323A10E61AB856C81E041428EE",
+   "targetName": "t17",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "D781ECBCACA152207084C64708B0C5F3A9E4F190",
+   "targetName": "t18",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "72E6CCAA385908CF924E8EABF4291A58395D4671",
+   "targetName": "t19",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "B343D6E47168AECB73857F4A1241324D82E2D862",
+   "targetName": "t20",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "2FDDA82AD89D050E7EB8946CE058EB4C8F7DB76E",
+   "targetName": "t21",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "A450E6E465A14C36438D1BF86CAA8110C99337E0",
+   "targetName": "t22",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "74C3B31B66E6B194780DA5D45621652AB6F832BA",
+   "targetName": "t23",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "E0EB3918327258F91D7C7D593F3A0679782D3B89",
+   "targetName": "t24",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "BB6142DBF51AD5164972EE6C94C3F3C7D3FDE40D",
+   "targetName": "t25",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "E69EBB2B10CC7D88BB6A39A5075068A6BD381EF2",
+   "targetName": "t26",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "BF28E976130E451D8F63622772A94BB8F06BDF1F",
+   "targetName": "t27",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "B8C2B1F7F329EAEC2F6A4AA8DA0A2A25C55C4153",
+   "targetName": "t28",
+   "userId": "Tee One <tee@one.example>",
+   "at": 1748736000
+  }
+ ]
+}

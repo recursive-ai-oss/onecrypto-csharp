@@ -65,6 +65,10 @@ PreparedSignature ::= SEQUENCE {
 
 `kind`: 1 RSA PKCS #1, 2 RSA-PSS, 3 ECDSA, 4 Ed25519, 5 Ed448, 6 ML-DSA. `format`: 0 DER, 1 P1363. `hash` is the .NET hash name (`SHA256`) or empty. A reader refuses an unknown version (the message names it), an input kind that does not fit the scheme, a digest of the wrong length, a `data` whose hash is not `toSign`, and any damage, without throwing from `TryDecode`. A later version changes the version number; older readers refuse it rather than guess. The state holds the data for message schemes and for `Prepare`: treat it like the document. It never contains private key material.
 
+### OpenPGP
+
+`PgpPreparedSignature` (package `.OpenPgp`) is the same idea for OpenPGP signatures: the purpose is `openpgp.signature`, the state holds the signature digest and the signer's public key packet instead of a `SubjectPublicKeyInfo`, and `Complete` verifies with the OpenPGP rules. Its DER encoding is in [openpgp.md](openpgp.md); `ToSign` and `Spec` are for any `ISigningKey`.
+
 ### X.509
 
 `CertificateBuilder.PrepareSelfSigned / Prepare`, `CertificateSigningRequestBuilder.Prepare` and `RevocationListBuilder.Prepare` build the to-be-signed structure and return a state whose `Data` is that DER; `Complete(state, signature)` on the same builder checks the signature against the signer's key and returns the parsed object. The purpose label stops a certificate state completing a CRL. The structures have the signer's `signatureAlgorithm` (`spec.ToAlgorithmIdentifier(key)`) in both places (RFC 5280 §4.1.1.2).
