@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using RecursiveAI.OneCrypto.Primitives;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto.Wire.Ssh;
 
@@ -402,17 +403,19 @@ public sealed class SshPublicKey : IEquatable<SshPublicKey>
         switch (Type)
         {
             case SshKeyType.Rsa:
-                using (RSA rsa = RSA.Create())
-                {
-                    rsa.ImportParameters(new RSAParameters { Exponent = _a, Modulus = _b });
-                    return PublicKeyInfo.Parse(rsa.ExportSubjectPublicKeyInfo());
-                }
+            {
+                // Built from the key's numbers rather than through the platform's RSA, so it works where the platform has none (RFC 8017 A.1.1).
+                var rsaKey = new Asn1.Asn1Writer();
+                rsaKey.PushSequence();
+                rsaKey.WriteUnsignedInteger(_b.AsSpan().TrimStart((byte)0));
+                rsaKey.WriteUnsignedInteger(_a.AsSpan().TrimStart((byte)0));
+                rsaKey.Pop();
+                return Spki(KnownOids.RsaEncryption, null, rsaKey.Encode());
+            }
 
             case SshKeyType.EcdsaP256 or SshKeyType.EcdsaP384 or SshKeyType.EcdsaP521:
-                using (ECDsa ec = ToECDsa())
-                {
-                    return PublicKeyInfo.Parse(ec.ExportSubjectPublicKeyInfo());
-                }
+                // The SSH point is the uncompressed point, which is also what SubjectPublicKeyInfo carries (RFC 5480 §2.2).
+                return Spki(KnownOids.EcPublicKey, Type switch { SshKeyType.EcdsaP256 => KnownOids.P256, SshKeyType.EcdsaP384 => KnownOids.P384, _ => KnownOids.P521 }, _a);
 
             case SshKeyType.Ed25519:
                 var w = new Asn1.Asn1Writer();
@@ -428,6 +431,27 @@ public sealed class SshPublicKey : IEquatable<SshPublicKey>
         }
     }
 
+    private static PublicKeyInfo Spki(string algorithm, string? curve, ReadOnlySpan<byte> keyBits)
+    {
+        var w = new Asn1.Asn1Writer();
+        w.PushSequence();
+        w.PushSequence();
+        w.WriteObjectIdentifier(algorithm);
+        if (curve is null)
+        {
+            w.WriteNull();
+        }
+        else
+        {
+            w.WriteObjectIdentifier(curve);
+        }
+
+        w.Pop();
+        w.WriteBitString(keyBits);
+        w.Pop();
+        return PublicKeyInfo.Parse(w.Encode());
+    }
+
     private ECDsa ToECDsa()
     {
         ECCurve curve = Type switch
@@ -438,7 +462,7 @@ public sealed class SshPublicKey : IEquatable<SshPublicKey>
         };
         int n = (_a.Length - 1) / 2;
         var p = new ECParameters { Curve = curve, Q = new ECPoint { X = _a[1..(1 + n)], Y = _a[(1 + n)..] } };
-        return ECDsa.Create(p);
+        return Platform.CreateEcdsa(p, "EC public key import");
     }
 
     /// <summary>The public key of a <see cref="PublicKeyInfo"/> (RSA, P-256/384/521 and Ed25519).</summary>
@@ -518,7 +542,7 @@ public sealed class SshPublicKey : IEquatable<SshPublicKey>
                 case SshKeyType.Ed25519 when alg == "ssh-ed25519":
                     return sig.Length == 64 && Ed25519.Verify(_a, data, sig) ? SshSignatureStatus.Valid : SshSignatureStatus.Invalid;
                 case SshKeyType.Rsa when alg is "rsa-sha2-256" or "rsa-sha2-512":
-                    using (RSA rsa = RSA.Create())
+                    using (RSA rsa = Platform.CreateRsa("RSA public key object"))
                     {
                         rsa.ImportParameters(new RSAParameters { Exponent = _a, Modulus = _b });
                         return rsa.VerifyData(data, sig, alg == "rsa-sha2-256" ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA512, RSASignaturePadding.Pkcs1) ? SshSignatureStatus.Valid : SshSignatureStatus.Invalid;

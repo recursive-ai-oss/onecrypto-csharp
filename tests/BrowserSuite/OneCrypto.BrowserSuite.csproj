@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <!-- The suite that runs in a browser engine (and under Node): parse, verify through the platform-gap fallbacks, validate. `run.sh` publishes it,
+       serves it and drives a headless browser. The data is built by tools/gen-browser-data.py and embedded; pass it as -p:SuiteData=<file>. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).BrowserSuite</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Common/BrowserSuite.cs" Link="BrowserSuite.cs" />
+    <EmbeddedResource Include="$(SuiteData)" LogicalName="suite-data.json" Condition="'$(SuiteData)' != ''" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -69,6 +69,34 @@ jobs:
       - name: Build, publish and run the browser-wasm smoke app
         run: tests/WasmSmoke/run.sh "$RUNNER_TEMP/wasm-smoke"
 
+  browser:
+    # The same browser-wasm build in a real browser engine (the pinned Chrome for Testing headless shell), compared case by case with Node
+    # and a native run. Hosted CI runs the committed fixtures; the vector samples run where the suites are fetched.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Artifacts directory
+        run: echo "ONECRYPTO_ARTIFACTS=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: WebAssembly workload
+        run: dotnet workload install wasm-tools
+      - name: Run the suite in headless Chromium
+        env:
+          ONECRYPTO_BROWSER_CACHE: ${{ runner.temp }}/browser
+        run: tests/BrowserSuite/run.sh "$RUNNER_TEMP/browser-suite"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: browser-suite
+          path: |
+            ${{ runner.temp }}/browser-suite/report.md
+            ${{ runner.temp }}/browser-suite/*.out
+          if-no-files-found: ignore
+
   pack:
     # Builds the packages as artifacts only; nothing is pushed anywhere. Package validation runs here.
     runs-on: ubuntu-latest

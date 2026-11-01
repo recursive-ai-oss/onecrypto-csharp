@@ -304,7 +304,7 @@ public sealed class SshPrivateKey
                         Ctr(key, iv, _encrypted, plain.Span);
                         break;
                     case 2:
-                        using (Aes a = Aes.Create())
+                        using (Aes a = Platform.CreateAes())
                         {
                             a.SetKey(key);
                             a.DecryptCbc(_encrypted, iv, plain.Span, PaddingMode.None);
@@ -354,7 +354,7 @@ public sealed class SshPrivateKey
     /// <summary>AES in counter mode as SSH uses it (RFC 4344 §4): a 128-bit big-endian counter starting at the IV. Built on the platform's AES block function.</summary>
     private static void Ctr(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> input, Span<byte> output)
     {
-        using Aes aes = Aes.Create();
+        using Aes aes = Platform.CreateAes();
         aes.SetKey(key);
         Span<byte> counter = stackalloc byte[16]; // fixed size, 16 bytes
         Span<byte> ks = stackalloc byte[16]; // fixed size, 16 bytes
@@ -538,7 +538,7 @@ public sealed class SshPrivateKey
             SecretMod.Reduce(d, qm1, dq);
             prm.DP = SecretMod.Fixed(dp, half);
             prm.DQ = SecretMod.Fixed(dq, half);
-            using RSA rsa = RSA.Create();
+            using RSA rsa = Platform.CreateRsa("RSA private key");
             rsa.ImportParameters(prm);
             byte[] pkcs8 = rsa.ExportPkcs8PrivateKey();
             try
@@ -574,7 +574,7 @@ public sealed class SshPrivateKey
         try
         {
             var prm = new ECParameters { Curve = curve, D = dd, Q = new ECPoint { X = point[1..(1 + size)].ToArray(), Y = point[(1 + size)..].ToArray() } };
-            using ECDsa ec = ECDsa.Create(prm);
+            using ECDsa ec = Platform.CreateEcdsa(prm, "EC private key import");
             byte[] pkcs8 = ec.ExportPkcs8PrivateKey();
             try
             {

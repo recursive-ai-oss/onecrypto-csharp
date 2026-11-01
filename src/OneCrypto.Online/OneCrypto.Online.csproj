@@ -1,7 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Network clients for OneCrypto behind a pluggable, guarded transport: timestamp, OCSP, CRL, enrollment, discovery. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <IsPackable>true</IsPackable>
+    <Description>Network clients for OneCrypto behind a pluggable, guarded transport: timestamp, OCSP, CRL and issuer-certificate fetching, with a record/replay transport for tests. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <PackageTags>cryptography;rfc3161;timestamp;ocsp;crl;x509;aia;revocation;nativeaot;trimmable</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Online.Tests" />
+    <InternalsVisibleTo Include="$(LibName).Fuzz" />
+    <InternalsVisibleTo Include="$(LibName).AotSmoke" />
+    <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
 
 </Project>

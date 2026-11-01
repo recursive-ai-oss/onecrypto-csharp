@@ -452,7 +452,7 @@ internal static class Pbe
             }
             else
             {
-                using Aes a = Aes.Create();
+                using Aes a = Platform.CreateAes();
                 a.SetKey(key);
                 a.DecryptCbc(data, iv, buf.Span, PaddingMode.None);
             }
@@ -646,7 +646,7 @@ internal static class Pbe
         else
         {
             byte[] iv = RandomNumberGenerator.GetBytes(16);
-            using Aes a = Aes.Create();
+            using Aes a = Platform.CreateAes();
             a.SetKey(key.ReadOnlySpan);
             ciphertext = a.EncryptCbc(plaintext, iv, PaddingMode.PKCS7);
 

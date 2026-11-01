@@ -4,7 +4,7 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: cms, cmsenv, asn1, pem, x509, ocsp, verify, keys, pkcs8, pkcs12, ssh, validate, load, tsa, ocspresp (see fuzz/README.md)
+# Targets: cms, cmsenv, asn1, pem, x509, ocsp, verify, keys, pkcs8, pkcs12, ssh, validate, load, tsa, ocspresp, online (see fuzz/README.md)
 #
 # Environment (nothing is baked into the script):
 #   ONECRYPTO_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.
@@ -50,12 +50,13 @@ case "$target" in
   load) maxlen=65536 ;;
   pades) maxlen=131072 ;;
   tsa|ocspresp) maxlen=4096 ;;
+  online) maxlen=16384 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 
 proj=OneCrypto.Fuzz
 # Only the library assembly is instrumented; the harness itself needs no coverage.
-libs=(RecursiveAI.OneCrypto.dll RecursiveAI.OneCrypto.Pdf.dll)
+libs=(RecursiveAI.OneCrypto.dll RecursiveAI.OneCrypto.Pdf.dll RecursiveAI.OneCrypto.Online.dll)
 
 bin="$work/bin"
 rm -rf "$bin"
