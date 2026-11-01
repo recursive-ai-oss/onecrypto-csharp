@@ -185,6 +185,9 @@ public sealed class PadesSignOptions
 
     /// <summary>The instant the policy is asked at when <see cref="ValidationData"/> is not given.</summary>
     public DateTimeOffset? ReferenceTime { get; init; }
+
+    /// <summary>Which ESS signing-certificate attribute to write (default version 2, EN 319 122-1 §5.2.2). Internal: the baseline requires it, so only the reader-compatibility samples turn it off.</summary>
+    internal EssSigningCertificate SigningCertificate { get; init; } = EssSigningCertificate.V2;
 }
 
 /// <summary>Choices for <see cref="PadesAugmenter"/>.</summary>

@@ -34,29 +34,40 @@ internal sealed class PadesKit
 
     private readonly Dictionary<string, TestSigner> _signers = [];
 
-    private PadesKit()
+    private PadesKit() : this(rsaOnly: false)
+    {
+    }
+
+    /// <summary>With <paramref name="rsaOnly"/>, every key in the chain (root, intermediate, time-stamp authority) is RSA, so no ECDSA signature appears anywhere in a file signed under it.</summary>
+    private PadesKit(bool rsaOnly)
     {
         Now = DateTimeOffset.UtcNow;
+        RsaOnly = rsaOnly;
         var rootKey = RSA.Create(3072);
         var opts = new CertificateAuthorityOptions { CrlUrls = ["http://pki.example.test/ca.crl"], OcspUrls = ["http://ocsp.example.test/"] };
         Root = CertificateAuthority.CreateRoot(DistinguishedName.Create((KnownOids.CommonName, "Test Root")), X509Signer.FromRsa(rootKey, HashAlgorithmName.SHA256), Now.AddDays(-900), TimeSpan.FromDays(3650), opts);
-        InterKey = ECDsa.Create(ECCurve.NamedCurves.nistP384);
-        Certificate inter = Root.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(InterKey), DistinguishedName.Create((KnownOids.CommonName, "Test Intermediate")),
+        AsymmetricAlgorithm interKey = rsaOnly ? RSA.Create(3072) : ECDsa.Create(ECCurve.NamedCurves.nistP384);
+        InterSigner = rsaOnly ? X509Signer.FromRsa((RSA)interKey, HashAlgorithmName.SHA256) : X509Signer.FromECDsa((ECDsa)interKey);
+        Certificate inter = Root.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(interKey), DistinguishedName.Create((KnownOids.CommonName, "Test Intermediate")),
             new CertificateIssueOptions { Profile = CertificateProfile.Intermediate, NotBefore = Now.AddDays(-800), Validity = TimeSpan.FromDays(1800) });
-        Intermediate = new CertificateAuthority(inter, X509Signer.FromECDsa(InterKey), opts);
-        TsaKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        TsaCertificate = Intermediate.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(TsaKey), DistinguishedName.Create((KnownOids.CommonName, "Test Time-Stamp Authority")),
+        Intermediate = new CertificateAuthority(inter, InterSigner, opts);
+        AsymmetricAlgorithm tsaKey = rsaOnly ? RSA.Create(2048) : ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        TsaSigner = rsaOnly ? X509Signer.FromRsa((RSA)tsaKey, HashAlgorithmName.SHA256) : X509Signer.FromECDsa((ECDsa)tsaKey);
+        TsaCertificate = Intermediate.Issue(PublicKeyInfo.FromAsymmetricAlgorithm(tsaKey), DistinguishedName.Create((KnownOids.CommonName, "Test Time-Stamp Authority")),
             new CertificateIssueOptions { Profile = CertificateProfile.TimeStamping, NotBefore = Now.AddDays(-700), Validity = TimeSpan.FromDays(900) });
         Authority = new TimeStampAuthority(new TimeStampAuthorityOptions
         {
             Certificate = TsaCertificate,
-            Signer = X509Signer.FromECDsa(TsaKey),
+            Signer = TsaSigner,
             DefaultPolicy = "1.2.3.4.5",
             ChainCertificates = [inter],
         }, new CounterTimeStampSerialSource(1000));
     }
 
     public static PadesKit Shared => Instance.Value;
+
+    /// <summary>A separate PKI whose root, intermediate and time-stamp authority keys are all RSA.</summary>
+    public static PadesKit CreateRsaOnly() => new(rsaOnly: true);
 
     /// <summary>The instant the PKI was generated; "now" for the tests, so they never read the clock again.</summary>
     public DateTimeOffset Now { get; }
@@ -65,9 +76,11 @@ internal sealed class PadesKit
 
     public CertificateAuthority Intermediate { get; }
 
-    public ECDsa InterKey { get; }
+    public bool RsaOnly { get; }
 
-    public ECDsa TsaKey { get; }
+    public X509Signer InterSigner { get; }
+
+    public X509Signer TsaSigner { get; }
 
     public Certificate TsaCertificate { get; }
 
@@ -78,9 +91,9 @@ internal sealed class PadesKit
     public Certificate[] Chain => [Intermediate.Certificate];
 
     /// <summary>A signer of the kind, valid from 400 days ago for almost two years unless told otherwise.</summary>
-    public TestSigner Signer(KeyKind kind, string? name = null, DateTimeOffset? notBefore = null, TimeSpan? validity = null)
+    public TestSigner Signer(KeyKind kind, string? name = null, DateTimeOffset? notBefore = null, TimeSpan? validity = null, CertificateProfile? profile = null)
     {
-        string id = $"{kind}/{name}/{notBefore}/{validity}";
+        string id = $"{kind}/{name}/{notBefore}/{validity}/{profile?.Name}";
         lock (_signers)
         {
             if (_signers.TryGetValue(id, out TestSigner? have))
@@ -99,7 +112,7 @@ internal sealed class PadesKit
             };
             Certificate cert = Intermediate.Issue(key.PublicKey, DistinguishedName.Create((KnownOids.CommonName, name ?? $"Test Signer {kind}")), new CertificateIssueOptions
             {
-                Profile = CertificateProfile.SMime,
+                Profile = profile ?? CertificateProfile.SMime,
                 NotBefore = notBefore ?? Now.AddDays(-400),
                 Validity = validity ?? TimeSpan.FromDays(700),
                 SubjectAlternativeNames = [GeneralName.Email("signer@example.test")],
@@ -140,7 +153,7 @@ internal sealed class PadesKit
             source.SetGood(c.SerialNumber.Span);
         }
 
-        var responder = new OcspResponder(new OcspResponderOptions { Issuer = Intermediate.Certificate, ResponderCertificate = Intermediate.Certificate, Signer = X509Signer.FromECDsa(InterKey), Source = source });
+        var responder = new OcspResponder(new OcspResponderOptions { Issuer = Intermediate.Certificate, ResponderCertificate = Intermediate.Certificate, Signer = InterSigner, Source = source });
         OcspRequest request = OcspRequestBuilder.Create(new OcspRequestOptions { Requests = [.. certificates.Select(c => OcspCertId.Create(c, Intermediate.Certificate))] });
         return new RevocationData { OcspResponses = [responder.Handle(request.Encoded, at).BasicResponse!] };
     }
