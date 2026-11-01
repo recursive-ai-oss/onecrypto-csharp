@@ -43,6 +43,7 @@ internal static class Program
         ["pgppacket"] = PgpPacketTarget.Run,
         ["pgpmessage"] = PgpMessageTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
+        ["trust"] = TrustTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -69,6 +70,7 @@ internal static class Program
         "pgppacket" => PgpPacketTarget.Seeds(),
         "pgpmessage" => PgpMessageTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
+        "trust" => TrustTarget.Seeds(),
         _ => [],
     };
 

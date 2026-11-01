@@ -410,13 +410,21 @@ public static class ClassicTrust
         {
             bool added = false;
             ClassicValidity byAmount = c.Amount >= 120 ? ClassicValidity.Full : c.Amount >= 60 ? ClassicValidity.Marginal : ClassicValidity.Unknown;
-            if (byAmount == ClassicValidity.Unknown || !_grants.TryGetValue(c.Issuer, out List<Grant>? parents))
+            if (!_grants.TryGetValue(c.Issuer, out List<Grant>? parents))
             {
                 return false;
             }
 
             // GnuPG looks at the first Regular Expression subpacket only (checked with two and three expressions, 2.4.4, 2.4.8, 2.5.24).
             string? mine = c.Regexes.Count > 0 ? c.Regexes[0] : null;
+
+            // A trust signature too weak to count (amount under 60) leaves the certified key's owner trust alone, unless it carries a regular
+            // expression: then it still governs the key, which turns every User ID outside its scope into one the key says nothing about
+            // (observed with GnuPG 2.4.8 and 2.5.24, scenario c95-random-16).
+            if (byAmount == ClassicValidity.Unknown && mine is null)
+            {
+                return false;
+            }
 
             // Only a trust signature, or ultimate trust, lets a key pass trust on through its own trust signatures. Owner trust alone makes a key an
             // introducer for plain certifications and nothing more (GnuPG 2.4.4, 2.4.8, 2.5.24).
