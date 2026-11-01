@@ -36,7 +36,7 @@ checks first.
   DigestInfo table has no SHA-3.
 - **RSA key bounds** on public input: modulus at most 16384 bits and odd, exponent odd, between 3 and 2^256. An out-of-bounds key
   is an `ArgumentException`.
-- **Hashes** known to the verifiers: SHA-1, SHA-256, SHA-384, SHA-512, SHA3-224/256/384/512. SHA-224, SHA-512/224 and SHA-512/256
+- **Hashes** known to the verifiers: SHA-1, SHA-256, SHA-384, SHA-512, SHA3-224/256/384/512 (PKCS#1 v1.5 also SHA-224 and RIPEMD-160 from a supplied digest, for OpenPGP). SHA-512/224 and SHA-512/256
   are not offered (the platform has none; they are not needed by any format here). Whether a hash is acceptable for a signature
   is a policy question, answered above this layer.
 - **Brainpool** (brainpoolP256r1, P384r1, P512r1, RFC 5639): verification works everywhere, through the platform where it has the

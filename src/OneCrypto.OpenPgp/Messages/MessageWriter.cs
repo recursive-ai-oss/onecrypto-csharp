@@ -21,6 +21,12 @@ internal sealed class SignatureBuilder : IDisposable
         _type = type;
         KeyPacket kp = key.Key.Packet;
         _hash = hash ?? DefaultHash(kp);
+        if (PgpHash.IsManaged(_hash))
+        {
+            // SHA-224 and RIPEMD-160 are computed here only to check old signatures (RFC 9580 §9.5 does not recommend them for new ones).
+            throw new PgpException(PgpFailure.PolicyViolation, $"{_hash} is accepted when verifying old signatures but is not used for new ones.");
+        }
+
         PolicyDecision d = policy.CheckHash(PgpAlgorithms.HashName(_hash), CryptoUse.Sign, now);
         if (d.Verdict == PolicyVerdict.Rejected)
         {

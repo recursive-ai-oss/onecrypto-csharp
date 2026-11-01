@@ -56,6 +56,14 @@ for k in v5 v4o v4; do
   sop verify $k.gsig $k.cert < msg.txt > /dev/null && ok "$k ours verifies gpg detached" || bad "$k ours verifies gpg detached"
 done
 
+# Old hashes: GnuPG signs with SHA-224 and RIPEMD-160, we verify; we refuse to sign with them
+for h in SHA224 RIPEMD160; do
+  gpg --batch --yes --allow-weak-digest-algos --digest-algo $h --local-user v4@example.org --detach-sign -o old-$h.sig msg.txt 2>/dev/null
+  sop verify old-$h.sig v4.cert < msg.txt > /dev/null && ok "ours verifies gpg $h detached" || bad "ours verifies gpg $h detached"
+  gpg --batch --yes --allow-weak-digest-algos --digest-algo $h --local-user v4@example.org --sign -o old-$h.gpg msg.txt 2>/dev/null
+  sop inline-verify --verifications-out=old-$h.ver v4.cert < old-$h.gpg > dec.bin && cmp -s dec.bin msg.txt && ok "ours verifies gpg $h inline" || bad "ours verifies gpg $h inline"
+done
+
 # passwords
 echo -n 'pw' > pw.txt
 gpg --batch --yes --pinentry-mode loopback --passphrase-file pw.txt --symmetric --force-ocb -o sym.gpg big.bin 2>/dev/null
