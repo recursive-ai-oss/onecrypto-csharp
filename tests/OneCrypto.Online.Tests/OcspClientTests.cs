@@ -158,6 +158,21 @@ public class OcspClientTests
     }
 
     [Fact]
+    public async Task AWellFramedResponseWithAMalformedBasicResponseIsMalformedNotAnException()
+    {
+        // OCSPResponse { successful, [0] { id-pkix-ocsp-basic, OCTET STRING { a SEQUENCE claiming more bytes than the string holds } } }
+        byte[] oid = [0x06, 0x09, 0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x30, 0x01, 0x01];
+        byte[] inner = [0x30, 0x7F, 0x01, 0x02];
+        byte[] octets = [0x04, (byte)inner.Length, .. inner];
+        byte[] responseBytes = [0x30, (byte)(oid.Length + octets.Length), .. oid, .. octets];
+        byte[] tagged = [0xA0, (byte)responseBytes.Length, .. responseBytes];
+        byte[] body = [0x30, (byte)(3 + tagged.Length), 0x0A, 0x01, 0x00, .. tagged];
+        var net = new FakeNetwork(_ => Reply.Ok(body, "application/ocsp-response"));
+        OcspQueryResult r = await Client(net).QueryAsync(W.Good, W.Intermediate.Certificate, Opts());
+        Assert.Equal(OcspOutcome.MalformedResponse, r.Outcome);
+    }
+
+    [Fact]
     public async Task ACertificateWithNoResponderSaysSo()
     {
         var net = new FakeNetwork(_ => Reply.Code(500));

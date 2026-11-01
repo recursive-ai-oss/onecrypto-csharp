@@ -114,7 +114,16 @@ public sealed class AiaClient
     public ValueTask<IReadOnlyList<AiaFetchResult>> FetchIssuersAsync(Certificate certificate, AiaFetchOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(certificate);
-        IEnumerable<string> uris = certificate.Extensions.Get<AuthorityInfoAccess>()?.UrisFor(KnownOids.AdCaIssuers) ?? [];
+        IEnumerable<string> uris;
+        try
+        {
+            uris = [.. certificate.Extensions.Get<AuthorityInfoAccess>()?.UrisFor(KnownOids.AdCaIssuers) ?? []];
+        }
+        catch (X509ParseException)
+        {
+            uris = [];
+        }
+
         return FetchIssuersAsync(uris, options, cancellationToken);
     }
 
@@ -168,7 +177,14 @@ public sealed class AiaClient
 
         if (SignedData.TryParse(body, out SignedData? sd) && sd is not null)
         {
-            return [.. sd.Certificates.Take(max)];
+            try
+            {
+                return [.. sd.Certificates.Take(max)];
+            }
+            catch (FormatException)
+            {
+                return [];
+            }
         }
 
         if (body.Length > 10 && body.Span[0] == (byte)'-')

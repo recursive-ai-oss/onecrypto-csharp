@@ -140,7 +140,19 @@ public sealed class CrlClient
     {
         ArgumentNullException.ThrowIfNull(certificate);
         options ??= new CrlFetchOptions();
-        return await FetchSetAsync(DistributionUris(certificate.Extensions.Get<CrlDistributionPoints>()?.Points), DeltaUris(certificate), options, cancellationToken).ConfigureAwait(false);
+        IEnumerable<string> complete;
+        IEnumerable<string> deltas;
+        try
+        {
+            complete = [.. DistributionUris(certificate.Extensions.Get<CrlDistributionPoints>()?.Points)];
+            deltas = [.. DeltaUris(certificate)];
+        }
+        catch (X509ParseException)
+        {
+            return [];
+        }
+
+        return await FetchSetAsync(complete, deltas, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Fetches the complete CRLs at the given locations and then the delta CRLs the certificate and those CRLs name.</summary>
@@ -153,7 +165,17 @@ public sealed class CrlClient
         ArgumentNullException.ThrowIfNull(locations);
         ArgumentNullException.ThrowIfNull(certificate);
         options ??= new CrlFetchOptions();
-        return await FetchSetAsync(locations, DeltaUris(certificate), options, cancellationToken).ConfigureAwait(false);
+        IEnumerable<string> deltas;
+        try
+        {
+            deltas = [.. DeltaUris(certificate)];
+        }
+        catch (X509ParseException)
+        {
+            deltas = [];
+        }
+
+        return await FetchSetAsync(locations, deltas, options, cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<IReadOnlyList<CrlFetchResult>> FetchSetAsync(IEnumerable<string> complete, IEnumerable<string> certificateDeltas, CrlFetchOptions options, CancellationToken cancellationToken)
@@ -234,7 +256,7 @@ public sealed class CrlClient
     {
         if (CertificateRevocationList.TryParse(body.ToArray(), out crl))
         {
-            return true;
+            return ExtensionsDecode(ref crl);
         }
 
         if (body.Length > 10 && body[0] == (byte)'-' && body.Length < (64 << 20))
@@ -242,7 +264,7 @@ public sealed class CrlClient
             try
             {
                 crl = CertificateRevocationList.FromPem(System.Text.Encoding.ASCII.GetString(body));
-                return true;
+                return ExtensionsDecode(ref crl);
             }
             catch (Exception ex) when (ex is FormatException)
             {
@@ -253,6 +275,21 @@ public sealed class CrlClient
 
         crl = null;
         return false;
+    }
+
+    /// <summary>Extensions decode lazily; a list whose extensions are malformed is rejected here rather than when the validator first asks for one.</summary>
+    private static bool ExtensionsDecode(ref CertificateRevocationList? crl)
+    {
+        try
+        {
+            _ = crl!.Extensions;
+            return true;
+        }
+        catch (X509ParseException)
+        {
+            crl = null;
+            return false;
+        }
     }
 
     private static IEnumerable<string> DistributionUris(IEnumerable<DistributionPoint>? points) =>

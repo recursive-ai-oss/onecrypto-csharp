@@ -45,7 +45,20 @@ public sealed class OnlineCertificateSource : ICertificateSource
             _attempts.Enqueue(new OnlineAttempt("aia", r.Uri, r.Outcome == AiaOutcome.Fetched, r.Outcome == AiaOutcome.Fetched ? $"{r.Certificates.Count} certificate(s)" : r.Reason));
 
             // Only a certificate whose subject is the subject's issuer can be the next link; anything else is noise from a careless or hostile server.
-            found.AddRange(r.Certificates.Where(c => c.Subject.Matches(subject.Issuer)));
+            foreach (Certificate c in r.Certificates)
+            {
+                try
+                {
+                    if (c.Subject.Matches(subject.Issuer))
+                    {
+                        found.Add(c);
+                    }
+                }
+                catch (X509ParseException)
+                {
+                    // A name that does not decode cannot be the issuer's.
+                }
+            }
         }
 
         return found;

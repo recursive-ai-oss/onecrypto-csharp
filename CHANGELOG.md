@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+- `RecursiveAI.OneCrypto.Online`, new: a guarded HTTP transport (only `http`/`https`; certificate-supplied URLs cannot reach loopback, private, link-local, carrier-grade NAT, multicast or IPv4-wrapping IPv6 addresses, checked on the address actually connected to; timeouts, size and redirect limits applied to every hop), an RFC 9111 cache that also honours CRL and OCSP `thisUpdate`/`nextUpdate` at the caller's reference time, record and replay transports for test fixtures, clients for RFC 3161 time-stamps, OCSP (POST and the RFC 5019 GET form), CRLs with delta CRLs, and `caIssuers` certificates, and `ICertificateSource`/`IRevocationSource` implementations so `PathValidator.ValidateAsync` can fetch what is missing. Nothing is fetched unless a call asks; offline revocation stays unknown. See `docs/online.md`.
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).

@@ -245,16 +245,28 @@ public sealed class OcspClient
             return new OcspQueryResult(OcspOutcome.UnsupportedResponseType, $"the response type {response.ResponseType} is not id-pkix-ocsp-basic", fetch, request) { Response = response };
         }
 
-        OcspBasicResponse? basic = response.BasicResponse;
+        // The inner structures decode lazily over the received bytes, so a malformed one surfaces here, on first use.
+        OcspBasicResponse? basic;
+        OcspSingleResponse? single;
+        ReadOnlyMemory<byte>? sent = request.Nonce;
+        ReadOnlyMemory<byte>? got;
+        try
+        {
+            basic = response.BasicResponse;
+            single = basic?.Responses.FirstOrDefault(s => s.CertId.Equals(certId));
+            got = basic?.Nonce;
+        }
+        catch (X509ParseException ex)
+        {
+            return new OcspQueryResult(OcspOutcome.MalformedResponse, "the basic response is malformed: " + ex.Message, fetch, request) { Response = response };
+        }
+
         if (basic is null)
         {
             return new OcspQueryResult(OcspOutcome.MalformedResponse, "the basic response is malformed", fetch, request) { Response = response };
         }
 
-        OcspSingleResponse? single = basic.Responses.FirstOrDefault(s => s.CertId.Equals(certId));
         var result = new OcspQueryResult(OcspOutcome.Answered, string.Empty, fetch, request) { Response = response, Basic = basic };
-        ReadOnlyMemory<byte>? sent = request.Nonce;
-        ReadOnlyMemory<byte>? got = basic.Nonce;
         if (sent is null)
         {
             result.Nonce = OcspNonceStatus.NotSent;
@@ -288,18 +300,19 @@ public sealed class OcspClient
     /// <summary>The first http(s) OCSP location of a certificate.</summary>
     internal static Uri? ResponderFrom(Certificate certificate)
     {
-        AuthorityInfoAccess? aia = certificate.Extensions.Get<AuthorityInfoAccess>();
-        if (aia is null)
+        try
         {
-            return null;
-        }
-
-        foreach (string s in aia.UrisFor(KnownOids.AdOcsp))
-        {
-            if (Uri.TryCreate(s, UriKind.Absolute, out Uri? u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps))
+            foreach (string s in certificate.Extensions.Get<AuthorityInfoAccess>()?.UrisFor(KnownOids.AdOcsp) ?? [])
             {
-                return u;
+                if (Uri.TryCreate(s, UriKind.Absolute, out Uri? u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps))
+                {
+                    return u;
+                }
             }
+        }
+        catch (X509ParseException)
+        {
+            // A certificate with a malformed authorityInfoAccess names no responder.
         }
 
         return null;
@@ -321,13 +334,14 @@ public sealed class OcspClient
             return false;
         }
 
-        OcspBasicResponse? basic = r.BasicResponse;
-        OcspSingleResponse? s = basic?.Responses.FirstOrDefault(x => x.CertId.Equals(id));
-        if (s is null || s.ThisUpdate > at)
+        try
+        {
+            OcspSingleResponse? s = r.BasicResponse?.Responses.FirstOrDefault(x => x.CertId.Equals(id));
+            return s is not null && s.ThisUpdate <= at && at <= (s.NextUpdate ?? s.ThisUpdate + maxAgeWithoutNext);
+        }
+        catch (X509ParseException)
         {
             return false;
         }
-
-        return at <= (s.NextUpdate ?? s.ThisUpdate + maxAgeWithoutNext);
     }
 }

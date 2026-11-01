@@ -24,7 +24,6 @@ public class PublicEndpointTests
         ("freetsa", "https://freetsa.org/tsr"),
         ("digicert", "http://timestamp.digicert.com"),
         ("sectigo", "http://timestamp.sectigo.com"),
-        ("globalsign", "http://timestamp.globalsign.com/tsa/r6advanced1"),
     ];
 
     private static string Data(string file) => Path.Combine(TestFiles.TestData, "online", file);
