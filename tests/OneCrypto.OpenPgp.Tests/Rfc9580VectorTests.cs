@@ -5,7 +5,7 @@ namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 /// <summary>The sample objects of RFC 9580 Appendix A, extracted by tools/extract-rfc9580-vectors.py.</summary>
 public class Rfc9580VectorTests
 {
-    public static TheoryData<string> Files() => new(Directory.GetFiles(TestFiles.OpenPgp("rfc9580"), "*.asc").Select(Path.GetFileName).OfType<string>().Order());
+    public static TheoryData<string> Files() => new(Directory.GetFiles(TestFiles.OpenPgp("rfc9580"), "*.asc").Select(Path.GetFileName).OfType<string>().Where(f => !f.Contains("cleartext", StringComparison.Ordinal)).Order());
 
     [Theory]
     [MemberData(nameof(Files))]

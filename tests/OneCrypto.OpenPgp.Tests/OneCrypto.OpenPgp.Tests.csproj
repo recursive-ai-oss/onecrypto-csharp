@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Cli/OneCrypto.Cli.csproj" />
   </ItemGroup>
 
 </Project>

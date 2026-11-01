@@ -344,8 +344,9 @@ public sealed class SecretKeyPacket : KeyPacket
                     cipher = (SymmetricAlgorithm)usage;
                 }
 
-                int ivLength = usage == 253 ? AeadNonceLength(aead!.Value) : CfbBlockSize(cipher);
-                if (ivLength <= 0)
+                // GnuPG's "GNU" S2K (a stub or a key on a card) protects nothing, so no IV and no secret data follow it.
+                int ivLength = s2k is { TypeId: (byte)S2kType.GnuExtension } ? 0 : usage == 253 ? AeadNonceLength(aead!.Value) : CfbBlockSize(cipher);
+                if (ivLength < 0 || (ivLength == 0 && s2k is not { TypeId: (byte)S2kType.GnuExtension }))
                 {
                     throw c.Fail(OpenPgpError.InvalidField, "unknown cipher or AEAD for the s2k IV");
                 }

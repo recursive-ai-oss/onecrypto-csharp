@@ -38,6 +38,7 @@ internal static class Program
         ["load"] = LoadTarget.Run,
         ["pades"] = PadesTarget.Run,
         ["online"] = OnlineTarget.Run,
+        ["pgppacket"] = PgpPacketTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -59,6 +60,7 @@ internal static class Program
         "load" => LoadTarget.Seeds(),
         "pades" => PadesTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
+        "pgppacket" => PgpPacketTarget.Seeds(),
         _ => [],
     };
 
