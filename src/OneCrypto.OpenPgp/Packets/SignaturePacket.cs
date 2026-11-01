@@ -414,7 +414,8 @@ public sealed class SignaturePacket : Packet
             }
 
             SignatureSubpacket? s = HashedSubpackets.Find(SubpacketType.IssuerKeyId) ?? UnhashedSubpackets.Find(SubpacketType.IssuerKeyId);
-            return s is { Data.Length: 8 } ? s.Data : null;
+            // ReadOnlyMemory has an implicit conversion from a null array, so a bare null here would be an empty value, not an absent one.
+            return s is { Data.Length: 8 } ? (ReadOnlyMemory<byte>?)s.Data : null;
         }
     }
 
@@ -424,7 +425,7 @@ public sealed class SignaturePacket : Packet
         get
         {
             SignatureSubpacket? s = HashedSubpackets.Find(SubpacketType.IssuerFingerprint) ?? UnhashedSubpackets.Find(SubpacketType.IssuerFingerprint);
-            return s is { Data.Length: > 1 } ? s.Data : null;
+            return s is { Data.Length: > 1 } ? (ReadOnlyMemory<byte>?)s.Data : null;
         }
     }
 
@@ -444,6 +445,10 @@ public sealed class SignaturePacket : Packet
     public ReadOnlyMemory<byte>? PreferredCompressionAlgorithms => HashedSubpackets.Find(SubpacketType.PreferredCompressionAlgorithms)?.Data;
 
     /// <summary>The preferred AEAD ciphersuites as (symmetric, AEAD) octet pairs (hashed subpacket); null if absent.</summary>
+    /// <summary>The legacy Preferred AEAD Algorithms subpacket (type 34, draft-koch-librepgp), a list of AEAD identifiers; null when absent.</summary>
+    public ReadOnlyMemory<byte>? PreferredAeadAlgorithms => HashedSubpackets.Find(SubpacketType.PreferredAeadAlgorithms)?.Data;
+
+    /// <summary>The Preferred AEAD Ciphersuites subpacket (type 39); null when absent.</summary>
     public ReadOnlyMemory<byte>? PreferredAeadCiphersuites => HashedSubpackets.Find(SubpacketType.PreferredAeadCiphersuites)?.Data;
 
     /// <summary>True when the hashed Primary User ID subpacket is present and set.</summary>

@@ -189,6 +189,7 @@ public sealed record CryptoPolicy
         [
             new("MD5", null, DateTimeOffset.MinValue, true, "RFC 6151 §2"),
             new("SHA-1", null, DateTimeOffset.MinValue, true, "RFC 9155 §3; NIST SP 800-131A Rev. 2 §3"),
+            new("RIPEMD-160", null, DateTimeOffset.MinValue, true, "RFC 9580 §9.5: not recommended; a 160-bit digest"),
         ],
         MinRsaBitsNew = 3072,
         MinRsaBitsVerify = 2048,
@@ -229,6 +230,8 @@ public sealed record CryptoPolicy
             // Certificates, CRLs and OCSP responses: public CAs stopped issuing SHA-1 certificates in 2016 and chosen-prefix collisions make forgery practical.
             PkiRejectFrom = s_2017,
         },
+        // RIPEMD-160 has a 160-bit digest like SHA-1 and is not recommended for OpenPGP (RFC 9580 §9.5); it follows SHA-1's dates.
+        new("RIPEMD-160", s_2011, s_2031, true, "RFC 9580 §9.5; NIST SP 800-131A Rev. 2 §3 (160-bit digest)"),
     ];
 
     /// <summary>Smallest RSA modulus, in bits, accepted for new signatures and encryption. Default 2048 (NIST SP 800-131A Rev. 2 §3).</summary>
@@ -525,6 +528,8 @@ public sealed record CryptoPolicy
     private static string Canonical(string? name) => (name ?? string.Empty).ToUpperInvariant().Replace("_", "-", StringComparison.Ordinal) switch
     {
         "SHA1" or "SHA-1" => "SHA-1",
+        "SHA224" or "SHA-224" => "SHA-224",
+        "RIPEMD160" or "RIPEMD-160" => "RIPEMD-160",
         "SHA256" or "SHA-256" => "SHA-256",
         "SHA384" or "SHA-384" => "SHA-384",
         "SHA512" or "SHA-512" => "SHA-512",

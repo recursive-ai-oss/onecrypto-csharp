@@ -28,7 +28,7 @@ internal static class RsaVerifier
     public static bool VerifyPkcs1(ReadOnlySpan<byte> modulus, ReadOnlySpan<byte> exponent, HashAlgorithmName hash, ReadOnlySpan<byte> digest, ReadOnlySpan<byte> signature)
     {
         ReadOnlySpan<byte> oid = DigestOid(hash);
-        if (oid.IsEmpty || digest.Length != DigestSize(hash))
+        if (oid.IsEmpty || digest.Length != Pkcs1DigestSize(hash))
         {
             return false;
         }
@@ -225,12 +225,32 @@ internal static class RsaVerifier
     /// <summary>The digest size in bytes of a hash this verifier knows, or 0.</summary>
     internal static int DigestSize(HashAlgorithmName hash) => PlatformHash.DigestSize(hash);
 
+    /// <summary>SHA-224 as a hash name (the platform has no enumerated one); only its PKCS#1 DigestInfo is known here, the caller supplies the digest.</summary>
+    internal static readonly HashAlgorithmName Sha224Name = new("SHA224");
+
+    /// <summary>RIPEMD-160 as a hash name, with the same limit as <see cref="Sha224Name"/>.</summary>
+    internal static readonly HashAlgorithmName Ripemd160Name = new("RIPEMD160");
+
+    // PKCS#1 v1.5 verification takes a finished digest, so it also covers the two hashes the platform does not compute.
+    private static int Pkcs1DigestSize(HashAlgorithmName hash) => hash == Sha224Name ? 28 : hash == Ripemd160Name ? 20 : DigestSize(hash);
+
     // DER content octets of the hash's OID: RFC 8017 section 9.2 note 1 (SHA-1, SHA-2) and NIST's csor hash OID arc 2.16.840.1.101.3.4.2.
     private static ReadOnlySpan<byte> DigestOid(HashAlgorithmName hash)
     {
         if (hash == HashAlgorithmName.SHA1)
         {
             return [0x2B, 0x0E, 0x03, 0x02, 0x1A];
+        }
+
+        if (hash == Sha224Name)
+        {
+            return [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04];
+        }
+
+        if (hash == Ripemd160Name)
+        {
+            // ISO/IEC 10118-3 RIPEMD-160, 1.3.36.3.2.1 (RFC 8017 does not list it; OpenPGP uses it with this DigestInfo).
+            return [0x2B, 0x24, 0x03, 0x02, 0x01];
         }
 
         if (hash == HashAlgorithmName.SHA256)
