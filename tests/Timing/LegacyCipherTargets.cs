@@ -62,6 +62,7 @@ internal static class LegacyCipherTargets
         {
             yield return new KeySetupTarget(c, KeySetupMode.RandomVsRandom);
             yield return new KeySetupTarget(c, KeySetupMode.FixedVsFixed);
+            yield return new KeySetupTarget(c, KeySetupMode.LowBitsVsRandom);
             yield return new KeyTarget(c, "control-decrypt-key", c.Decrypting, control: true);
             if (c.Encrypting is not null)
             {
@@ -152,6 +153,10 @@ internal static class LegacyCipherTargets
         /// <summary>Two different fixed keys, each repeated in its class. A key-dependent time would show here as it does against random keys,
         /// while an effect of seeing the same bytes again and again is in both classes and cancels.</summary>
         FixedVsFixed,
+
+        /// <summary>Fresh keys in both classes, no key repeated: every byte of the first class's keys is 0 or 1, the other class's keys are
+        /// uniformly random. A time that depends on the key's value shows here without any repeated input.</summary>
+        LowBitsVsRandom,
     }
 
     private sealed class KeySetupTarget(Cipher c, KeySetupMode mode) : TimingTarget
@@ -166,7 +171,8 @@ internal static class LegacyCipherTargets
         {
             KeySetupMode.FixedVsRandom => "key-setup",
             KeySetupMode.RandomVsRandom => "control-key-setup",
-            _ => "pair-key-setup",
+            KeySetupMode.FixedVsFixed => "pair-key-setup",
+            _ => "lowbits-key-setup",
         };
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
@@ -184,7 +190,18 @@ internal static class LegacyCipherTargets
             // The control (mask zero) makes both classes random, so a flag there is the harness or the machine.
             for (int i = 0; i < classes.Length; i++)
             {
-                if (mode == KeySetupMode.FixedVsFixed)
+                if (mode == KeySetupMode.LowBitsVsRandom)
+                {
+                    RandomNumberGenerator.Fill(_keys[i]);
+                    if (classes[i] == TimingClass.Fixed)
+                    {
+                        for (int b = 0; b < _keys[i].Length; b++)
+                        {
+                            _keys[i][b] &= 1;
+                        }
+                    }
+                }
+                else if (mode == KeySetupMode.FixedVsFixed)
                 {
                     (classes[i] == TimingClass.Fixed ? _fixedKey : _otherFixedKey).CopyTo(_keys[i], 0);
                 }
