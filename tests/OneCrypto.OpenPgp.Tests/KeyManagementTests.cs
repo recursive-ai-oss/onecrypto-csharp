@@ -78,6 +78,7 @@ public class KeyManagementTests
             Assert.All(reread.Keys, k => Assert.True(((SecretKeyPacket)k.Packet).Protection.IsProtected));
         }
 
+        Assert.NotNull(pub.FindSigningKey(T1)); // every profile, composite ML-DSA included, is picked for signing
         using PgpSecretKey signer = PgpSecretKey.Unlock(key.Primary, protectedKey ? [password] : []);
         using var sig = new MemoryStream();
         PgpMessageWriter.SignDetached(new MemoryStream("data"u8.ToArray()), sig, new PgpWriteOptions { Now = T1, Signers = [signer] });

@@ -476,7 +476,8 @@ public sealed class PgpCertificate
         foreach (PgpKey k in Keys)
         {
             PgpKeyState st = k.StateAt(at);
-            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448;
+            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448
+                or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448;
             // A stripped secret key keeps some components as public packets: only a component with secret material can sign (RFC 9580 §10.2).
             bool canUse = !HasSecretKeyMaterial || k.Packet is SecretKeyPacket;
             if (st.IsValid && algOk && canUse && (st.Usage & PgpKeyUsage.Sign) != 0 && (best is null || k.Packet.CreationTime > best.Packet.CreationTime))
