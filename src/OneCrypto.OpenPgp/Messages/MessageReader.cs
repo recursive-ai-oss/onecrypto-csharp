@@ -492,6 +492,7 @@ internal sealed class MessageProcessor : IDisposable
                     if (f.ReadPacket() is PublicKeyEncryptedSessionKeyPacket pk)
                     {
                         pkesks.Add(pk);
+                        CheckSessionKeyCount(pkesks.Count + skesks.Count);
                     }
 
                     break;
@@ -504,6 +505,7 @@ internal sealed class MessageProcessor : IDisposable
                     if (f.ReadPacket() is SymmetricKeyEncryptedSessionKeyPacket sk)
                     {
                         skesks.Add(sk);
+                        CheckSessionKeyCount(pkesks.Count + skesks.Count);
                     }
 
                     break;
@@ -622,6 +624,15 @@ internal sealed class MessageProcessor : IDisposable
         }
     }
 
+    // Each session-key packet can cost a private-key operation or a key derivation, so the count is bounded before any is tried (RFC 9580 §13).
+    private void CheckSessionKeyCount(int count)
+    {
+        if (count > _limits.MaxSessionKeyPackets)
+        {
+            throw new PgpException(PgpFailure.LimitExceeded, "The message has too many session key packets.");
+        }
+    }
+
     private void Finish(SignaturePacket sig, List<OpsEntry> ops, List<PrefixEntry> prefix)
     {
         byte[]? digest = null;
@@ -726,7 +737,16 @@ internal sealed class MessageProcessor : IDisposable
 
     // ---- encryption ----
 
-    private readonly record struct Candidate(SymmetricAlgorithm? Cipher, byte[] Key);
+    /// <summary>
+    /// A session key to try. A <paramref name="Decoy"/> stands for a public-key session-key packet that was addressed to one of our keys but could
+    /// not be unwrapped (bad padding, bad checksum, failed key unwrap): it is replaced by a random key of the right size and sent through the same
+    /// check as every recovered key, so a failed recovery and a wrong recovered key end in the same failure after the same steps (RFC 9580 §13.5).
+    /// </summary>
+    private readonly record struct Candidate(SymmetricAlgorithm? Cipher, byte[] Key, bool Decoy = false);
+
+    // String-to-key work spent on this message's password packets so far (OpenPgpLimits.MaxS2kWork), and whether any packet was skipped for its cost.
+    private long _s2kWork;
+    private bool _limitHit;
 
     private Stream OpenEncrypted(PacketFrame f, List<PublicKeyEncryptedSessionKeyPacket> pkesks, List<SymmetricKeyEncryptedSessionKeyPacket> skesks)
     {
@@ -740,46 +760,108 @@ internal sealed class MessageProcessor : IDisposable
 
         }
 
-        List<Candidate> candidates = Candidates(pkesks, skesks, f);
+        Stream body = f.Body;
+        // The payload version decides which session-key packets may open it, so it is read before any key work.
+        int version = f.Tag == PacketTag.SymmetricallyEncryptedData ? -1 : body.ReadByte();
+        AlignSessionKeyPackets(f.Tag, version, pkesks, skesks, out List<PublicKeyEncryptedSessionKeyPacket> usablePkesks, out List<SymmetricKeyEncryptedSessionKeyPacket> usableSkesks);
+        if (usablePkesks.Count + usableSkesks.Count == 0 && pkesks.Count + skesks.Count > 0 && _o.SessionKeysWithCipher.Count + _o.SessionKeys.Count == 0)
+        {
+            throw new PgpException(PgpFailure.MalformedMessage, "No session key packet matches the version of the encrypted data (RFC 9580 §10.3.2.1).");
+        }
+
+        List<Candidate> candidates = Candidates(usablePkesks, usableSkesks);
+        if (!candidates.Exists(static c => !c.Decoy) && _lockedSeen)
+        {
+            throw new PgpException(PgpFailure.KeyIsProtected, "A secret key that could open the message is protected and no password unlocks it.");
+        }
+
         if (candidates.Count == 0)
         {
-            if (_lockedSeen)
+            if (_limitHit)
             {
-                throw new PgpException(PgpFailure.KeyIsProtected, "A secret key that could open the message is protected and no password unlocks it.");
+                throw new PgpException(PgpFailure.LimitExceeded, "The password session key packets exceed the key derivation limits.");
             }
 
             throw new PgpException(pkesks.Count + skesks.Count == 0 ? PgpFailure.CannotDecrypt : PgpFailure.NoDecryptionKey,
                 "No supplied key or password opens the message.");
         }
 
-        Stream body = f.Body;
+        Stream plain;
+        PgpProtection protection;
         if (f.Tag == PacketTag.SymmetricallyEncryptedData)
         {
-            return OpenSed(body, candidates);
+            plain = OpenSed(body, candidates);
+            protection = PgpProtection.None;
         }
-
-        int version = body.ReadByte();
-        if (f.Tag == PacketTag.OcbEncryptedData)
+        else if (f.Tag == PacketTag.OcbEncryptedData)
         {
-            return OpenOcbEd(body, version, candidates);
+            plain = OpenOcbEd(body, version, candidates);
+            protection = PgpProtection.OcbEncryptedData;
         }
-
-        if (version == 2)
+        else if (version == 2)
         {
-            return OpenSeipd2(body, candidates);
+            plain = OpenSeipd2(body, candidates);
+            protection = PgpProtection.Aead;
         }
-
-        if (version == 1)
+        else if (version == 1)
         {
-            return OpenSeipd1(body, candidates);
+            plain = OpenSeipd1(body, candidates);
+            protection = PgpProtection.Mdc;
+        }
+        else
+        {
+            throw new PgpException(PgpFailure.Unsupported, "Unknown SEIPD version.");
         }
 
-        throw new PgpException(PgpFailure.Unsupported, "Unknown SEIPD version.");
+        // With nested encryption the report carries the weakest layer.
+        if (_r.Protection == PgpProtection.NotEncrypted || protection < _r.Protection)
+        {
+            _r.Protection = protection;
+        }
+
+        return plain;
     }
 
-    private List<Candidate> Candidates(List<PublicKeyEncryptedSessionKeyPacket> pkesks, List<SymmetricKeyEncryptedSessionKeyPacket> skesks, PacketFrame frame)
+    /// <summary>
+    /// RFC 9580 §10.3.2.1: a v1 SEIPD (and the deprecated SED) is opened by v3 PKESK and v4 SKESK packets, whose cleartext names the cipher; a v2 SEIPD
+    /// only by v6 packets, and a v3 PKESK or v4 SKESK may not precede it. A session-key packet whose version does not align with the payload is
+    /// discarded. LibrePGP's OCB Encrypted Data is not constrained here.
+    /// </summary>
+    private static void AlignSessionKeyPackets(
+        PacketTag tag,
+        int version,
+        List<PublicKeyEncryptedSessionKeyPacket> pkesks,
+        List<SymmetricKeyEncryptedSessionKeyPacket> skesks,
+        out List<PublicKeyEncryptedSessionKeyPacket> usablePkesks,
+        out List<SymmetricKeyEncryptedSessionKeyPacket> usableSkesks)
     {
-        _ = frame;
+        usablePkesks = [];
+        usableSkesks = [];
+        bool v2 = tag == PacketTag.SymmetricallyEncryptedIntegrityProtectedData && version == 2;
+        bool v1 = tag == PacketTag.SymmetricallyEncryptedData || (tag == PacketTag.SymmetricallyEncryptedIntegrityProtectedData && version == 1);
+        foreach (PublicKeyEncryptedSessionKeyPacket p in pkesks)
+        {
+            if ((v2 && p.Version != 6) || (v1 && p.Version == 6))
+            {
+                continue;
+            }
+
+            usablePkesks.Add(p);
+        }
+
+        foreach (SymmetricKeyEncryptedSessionKeyPacket s in skesks)
+        {
+            if ((v2 && s.Version != 6) || (v1 && s.Version != 4))
+            {
+                continue;
+            }
+
+            usableSkesks.Add(s);
+        }
+    }
+
+    private List<Candidate> Candidates(List<PublicKeyEncryptedSessionKeyPacket> pkesks, List<SymmetricKeyEncryptedSessionKeyPacket> skesks)
+    {
         var list = new List<Candidate>();
         foreach ((SymmetricAlgorithm c, byte[] k) in _o.SessionKeysWithCipher)
         {
@@ -793,6 +875,8 @@ internal sealed class MessageProcessor : IDisposable
 
         foreach (PublicKeyEncryptedSessionKeyPacket p in pkesks)
         {
+            bool tried = false;
+            bool recovered = false;
             foreach (PgpCertificate cert in _o.SecretKeys)
             {
                 foreach (PgpKey key in cert.Keys)
@@ -815,12 +899,20 @@ internal sealed class MessageProcessor : IDisposable
                         continue;
                     }
 
+                    tried = true;
                     SessionKeys.Recovered? rec = SessionKeys.Decrypt(unlocked, p);
                     if (rec is { } r)
                     {
+                        recovered = true;
                         list.Add(new Candidate(r.Cipher, r.Key));
                     }
                 }
+            }
+
+            // RFC 9580 §13.5: a packet that was addressed to us and could not be unwrapped must not be told apart from one that unwrapped to a wrong key.
+            if (tried && !recovered)
+            {
+                list.Add(new Candidate(null, [], Decoy: true));
             }
         }
 
@@ -837,6 +929,33 @@ internal sealed class MessageProcessor : IDisposable
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Gives every decoy a random key of the size the payload asks for. <paramref name="headerCipher"/> is the cipher the payload header names (SEIPD v2,
+    /// OCB Encrypted Data); null for payloads whose cipher comes with the session key, where a decoy stands in with an AES-128 key.
+    /// </summary>
+    private static List<Candidate> Resolve(List<Candidate> candidates, SymmetricAlgorithm? headerCipher)
+    {
+        if (!candidates.Exists(static c => c.Decoy))
+        {
+            return candidates;
+        }
+
+        var resolved = new List<Candidate>(candidates.Count);
+        foreach (Candidate c in candidates)
+        {
+            if (!c.Decoy)
+            {
+                resolved.Add(c);
+                continue;
+            }
+
+            SymmetricAlgorithm size = headerCipher ?? SymmetricAlgorithm.Aes128;
+            resolved.Add(new Candidate(headerCipher is null ? size : null, RandomNumberGenerator.GetBytes(PgpAlgorithms.KeySize(size))));
+        }
+
+        return resolved;
     }
 
     private static bool Targets(PublicKeyEncryptedSessionKeyPacket p, PgpKey key)
@@ -872,10 +991,32 @@ internal sealed class MessageProcessor : IDisposable
         return got;
     }
 
+    /// <summary>The cost of one string-to-key run in the units of <see cref="OpenPgpLimits.MaxS2kWork"/>.</summary>
+    private static long S2kWork(S2kSpecifier s2k)
+    {
+        if (!s2k.IsKnown)
+        {
+            return 0;
+        }
+
+        return s2k.Type == S2kType.Argon2
+            ? (1L << Math.Min((int)s2k.MemoryExponent, 40)) * Math.Max(1, (int)s2k.Passes)
+            : (s2k.IterationCount >> 10) + 1;
+    }
+
     private Candidate? FromSkesk(SymmetricKeyEncryptedSessionKeyPacket s, byte[] password)
     {
         try
         {
+            // One hostile password packet costs a skip, not the read, and all of them together cost no more than the budget.
+            long work = S2kWork(s.S2k);
+            if (work > _limits.MaxS2kWork - _s2kWork)
+            {
+                _limitHit = true;
+                return null;
+            }
+
+            _s2kWork += work;
             int keySize = PgpAlgorithms.KeySize(s.Cipher);
             byte[] kdf = PgpAlgorithms.S2k(s.S2k, password, keySize, _policy.KdfLimits);
             if (s.Version == 4)
@@ -939,6 +1080,11 @@ internal sealed class MessageProcessor : IDisposable
         {
             return null;
         }
+        catch (PgpException e) when (e.Failure == PgpFailure.LimitExceeded)
+        {
+            _limitHit = true;
+            return null;
+        }
     }
 
     private static byte[] ReadUpTo(Stream s, int count)
@@ -977,7 +1123,7 @@ internal sealed class MessageProcessor : IDisposable
 
         _ = PgpAlgorithms.KeySize(cipher);
         _ = PgpAlgorithms.NonceSize(aead);
-        return OpenAead(body, candidates, key => AeadFraming.ForSeipd2(cipher, aead, chunkOctet, key, head.AsSpan(3)), key => key.Length == PgpAlgorithms.KeySize(cipher), cipher);
+        return OpenAead(body, candidates, key => AeadFraming.ForSeipd2(cipher, aead, chunkOctet, key, head.AsSpan(3)), cipher);
     }
 
     private AeadChunkReader OpenOcbEd(Stream body, int version, List<Candidate> candidates)
@@ -1010,17 +1156,22 @@ internal sealed class MessageProcessor : IDisposable
 
         // LibrePGP §5.16: the session key is the key itself; the associated data is the new-format tag, version, cipher, mode, chunk size and chunk index.
         byte[] adHead = [0xD4, 1, (byte)cipher, (byte)aead, chunkOctet];
-        return OpenAead(body, candidates, key => new AeadFraming(aead, chunkOctet, key, iv, adHead, true), key => key.Length == PgpAlgorithms.KeySize(cipher), cipher);
+        return OpenAead(body, candidates, key => new AeadFraming(aead, chunkOctet, key, iv, adHead, true), cipher);
     }
 
-    private AeadChunkReader OpenAead(Stream body, List<Candidate> candidates, Func<byte[], AeadFraming> framingFor, Func<byte[], bool> keyFits, SymmetricAlgorithm cipher)
+    private AeadChunkReader OpenAead(Stream body, List<Candidate> candidates, Func<byte[], AeadFraming> framingFor, SymmetricAlgorithm cipher)
     {
+        int keySize = PgpAlgorithms.KeySize(cipher);
+        candidates = Resolve(candidates, cipher);
         // Read enough to authenticate the first chunk with each candidate key, then replay it in front of the rest.
-        AeadFraming probeSample = framingFor(candidates[0].Key.Length == PgpAlgorithms.KeySize(cipher) ? candidates[0].Key : new byte[PgpAlgorithms.KeySize(cipher)]);
+        AeadFraming probeSample = framingFor(candidates[0].Key.Length == keySize ? candidates[0].Key : new byte[keySize]);
         byte[] window = ReadUpTo(body, probeSample.ChunkSize + 32);
+        // The probe buffers are chunk-sized (up to 4 MiB): one set serves every candidate key.
+        byte[] carry = new byte[probeSample.ChunkSize + 16 + 16];
+        byte[] plain = new byte[probeSample.ChunkSize];
         foreach (Candidate c in candidates)
         {
-            if (!keyFits(c.Key))
+            if (c.Key.Length != keySize)
             {
                 continue;
             }
@@ -1028,7 +1179,7 @@ internal sealed class MessageProcessor : IDisposable
             AeadFraming framing = framingFor(c.Key);
             try
             {
-                using var probe = new AeadChunkReader(new MemoryStream(window), framing);
+                using var probe = new AeadChunkReader(new MemoryStream(window), framing, carry, plain);
                 _ = probe.ReadByte();
             }
             catch (PgpException)
@@ -1048,7 +1199,7 @@ internal sealed class MessageProcessor : IDisposable
     private SedDecryptStream OpenSed(Stream body, List<Candidate> candidates)
     {
         byte[] head = ReadUpTo(body, 18);
-        foreach (Candidate c in candidates)
+        foreach (Candidate c in Resolve(candidates, null))
         {
             if (c.Cipher is not { } cipher || !Supported(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher))
             {
@@ -1077,88 +1228,170 @@ internal sealed class MessageProcessor : IDisposable
             throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
         }
 
-        Candidate? chosen = null;
-        foreach (Candidate c in candidates)
+        // RFC 9580 §13.4: the quick check only narrows the candidates; it never decides. A wrong key passes it one time in 65,536, so every key that
+        // passes is carried through the whole body and judged by the MDC, and a false positive cannot hide the right key.
+        var trials = new List<Seipd1Trial>();
+        try
         {
-            if (c.Cipher is not { } cipher || !Supported(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher) || head.Length < PgpAlgorithms.BlockSize(cipher) + 2)
+            foreach (Candidate c in Resolve(candidates, null))
             {
-                continue;
+                if (c.Cipher is not { } cipher || !Supported(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher) || head.Length < PgpAlgorithms.BlockSize(cipher) + 2)
+                {
+                    continue;
+                }
+
+                // RFC 9580 §5.13.1: the two octets after the random block repeat its last two.
+                int bsz = PgpAlgorithms.BlockSize(cipher);
+                byte[] t = head.AsSpan(0, bsz + 2).ToArray();
+                PgpAlgorithms.CfbDecrypt(cipher, c.Key, new byte[16], t);
+                if (t[bsz - 2] != t[bsz] || t[bsz - 1] != t[bsz + 1])
+                {
+                    continue;
+                }
+
+                if (trials.Exists(x => x.Cipher == cipher && CryptographicOperations.FixedTimeEquals(x.Key, c.Key)))
+                {
+                    continue; // the same key from two sources
+                }
+
+                trials.Add(new Seipd1Trial(cipher, c.Key));
             }
 
-            // RFC 9580 §5.13.1: the two octets after the random block repeat its last two; a cheap filter among several candidate keys.
-            int bsz = PgpAlgorithms.BlockSize(cipher);
-            byte[] t = head.AsSpan(0, bsz + 2).ToArray();
-            PgpAlgorithms.CfbDecrypt(cipher, c.Key, new byte[16], t);
-            if (t[bsz - 2] == t[bsz] && t[bsz - 1] == t[bsz + 1])
+            if (trials.Count == 0)
             {
-                chosen = c;
-                break;
+                // Without the cipher (a bare session key) we cannot even try; with a mismatch nothing opens it.
+                throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
+            }
+
+            byte[] buf = Scratch.Rent();
+            try
+            {
+                // The 18 octets already read are part of the CFB stream, so they go back in front of the rest.
+                foreach (Seipd1Trial trial in trials)
+                {
+                    trial.Feed(head);
+                }
+
+                int n;
+                while ((n = body.Read(buf, 0, buf.Length)) > 0)
+                {
+                    foreach (Seipd1Trial trial in trials)
+                    {
+                        trial.Feed(buf.AsSpan(0, n));
+                    }
+                }
+            }
+            finally
+            {
+                Scratch.Return(buf);
+            }
+
+            foreach (Seipd1Trial trial in trials)
+            {
+                if (!trial.Finish())
+                {
+                    continue;
+                }
+
+                _r.SessionKey = (byte[])trial.Key.Clone();
+                _r.SessionKeyCipher = trial.Cipher;
+                _r.CheckedBeforeRelease = true;
+                // The first block and two check octets are the random prefix, not message content.
+                SpoolStream spool = trial.TakeSpool();
+                spool.Position = PgpAlgorithms.BlockSize(trial.Cipher) + 2;
+                return spool;
+            }
+
+            throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
+        }
+        finally
+        {
+            // Every exit path: a trial that did not win (or any trial, when the read failed) drops its spool, and with it any file.
+            foreach (Seipd1Trial trial in trials)
+            {
+                trial.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// One candidate key run over a SEIPD v1 body: CFB decryption, the SHA-1 of everything but the trailer, and a spool that holds the plaintext
+    /// until the MDC has been checked.
+    /// </summary>
+    private sealed class Seipd1Trial : IDisposable
+    {
+        private readonly int _block;
+        private readonly byte[] _iv = new byte[16];
+        private readonly byte[] _tail = new byte[22];
+        private readonly byte[] _work = Scratch.Rent();
+        private readonly IncrementalHash _sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+        private SpoolStream? _spool = new();
+        private int _tailLen;
+        private int _carry;
+
+        internal Seipd1Trial(SymmetricAlgorithm cipher, byte[] key)
+        {
+            Cipher = cipher;
+            Key = key;
+            _block = PgpAlgorithms.BlockSize(cipher);
+        }
+
+        internal SymmetricAlgorithm Cipher { get; }
+
+        internal byte[] Key { get; }
+
+        /// <summary>Decrypts ciphertext octets; whole blocks go on, a partial block waits for the next call.</summary>
+        internal void Feed(ReadOnlySpan<byte> data)
+        {
+            while (!data.IsEmpty)
+            {
+                int take = Math.Min(data.Length, Scratch.Size - _carry);
+                data[..take].CopyTo(_work.AsSpan(_carry));
+                data = data[take..];
+                int total = _carry + take;
+                int whole = total - (total % _block);
+                PgpAlgorithms.CfbDecrypt(Cipher, Key, _iv, _work.AsSpan(0, whole));
+                Absorb(_work.AsSpan(0, whole), _tail, ref _tailLen, _sha1, _spool!);
+                _carry = total - whole;
+                _work.AsSpan(whole, _carry).CopyTo(_work);
             }
         }
 
-        if (chosen is not { } ch)
+        /// <summary>Ends the body and checks the modification detection code (RFC 9580 §5.14).</summary>
+        internal bool Finish()
         {
-            // Without the cipher (a bare session key) we cannot even try; with a mismatch nothing opens it.
-            throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
-        }
-
-        var spool = new SpoolStream();
-        SymmetricAlgorithm chCipher = ch.Cipher!.Value;
-        int blk = PgpAlgorithms.BlockSize(chCipher);
-        byte[] iv = new byte[16];
-        using IncrementalHash sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
-        // The 18 octets already read are part of the CFB stream, so they go back in front of the rest.
-        body = new PrefixStream(head, body);
-        byte[] tail = new byte[22];
-        int tailLen = 0;
-        byte[] buf = Scratch.Rent();
-        int carryLen = 0;
-        while (true)
-        {
-            // CFB runs over whole blocks except at the very end, so a partial block is carried to the next read.
-            int n = body.Read(buf, carryLen, buf.Length - carryLen);
-            if (n == 0)
+            if (_carry > 0)
             {
-                break;
+                byte[] last = _work.AsSpan(0, _carry).ToArray();
+                PgpAlgorithms.CfbDecrypt(Cipher, Key, _iv, last);
+                Absorb(last, _tail, ref _tailLen, _sha1, _spool!);
+                _carry = 0;
             }
 
-            int total = carryLen + n;
-            int whole = total - (total % blk);
-            PgpAlgorithms.CfbDecrypt(chCipher, ch.Key, iv, buf.AsSpan(0, whole));
-            Absorb(buf.AsSpan(0, whole), tail, ref tailLen, sha1, spool);
-            carryLen = total - whole;
-            buf.AsSpan(whole, carryLen).CopyTo(buf);
+            if (_tailLen != 22 || _tail[0] != 0xD3 || _tail[1] != 0x14)
+            {
+                return false;
+            }
+
+            _sha1.AppendData(_tail.AsSpan(0, 2));
+            byte[] digest = _sha1.GetHashAndReset();
+            return CryptographicOperations.FixedTimeEquals(digest, _tail.AsSpan(2, 20));
         }
 
-        if (carryLen > 0)
+        /// <summary>Hands the spool to the caller; call only after <see cref="Finish"/> returned true.</summary>
+        internal SpoolStream TakeSpool()
         {
-            byte[] last = buf.AsSpan(0, carryLen).ToArray();
-            PgpAlgorithms.CfbDecrypt(chCipher, ch.Key, iv, last);
-            Absorb(last, tail, ref tailLen, sha1, spool);
+            SpoolStream s = _spool!;
+            _spool = null;
+            return s;
         }
 
-        Scratch.Return(buf);
-
-        if (tailLen != 22 || tail[0] != 0xD3 || tail[1] != 0x14)
+        public void Dispose()
         {
-            spool.Dispose();
-            throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
+            _spool?.Dispose();
+            _sha1.Dispose();
+            Scratch.Return(_work);
         }
-
-        sha1.AppendData(tail.AsSpan(0, 2));
-        byte[] digest = sha1.GetHashAndReset();
-        if (!CryptographicOperations.FixedTimeEquals(digest, tail.AsSpan(2, 20)))
-        {
-            spool.Dispose();
-            throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
-        }
-
-        _r.SessionKey = (byte[])ch.Key.Clone();
-        _r.SessionKeyCipher = ch.Cipher;
-        _r.CheckedBeforeRelease = true;
-        // The first block and two check octets are the random prefix, not message content.
-        spool.Position = blk + 2;
-        return spool;
     }
 
     private static bool Supported(SymmetricAlgorithm c) => c is SymmetricAlgorithm.Idea or SymmetricAlgorithm.TripleDes or SymmetricAlgorithm.Cast5 or SymmetricAlgorithm.Blowfish

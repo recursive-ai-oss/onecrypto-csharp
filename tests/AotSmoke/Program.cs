@@ -429,5 +429,11 @@ if (!OneCrypto.Smoke.OpenPgpSmoke.RunMessages())
     return 1;
 }
 
+if (!OneCrypto.Smoke.GnuPGSmoke.Run())
+{
+    Console.Error.WriteLine("the GnuPG keybox or key file was read wrongly");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

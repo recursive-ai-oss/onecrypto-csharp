@@ -465,9 +465,10 @@ public sealed partial class EnvelopedData
                 }
 
                 bool ok = true;
-                using Aes aes = Platform.CreateAes();
-                using ICryptoTransform dec = aes.CreateDecryptor(cek, iv);
-                var cs = new CryptoStream(plaintextOutput, dec, CryptoStreamMode.Write, leaveOpen: true);
+                // The platform decrypts without padding; the last block is held back and its PKCS #7 padding checked in constant time (RFC 3218 §2.3).
+                using CmsCiphers.CbcStreamDecryptor dec = CmsCiphers.CreateCbcStreamDecryptor(cipher, cek, iv);
+                using var unpad = new Pkcs7UnpadSink(plaintextOutput, dec.Block);
+                var cs = new CryptoStream(unpad, dec.Transform, CryptoStreamMode.Write, leaveOpen: true);
                 byte[] buffer = new byte[CmsStream.Chunk];
                 int n;
                 while ((n = segments is null
@@ -481,6 +482,7 @@ public sealed partial class EnvelopedData
                 try
                 {
                     await cs.DisposeAsync().ConfigureAwait(false);
+                    ok = await unpad.CompleteAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (CryptographicException)
                 {

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.OpenPgp;
+using RecursiveAI.OneCrypto.OpenPgp.Packets;
 
 namespace OneCrypto.Timing;
 
@@ -19,12 +20,78 @@ internal static class OpenPgpTargets
 
     public static IEnumerable<TimingTarget> Targets() =>
     [
-        new Unwrap("checksum-unpadded-v6-key-bytes", padded: false, validity: false),
-        new Unwrap("checksum-padded-ecdh-key-bytes", padded: true, validity: false),
-        new Unwrap("checksum-padded-ecdh-bad-padding-vs-bad-checksum", padded: true, validity: true),
+        new Unwrap("checksum-unpadded-v6-key-bytes", padded: false, validity: false, control: false),
+        new Unwrap("checksum-unpadded-v6-key-bytes-control", padded: false, validity: false, control: true),
+        new Unwrap("checksum-padded-ecdh-key-bytes", padded: true, validity: false, control: false),
+        new Unwrap("checksum-padded-ecdh-key-bytes-control", padded: true, validity: false, control: true),
+        new Unwrap("checksum-padded-ecdh-bad-padding-vs-bad-checksum", padded: true, validity: true, control: false),
+        new PkeskFailure("pkesk-rsa-bad-padding-vs-bad-checksum"),
     ];
 
-    private sealed class Unwrap(string operation, bool padded, bool validity) : TimingTarget
+    /// <summary>
+    /// A public-key session-key packet addressed to an RSA key that cannot be unwrapped, two ways: the PKCS #1 padding is valid and the checksum is wrong
+    /// (fixed class), or the padding is not valid at all (random class). Both end in the same null result, so what a caller sees must not tell them apart
+    /// by time either (RFC 9580 §13.5). The RSA private-key operation is the platform's; this measures the unwrap call as the reader makes it.
+    /// </summary>
+    private sealed class PkeskFailure : TimingTarget
+    {
+        private readonly string _operation;
+        private readonly PgpSecretKey _secret;
+        private readonly PgpKey _public;
+        private readonly RSA _rsa;
+        private readonly int _modulusBytes;
+        private PublicKeyEncryptedSessionKeyPacket[] _packets = [];
+
+        public PkeskFailure(string operation)
+        {
+            _operation = operation;
+            string root = Environment.GetEnvironmentVariable("ONECRYPTO_TESTDATA") ?? "testdata";
+            PgpCertificate cert = PgpCertificate.Parse(File.ReadAllBytes(Path.Combine(root, "openpgp", "keys", "test-rsa3072.sec.asc")));
+            _public = cert.Keys.First(static k => k.Packet is SecretKeyPacket && k.Packet.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly);
+            _ = PgpSecretKey.TryUnlock(_public, [], out PgpSecretKey? sk);
+            _secret = sk ?? throw new InvalidOperationException("The test key could not be opened.");
+            _rsa = RSA.Create();
+            SignatureEngine.ImportPublicRsa(_rsa, _public.Packet.Material.Values[0].ToArray(), _public.Packet.Material.Values[1].ToArray());
+            _modulusBytes = _public.Packet.Material.Values[0].Length;
+        }
+
+        public override string Primitive => "OpenPgpSessionKey";
+
+        public override string Operation => _operation;
+
+        public override void Prepare(ReadOnlySpan<TimingClass> classes)
+        {
+            if (_packets.Length < classes.Length)
+            {
+                _packets = new PublicKeyEncryptedSessionKeyPacket[classes.Length];
+            }
+
+            for (int i = 0; i < classes.Length; i++)
+            {
+                byte[] c;
+                if (classes[i] == TimingClass.Fixed)
+                {
+                    // Valid padding around cipher || key || a checksum that is wrong.
+                    byte[] m = new byte[1 + KeyLength + 2];
+                    m[0] = (byte)RecursiveAI.OneCrypto.OpenPgp.Packets.SymmetricAlgorithm.Aes256;
+                    RandomNumberGenerator.Fill(m.AsSpan(1));
+                    c = _rsa.Encrypt(m, RSAEncryptionPadding.Pkcs1);
+                }
+                else
+                {
+                    c = RandomNumberGenerator.GetBytes(_modulusBytes);
+                    c[0] = 0; // below the modulus, and not a valid padding
+                }
+
+                byte[] body = [3, .. _public.Packet.GetKeyId(), (byte)_public.Packet.Algorithm, .. SignatureEngine.Mpi(c)];
+                _packets[i] = (PublicKeyEncryptedSessionKeyPacket)PacketParser.ParseAll(Packet.Create((byte)PacketTag.PublicKeyEncryptedSessionKey, body).ToArray())[0];
+            }
+        }
+
+        public override void Run(int index) => s_sink += SessionKeys.Decrypt(_secret, _packets[index]) is null ? 0 : 1;
+    }
+
+    private sealed class Unwrap(string operation, bool padded, bool validity, bool control) : TimingTarget
     {
         private readonly byte[] _fixed = RandomNumberGenerator.GetBytes(KeyLength);
         private readonly bool _padded = padded;
@@ -43,8 +110,17 @@ internal static class OpenPgpTargets
 
             for (int i = 0; i < classes.Length; i++)
             {
+                // Every message starts from fresh random bytes; the class blends the fixed key over them with a byte mask, not a branch, so both
+                // classes run the same instructions in the untimed code and only the key value differs. The control forces the mask to zero
+                // (both classes random): a control that flags points at the host or the harness, not the code under test.
                 bool fixedClass = classes[i] == TimingClass.Fixed;
-                byte[] key = validity || fixedClass ? _fixed : RandomNumberGenerator.GetBytes(KeyLength);
+                byte[] key = new byte[KeyLength];
+                FillKey(key, _fixed, classes[i], control);
+                if (validity && !fixedClass)
+                {
+                    _fixed.CopyTo(key, 0);
+                }
+
                 byte[] m = Build(key, _padded);
                 if (validity)
                 {

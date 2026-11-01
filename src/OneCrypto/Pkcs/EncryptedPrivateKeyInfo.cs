@@ -328,19 +328,13 @@ public static class PrivateKeyPem
                 LegacyCrypto.TripleDesCbcDecrypt(key.ReadOnlySpan, iv, b.Data, buf.Span);
             }
 
-            int pad = buf.ReadOnlySpan[^1];
-            int bad = (pad == 0 ? 1 : 0) | (pad > block ? 1 : 0);
-            for (int i = 1; i <= Math.Min(pad, block); i++)
-            {
-                bad |= buf.ReadOnlySpan[^i] ^ pad;
-            }
-
-            if (bad != 0)
+            int length = Pkcs7Padding.UnpaddedLength(buf.ReadOnlySpan, block);
+            if (length < 0)
             {
                 return PkcsStatus.WrongPasswordOrCorrupt;
             }
 
-            plaintext = new PinnedSecret(buf.ReadOnlySpan[..^pad]);
+            plaintext = new PinnedSecret(buf.ReadOnlySpan[..length]);
             return PkcsStatus.Ok;
         }
         finally
