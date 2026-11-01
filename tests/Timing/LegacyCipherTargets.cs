@@ -54,13 +54,14 @@ internal static class LegacyCipherTargets
                 yield return new KeyTarget(c, "encrypt-key", c.Encrypting, control: false);
             }
 
-            yield return new KeySetupTarget(c, control: false);
+            yield return new KeySetupTarget(c, KeySetupMode.FixedVsRandom);
         }
 
         // A/A controls, one per key kind: both classes use distinct random keys, so a flagged difference is the harness or the machine.
         foreach (Cipher c in Ciphers())
         {
-            yield return new KeySetupTarget(c, control: true);
+            yield return new KeySetupTarget(c, KeySetupMode.RandomVsRandom);
+            yield return new KeySetupTarget(c, KeySetupMode.FixedVsFixed);
             yield return new KeyTarget(c, "control-decrypt-key", c.Decrypting, control: true);
             if (c.Encrypting is not null)
             {
@@ -139,14 +140,34 @@ internal static class LegacyCipherTargets
         public override void Run(int index) => _op!.Run(_input, _out);
     }
 
-    private sealed class KeySetupTarget(Cipher c, bool control) : TimingTarget
+    /// <summary>What the two classes of a key-setup target are.</summary>
+    private enum KeySetupMode
+    {
+        /// <summary>The leak test: one fixed key against fresh random keys.</summary>
+        FixedVsRandom,
+
+        /// <summary>A/A control: fresh random keys in both classes.</summary>
+        RandomVsRandom,
+
+        /// <summary>Two different fixed keys, each repeated in its class. A key-dependent time would show here as it does against random keys,
+        /// while an effect of seeing the same bytes again and again is in both classes and cancels.</summary>
+        FixedVsFixed,
+    }
+
+    private sealed class KeySetupTarget(Cipher c, KeySetupMode mode) : TimingTarget
     {
         private readonly byte[] _fixedKey = RandomNumberGenerator.GetBytes(c.KeyLength);
+        private readonly byte[] _otherFixedKey = RandomNumberGenerator.GetBytes(c.KeyLength);
         private byte[][] _keys = [];
 
         public override string Primitive => c.Name;
 
-        public override string Operation => control ? "control-key-setup" : "key-setup";
+        public override string Operation => mode switch
+        {
+            KeySetupMode.FixedVsRandom => "key-setup",
+            KeySetupMode.RandomVsRandom => "control-key-setup",
+            _ => "pair-key-setup",
+        };
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
         {
@@ -163,7 +184,14 @@ internal static class LegacyCipherTargets
             // The control (mask zero) makes both classes random, so a flag there is the harness or the machine.
             for (int i = 0; i < classes.Length; i++)
             {
-                FillKey(_keys[i], _fixedKey, classes[i], control);
+                if (mode == KeySetupMode.FixedVsFixed)
+                {
+                    (classes[i] == TimingClass.Fixed ? _fixedKey : _otherFixedKey).CopyTo(_keys[i], 0);
+                }
+                else
+                {
+                    FillKey(_keys[i], _fixedKey, classes[i], mode == KeySetupMode.RandomVsRandom);
+                }
             }
         }
 
