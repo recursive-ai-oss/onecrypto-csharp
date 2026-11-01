@@ -4,6 +4,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- PKCS#12 files are now written at 300,000 PBKDF2 iterations by default (`Pkcs12WriteOptions.DotNetCompatible`), which `X509CertificateLoader` opens with its default limits; the previous 600,000 made it throw `Pkcs12LoadLimitExceededException`. The old counts remain as `Pkcs12WriteOptions.StrongIncompatibleWithDotNet`. See [docs/pkcs.md](docs/pkcs.md).
+- The nuget.org readme links to the changelog and licences at the release tag of the packed version.
+
+### Added
+
+- `Argon2Phc`: Argon2 PHC string formatting, strict parsing with typed errors, and password verification ([docs/kdf.md](docs/kdf.md)).
+- `Pkcs12Contents.PrivateKeyBags`, exposing `FriendlyName` and `LocalKeyId` of private-key entries.
+- A win-x64 section in the platform availability table ([docs/availability.md](docs/availability.md)).
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).
