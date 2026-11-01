@@ -376,6 +376,9 @@ public class AutocryptTests
 
     // ---- the setup message against gpg, as a black box (set ONECRYPTO_GPG to a gpg binary)
 
+    // gpg's standard error from the last call, so a failing assertion says why
+    private static string gpgError = "";
+
     private static (int Exit, byte[] Out) Gpg(string home, byte[] stdin, params string[] args)
     {
         string? gpg = Environment.GetEnvironmentVariable("ONECRYPTO_GPG");
@@ -393,6 +396,7 @@ public class AutocryptTests
         p.StandardInput.Close();
         p.WaitForExit();
         copy.Wait();
+        gpgError = err.Result;
         return (p.ExitCode, ms.ToArray());
     }
 
@@ -411,19 +415,19 @@ public class AutocryptTests
         {
             // gpg opens the specification's message with the specification's code, and ours with ours.
             (int exit, byte[] plain) = Gpg(home, SetupMessage, "--passphrase", SetupCode, "--decrypt");
-            Assert.Equal(0, exit);
+            Assert.True(exit == 0, gpgError);
             Assert.StartsWith("-----BEGIN PGP PRIVATE KEY BLOCK-----", Encoding.ASCII.GetString(plain), StringComparison.Ordinal);
 
             PgpCertificate secret = AutocryptSetupMessage.Open(SetupMessage, SetupCode, T0).Content!.Certificate;
             string code = AutocryptSetupMessage.GenerateSetupCode();
             string ours = AutocryptSetupMessage.Create(secret, code, AutocryptPreference.Mutual, T0);
             (exit, plain) = Gpg(home, Encoding.ASCII.GetBytes(ours), "--passphrase", code, "--decrypt");
-            Assert.Equal(0, exit);
+            Assert.True(exit == 0, gpgError);
             Assert.Contains("Autocrypt-Prefer-Encrypt: mutual", Encoding.ASCII.GetString(plain), StringComparison.Ordinal);
 
             // gpg makes a setup message the way the specification describes it, and we open it.
             (exit, byte[] theirs) = Gpg(home, plain, "--passphrase", code, "--symmetric", "--armor", "--cipher-algo", "AES128", "--s2k-mode", "3", "--s2k-digest-algo", "SHA256");
-            Assert.Equal(0, exit);
+            Assert.True(exit == 0, gpgError);
             AutocryptSetupResult r = AutocryptSetupMessage.Open(theirs, code, T0);
             Assert.True(r.IsSuccess, r.Reason);
             Assert.Equal(secret.Fingerprint, r.Content!.Certificate.Fingerprint);

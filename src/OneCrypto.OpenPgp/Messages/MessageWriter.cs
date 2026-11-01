@@ -338,7 +338,7 @@ public static partial class PgpMessageWriter
         var keys = new List<PgpKey>();
         foreach (PgpCertificate c in o.Recipients)
         {
-            keys.Add(EncryptionKey(c, o.Now));
+            keys.Add(EncryptionKey(c, o.Now, policy));
         }
 
         (PgpEncryptionFormat format, string reason) = ChooseFormat(keys, o);
@@ -496,9 +496,10 @@ public static partial class PgpMessageWriter
             : "No recipient announces anything newer than SEIPD v1.");
     }
 
-    private static PgpKey EncryptionKey(PgpCertificate c, DateTimeOffset now)
+    private static PgpKey EncryptionKey(PgpCertificate c, DateTimeOffset now, CryptoPolicy policy)
     {
         PgpKey? best = null;
+        bool tooSmall = false;
         foreach (PgpKey k in c.Keys)
         {
             PgpKeyState st = k.StateAt(now);
@@ -508,13 +509,23 @@ public static partial class PgpMessageWriter
                 continue;
             }
 
+            // RFC 9580 §12.4: an implementation MUST NOT encrypt using RSA keys under 2048 bits; the policy's size for new data (2048 or more) decides.
+            if (k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly && k.Packet.Material.IsKnown
+                && PgpAlgorithms.BitLength(k.Packet.Material.Values[0].Span) < policy.MinRsaBitsNew)
+            {
+                tooSmall = true;
+                continue;
+            }
+
             if (best is null || k.Packet.CreationTime > best.Packet.CreationTime)
             {
                 best = k;
             }
         }
 
-        return best ?? throw new PgpException(PgpFailure.KeyCannotPerform, "The certificate has no valid key that can encrypt.");
+        return best ?? throw (tooSmall
+            ? new PgpException(PgpFailure.PolicyViolation, "The certificate's RSA encryption key is smaller than the policy allows for new data.")
+            : new PgpException(PgpFailure.KeyCannotPerform, "The certificate has no valid key that can encrypt."));
     }
 
     // RFC 9580 §5.2.3.15: pick the first suite every recipient that lists preferences accepts; AES-256/OCB when nobody lists any.
