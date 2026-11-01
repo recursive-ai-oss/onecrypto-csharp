@@ -119,4 +119,19 @@ public class ArmorTests
         Assert.Equal(data, outMs.ToArray());
         Assert.True(r.HasChecksum);
     }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(48)]
+    [InlineData(300)]
+    public void DefaultArmorHasTheCrcEvenWhenTheLengthIsAMultipleOfThree(int length)
+    {
+        // GnuPG 2.4/2.5 reject armor with neither padding nor a CRC line, which is what a length divisible by 3 gives.
+        byte[] data = Enumerable.Range(0, length).Select(i => (byte)(i * 11 + 1)).ToArray();
+        string text = Armor.Encode(ArmorKind.Message, data);
+        Assert.DoesNotContain("=\n", text.Replace("\r", ""), StringComparison.Ordinal);
+        string[] lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Matches("^=[A-Za-z0-9+/]{4}$", lines[^2]);
+        Assert.True(Armor.Decode(Encoding.ASCII.GetBytes(text)).HasChecksum);
+    }
 }

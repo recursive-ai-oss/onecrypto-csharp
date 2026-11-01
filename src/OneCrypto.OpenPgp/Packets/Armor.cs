@@ -55,14 +55,14 @@ public sealed class ArmorReadOptions
 /// <summary>Options for writing ASCII armor.</summary>
 public sealed class ArmorWriteOptions
 {
-    /// <summary>Radix-64 line length of 64 characters, no checksum, no headers: the form most implementations write.</summary>
+    /// <summary>Radix-64 lines of 64 characters, the CRC-24 line, no headers.</summary>
     public static ArmorWriteOptions Default { get; } = new();
 
     /// <summary>Characters per Radix-64 line, 4 to 76 and a multiple of 4. Default 64.</summary>
     public int LineLength { get; init; } = 64;
 
-    /// <summary>True to write the optional CRC-24 line (RFC 9580 §6.1 discourages it). Default false.</summary>
-    public bool Checksum { get; init; }
+    /// <summary>True to write the optional CRC-24 line (RFC 9580 §6.1 allows it). Default true: GnuPG 2.4 and 2.5 reject armor without it when the data length is a multiple of 3. Readers treat the line as optional.</summary>
+    public bool Checksum { get; init; } = true;
 
     /// <summary>Armor header key/value pairs to write after the header line, in order. Default none.</summary>
     public IReadOnlyList<KeyValuePair<string, string>>? Headers { get; init; }

@@ -237,7 +237,7 @@ public sealed class PgpWriteOptions
 public static class PgpMessageWriter
 {
     // GnuPG 2.4 rejects armor whose data ends without padding and without a checksum line; RFC 9580 §6.1 makes the CRC optional, so we always write it.
-    private static readonly ArmorWriteOptions GnuPgCompatible = new() { Checksum = true };
+    private static readonly ArmorWriteOptions GnuPgCompatible = ArmorWriteOptions.Default;
 
     // 2^12 * 64 = 256 KiB chunks.
     private const byte ChunkOctet = 12;
