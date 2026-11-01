@@ -162,6 +162,23 @@ internal static class SignatureEngine
                 return Ed25519.Verify(pub.Values[0].Span, digest, sv[0].Span);
             case PublicKeyAlgorithm.Ed448:
                 return Ed448.Verify(pub.Values[0].Span, digest, default, sv[0].Span);
+            case PublicKeyAlgorithm.MlDsa65Ed25519:
+            case PublicKeyAlgorithm.MlDsa87Ed448:
+                {
+                    // RFC 9980 §5.2.3, §5.3.1: both signatures must verify; version 6 only, digest of at least 256 bits.
+                    if (sig.Version != 6 || PgpAlgorithms.HashSize(sig.Hash) < 32)
+                    {
+                        return false;
+                    }
+
+                    bool is25519 = sig.Algorithm == PublicKeyAlgorithm.MlDsa65Ed25519;
+                    bool edOk = is25519 ? Ed25519.Verify(pub.Values[0].Span, digest, sv[0].Span) : Ed448.Verify(pub.Values[0].Span, digest, default, sv[0].Span);
+                    RecursiveAI.OneCrypto.Internal.Platform.RequireMlDsa();
+                    using MLDsa ml = MLDsa.ImportMLDsaPublicKey(is25519 ? MLDsaAlgorithm.MLDsa65 : MLDsaAlgorithm.MLDsa87, pub.Values[1].Span);
+                    bool mlOk = ml.VerifyData(digest, sv[1].Span);
+                    return edOk & mlOk;
+                }
+
             case PublicKeyAlgorithm.Dsa:
                 {
                     using var dsa = DSA.Create();

@@ -110,7 +110,8 @@ internal sealed class SignatureBuilder : IDisposable
     internal Packet Complete()
     {
         byte[] digest = Hasher.Finish(Version, SignedHeader);
-        ISigningKey signer = _key.SigningKey;
+        // The composite ML-DSA keys sign through their own path: they hold two component keys.
+        ISigningKey signer = _key.Key.Algorithm is PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 ? null! : _key.SigningKey;
         HashAlgorithmName hn = PgpAlgorithms.HashName(_hash);
         KeyPacket kp = _key.Key.Packet;
         byte[] material;
@@ -121,6 +122,15 @@ internal sealed class SignatureBuilder : IDisposable
                 break;
             case PublicKeyAlgorithm.Ed448:
                 material = signer.Sign(digest, SignatureSpec.Ed448());
+                break;
+            case PublicKeyAlgorithm.MlDsa65Ed25519:
+            case PublicKeyAlgorithm.MlDsa87Ed448:
+                if (Version != 6 || PgpAlgorithms.HashSize(_hash) < 32)
+                {
+                    throw new PgpException(PgpFailure.KeyCannotPerform, "ML-DSA composite signatures need version 6 and a hash of at least 256 bits (RFC 9980 §5.3.1).");
+                }
+
+                material = _key.SignComposite(digest);
                 break;
             case PublicKeyAlgorithm.EdDsaLegacy:
                 {
@@ -361,7 +371,7 @@ public static class PgpMessageWriter
         foreach (PgpKey k in c.Keys)
         {
             PgpKeyState st = k.StateAt(now);
-            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly or PublicKeyAlgorithm.Ecdh or PublicKeyAlgorithm.X25519 or PublicKeyAlgorithm.X448;
+            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly or PublicKeyAlgorithm.Ecdh or PublicKeyAlgorithm.X25519 or PublicKeyAlgorithm.X448 or PublicKeyAlgorithm.MlKem768X25519 or PublicKeyAlgorithm.MlKem1024X448;
             if (!st.IsValid || !algOk || (st.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0)
             {
                 continue;

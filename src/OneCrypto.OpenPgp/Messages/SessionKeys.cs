@@ -41,6 +41,9 @@ internal static class SessionKeys
                     return DecryptNative(key, p, 56, "OpenPGP X448", HashAlgorithmName.SHA512, 32);
                 case PublicKeyAlgorithm.Ecdh:
                     return DecryptEcdh(key, p);
+                case PublicKeyAlgorithm.MlKem768X25519:
+                case PublicKeyAlgorithm.MlKem1024X448:
+                    return PqcSessionKeys.Decrypt(key, p);
                 default:
                     return null;
             }
@@ -341,6 +344,10 @@ internal static class SessionKeys
                     break;
                 }
 
+            case PublicKeyAlgorithm.MlKem768X25519:
+            case PublicKeyAlgorithm.MlKem1024X448:
+                body.AddRange(PqcSessionKeys.Encrypt(kp.Algorithm, pm, sessionKey, cipher, v3));
+                break;
             case PublicKeyAlgorithm.Ecdh:
                 body.AddRange(EncryptEcdh(recipient, sessionKey, v3 ? cipher : null));
                 break;

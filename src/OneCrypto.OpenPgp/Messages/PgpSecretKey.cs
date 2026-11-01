@@ -198,6 +198,24 @@ public sealed class PgpSecretKey : IDisposable
             case PublicKeyAlgorithm.Ed448:
                 parts.Add(Take(ref m, 57));
                 break;
+            case PublicKeyAlgorithm.MlKem768X25519:
+                // RFC 9980 §4.3.2.2: the X25519 secret, then the 64-octet ML-KEM seed.
+                parts.Add(Take(ref m, 32));
+                parts.Add(Take(ref m, 64));
+                break;
+            case PublicKeyAlgorithm.MlKem1024X448:
+                parts.Add(Take(ref m, 56));
+                parts.Add(Take(ref m, 64));
+                break;
+            case PublicKeyAlgorithm.MlDsa65Ed25519:
+                // RFC 9980 §5.3.2.2: the Ed25519 secret, then the 32-octet ML-DSA seed.
+                parts.Add(Take(ref m, 32));
+                parts.Add(Take(ref m, 32));
+                break;
+            case PublicKeyAlgorithm.MlDsa87Ed448:
+                parts.Add(Take(ref m, 57));
+                parts.Add(Take(ref m, 32));
+                break;
             case PublicKeyAlgorithm.Rsa:
             case PublicKeyAlgorithm.RsaEncryptOnly:
             case PublicKeyAlgorithm.RsaSignOnly:
@@ -248,6 +266,35 @@ public sealed class PgpSecretKey : IDisposable
         int n = (bits + 7) / 8;
         m = m[2..];
         return Take(ref m, n);
+    }
+
+    /// <summary>RFC 9980 §5.2.2: signs the digest with both components of an ML-DSA + EdDSA key and returns the EdDSA signature followed by the ML-DSA signature.</summary>
+    internal byte[] SignComposite(byte[] digest)
+    {
+        List<byte[]> p = Parts();
+        try
+        {
+            bool is25519 = Key.Algorithm == PublicKeyAlgorithm.MlDsa65Ed25519;
+            if (!is25519 && Key.Algorithm != PublicKeyAlgorithm.MlDsa87Ed448)
+            {
+                throw new PgpException(PgpFailure.KeyCannotPerform, "The key is not an ML-DSA composite.");
+            }
+
+            RecursiveAI.OneCrypto.Internal.Platform.RequireMlDsa();
+            using ISigningKey ed = is25519 ? PrivateKey.FromEd25519(Ed25519PrivateKey.FromSeed(p[0]), true) : PrivateKey.FromEd448(Ed448PrivateKey.FromSeed(p[0]), true);
+            byte[] edSig = ed.Sign(digest, is25519 ? SignatureSpec.Ed25519() : SignatureSpec.Ed448());
+            using MLDsa ml = MLDsa.ImportMLDsaPrivateSeed(is25519 ? MLDsaAlgorithm.MLDsa65 : MLDsaAlgorithm.MLDsa87, p[1]);
+            byte[] mlSig = new byte[ml.Algorithm.SignatureSizeInBytes];
+            ml.SignData(digest.AsSpan(), mlSig.AsSpan(), default);
+            return [.. edSig, .. mlSig];
+        }
+        finally
+        {
+            foreach (byte[] b in p)
+            {
+                CryptographicOperations.ZeroMemory(b);
+            }
+        }
     }
 
     /// <summary>

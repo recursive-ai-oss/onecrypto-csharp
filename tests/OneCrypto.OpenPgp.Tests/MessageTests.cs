@@ -285,4 +285,53 @@ public class MessageTests
         PgpMessageReader.Read(new MemoryStream(enc.ToArray()), dec, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
         Assert.Equal(data, dec.ToArray());
     }
+
+    private static byte[] Pqc(string name) => File.ReadAllBytes(TestFiles.OpenPgp("rfc9980", name));
+
+    [Theory]
+    [InlineData("A_1", "A_1_msg.asc")]
+    [InlineData("A_2", "A_2_msg_seipd1.asc")]
+    [InlineData("A_2", "A_2_msg_seipd2.asc")]
+    [InlineData("A_3", "A_3_msg.asc")]
+    [InlineData("A_4", "A_4_msg.asc")]
+    public void Rfc9980MessagesDecryptAndVerify(string key, string message)
+    {
+        Assert.SkipUnless(System.Security.Cryptography.MLKem.IsSupported && System.Security.Cryptography.MLDsa.IsSupported, "ML-KEM/ML-DSA are not available on this platform");
+        PgpCertificate secret = PgpCertificate.Parse(Pqc(key + "_sec.asc"));
+        PgpCertificate pub = PgpCertificate.Parse(Pqc(key + "_pub.asc"));
+        using var output = new MemoryStream();
+        PgpReadResult r = PgpMessageReader.Read(new MemoryStream(Pqc(message)), output, new PgpReadOptions { Now = Now, SecretKeys = [secret], Certificates = [pub] });
+        Assert.Equal("Testing\n", Encoding.UTF8.GetString(output.ToArray()));
+        Assert.True(r.Signatures.Single().IsValid, string.Join("; ", r.Signatures[0].Reasons));
+    }
+
+    [Theory]
+    [InlineData("A_3", "A_3_sig.asc")]
+    [InlineData("A_4", "A_4_sig.asc")]
+    public void Rfc9980DetachedSignaturesVerify(string key, string sig)
+    {
+        Assert.SkipUnless(System.Security.Cryptography.MLKem.IsSupported && System.Security.Cryptography.MLDsa.IsSupported, "ML-KEM/ML-DSA are not available on this platform");
+        PgpCertificate pub = PgpCertificate.Parse(Pqc(key + "_pub.asc"));
+        PgpReadResult r = PgpMessageReader.VerifyDetached(new MemoryStream("Testing\n"u8.ToArray()), new MemoryStream(Pqc(sig)), new PgpReadOptions { Now = Now, Certificates = [pub] });
+        Assert.True(r.Signatures.Single().IsValid, string.Join("; ", r.Signatures[0].Reasons));
+        Assert.False(PgpMessageReader.VerifyDetached(new MemoryStream("Testing!\n"u8.ToArray()), new MemoryStream(Pqc(sig)), new PgpReadOptions { Now = Now, Certificates = [pub] }).Signatures.Single().IsValid);
+    }
+
+    [Theory]
+    [InlineData("A_1")]
+    [InlineData("A_3")]
+    [InlineData("A_4")]
+    public void PostQuantumSignEncryptRoundTrip(string key)
+    {
+        Assert.SkipUnless(System.Security.Cryptography.MLKem.IsSupported && System.Security.Cryptography.MLDsa.IsSupported, "ML-KEM/ML-DSA are not available on this platform");
+        PgpCertificate secret = PgpCertificate.Parse(Pqc(key + "_sec.asc"));
+        PgpCertificate pub = PgpCertificate.Parse(Pqc(key + "_pub.asc"));
+        using PgpSecretKey signer = PgpSecretKey.Unlock(secret.Primary);
+        using var enc = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream("round trip"u8.ToArray()), enc, new PgpWriteOptions { Now = Now, Recipients = [pub], Signers = [signer] });
+        using var dec = new MemoryStream();
+        PgpReadResult r = PgpMessageReader.Read(new MemoryStream(enc.ToArray()), dec, new PgpReadOptions { Now = Now, SecretKeys = [secret], Certificates = [pub] });
+        Assert.Equal("round trip", Encoding.UTF8.GetString(dec.ToArray()));
+        Assert.True(r.Signatures.Single().IsValid, string.Join("; ", r.Signatures[0].Reasons));
+    }
 }
