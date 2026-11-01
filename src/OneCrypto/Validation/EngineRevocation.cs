@@ -553,6 +553,7 @@ internal sealed partial class Engine
             ReferenceTime = _o.ReferenceTime,
             Policy = _o.Policy,
             ApplyAnchorNameConstraints = _o.ApplyAnchorNameConstraints,
+            StrictAnchorStructure = _o.StrictAnchorStructure,
             CheckAnchorValidity = _o.CheckAnchorValidity,
             StrictStructure = false,
             Limits = _l,

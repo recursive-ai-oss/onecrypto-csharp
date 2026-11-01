@@ -21,6 +21,7 @@ One function, `PathValidator.Validate(target, options)`, builds candidate paths 
 | `RequiredExtendedKeyUsage`, `RequiredKeyUsage` | What the target must permit; extended key usage is chained through every CA that has the extension. |
 | `InitialPolicySet`, `InitialExplicitPolicy`, `InitialPolicyMappingInhibit`, `InitialAnyPolicyInhibit` | §6.1.1 (c) to (h). |
 | `ApplyAnchorNameConstraints`, `ApplyAnchorPolicyConstraints`, `CheckAnchorValidity` | What of an anchor certificate beyond its name and key is used (defaults: name constraints and validity yes, policy extensions no). |
+| `StrictAnchorStructure` | Default false. An anchor is a name and a key (RFC 5937 §2; RFC 5280 §6.1.1 (d)) and its extensions are not path-validated, so a root whose basicConstraints is not marked critical, or a version 1 root with no extensions, anchors a path (public time-stamping roots are shaped like this). Extensions that do not decode or appear twice still fail. `true` holds the anchor to the CA-certificate rules of `StrictStructure` as well. |
 | `MaxIntermediates` | Hard cap on non-self-issued intermediates. |
 | `StrictStructure` | Default true. See Structure rules. |
 | `WebPki` | The server-authentication profile. |
@@ -49,7 +50,7 @@ Each result carries a rule, an outcome (`Pass`, `Warning`, `Fail`, `Indeterminat
 | ExtendedKeyUsage | the required purpose is allowed by every extKeyUsage in the chain, and by the target's own when the target is itself a trust anchor | §4.2.1.12 |
 | CriticalExtension | every critical extension is one the validator processes | §6.1.4 (o), §6.1.5 (f) |
 | Structure | see below | §4 |
-| TrustAnchor | the anchor certificate is valid at the reference time; with `StrictStructure` its form is checked too | RFC 5937 §3 |
+| TrustAnchor | the anchor certificate is valid at the reference time; with `StrictAnchorStructure` (off by default) its CA-certificate form is checked too | RFC 5937 §3 |
 | Revocation | see below | §6.3, RFC 6960 |
 | HostName, WebPkiProfile | profile only | RFC 9525, Baseline Requirements |
 

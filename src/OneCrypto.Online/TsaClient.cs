@@ -97,12 +97,72 @@ public sealed class TimestampResult
 public sealed class TsaClient
 {
     private readonly Fetcher _fetcher;
+    private readonly Uri? _authority;
+    private readonly TimestampRequestOptions? _options;
 
     /// <summary>Creates a client.</summary>
     /// <param name="fetcher">The fetcher that carries the requests.</param>
     public TsaClient(Fetcher fetcher)
     {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
+    }
+
+    /// <summary>
+    /// Creates a client bound to one authority, so that <see cref="GetTimestampAsync"/> can be handed to code that wants a time-stamp function
+    /// (for example <c>PadesSignOptions.Timestamp</c> in the <c>.Pdf</c> package) without a wrapper.
+    /// </summary>
+    /// <param name="fetcher">The fetcher that carries the requests.</param>
+    /// <param name="authority">The authority's URL.</param>
+    /// <param name="options">Headers and URL origin for the requests; the request itself comes from the caller of <see cref="GetTimestampAsync"/>. Null for the defaults.</param>
+    public TsaClient(Fetcher fetcher, Uri authority, TimestampRequestOptions? options = null)
+        : this(fetcher)
+    {
+        _authority = authority ?? throw new ArgumentNullException(nameof(authority));
+        _options = options;
+    }
+
+    /// <summary>The authority this client is bound to, or null for a client made with <see cref="TsaClient(Fetcher)"/>.</summary>
+    public Uri? Authority => _authority;
+
+    /// <summary>
+    /// Sends a time-stamp request the caller built to the bound authority and returns the DER of its answer, ready to be embedded or checked by the caller.
+    /// The signature fits <c>PadesTimestampFunction</c>, so <c>Timestamp = tsa.GetTimestampAsync</c> needs no hand-written HTTP.
+    /// </summary>
+    /// <remarks>
+    /// The answer is returned as received when the authority replied at all, including a rejection: the caller checks it against its request (the PDF bridge
+    /// does, and reports the reason). Use <see cref="StampAsync"/> when you want this client to run the checks and classify the outcome.
+    /// </remarks>
+    /// <param name="request">The request; it is sent as built, with its nonce and imprint.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The body of the reply.</returns>
+    /// <exception cref="InvalidOperationException">The client was made without an authority.</exception>
+    /// <exception cref="TransportException">The request got no answer (network failure, blocked address, size or redirect limit, non-success status); the message has the reason.</exception>
+    public async ValueTask<byte[]> GetTimestampAsync(TimeStampRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Uri authority = _authority ?? throw new InvalidOperationException("This TsaClient has no authority. Create it with TsaClient(fetcher, authority) to use GetTimestampAsync.");
+        TimestampRequestOptions options = _options ?? new TimestampRequestOptions();
+        var headers = new List<KeyValuePair<string, string>>
+        {
+            new("Content-Type", "application/timestamp-query"),
+            new("Accept", "application/timestamp-reply"),
+        };
+        headers.AddRange(options.Headers);
+        FetchResult fetch = await _fetcher.FetchAsync(new FetchRequest
+        {
+            Uri = authority,
+            Method = "POST",
+            Body = request.Encoded,
+            Headers = headers,
+            Origin = options.Origin,
+            MaxResponseBytes = 1L << 20,
+        }, cancellationToken).ConfigureAwait(false);
+        if (!fetch.IsSuccess)
+        {
+            throw new TransportException($"The time-stamp request to {authority} failed: {fetch.Reason}");
+        }
+
+        return fetch.Body.ToArray();
     }
 
     /// <summary>Time-stamps a message by hashing it first.</summary>

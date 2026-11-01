@@ -165,6 +165,27 @@ public class TsaClientTests
     }
 
     [Fact]
+    public async Task ABoundClientIsATimestampFunctionForACallerThatBuildsTheRequest()
+    {
+        FakeNetwork net = W.Network();
+        var tsa = new TsaClient(new Fetcher(net, new FetchOptions { Cache = null }), Authority, new TimestampRequestOptions { Headers = [new("X-Api-Key", "k")] });
+
+        // The shape the PDF bridge's time-stamp function has: (request, token) -> DER of the reply.
+        Func<TimeStampRequest, CancellationToken, ValueTask<byte[]>> function = tsa.GetTimestampAsync;
+        TimeStampRequest request = TimeStampRequest.Create(new TimeStampRequestOptions { Hash = HashAlgorithmName.SHA256, MessageImprint = SHA256.HashData(Document), Nonce = TimeStampRequest.NewNonce() });
+        byte[] reply = await function(request, CancellationToken.None);
+
+        TimeStampReport report = TimeStampVerifier.Verify(request, reply, Verifying().Verify);
+        Assert.True(report.IsValid, string.Join("; ", report.Checks.Select(static c => c.Rule + ": " + c.Reason)));
+        Assert.Contains(net.Requests.Single().Headers, h => h.Key == "X-Api-Key");
+
+        // A client made without an authority says what to do; a dead network is a transport error, not an empty answer.
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await Client(net).GetTimestampAsync(request));
+        var dead = new TsaClient(new Fetcher(new FakeNetwork(_ => Reply.Code(503)), new FetchOptions { Cache = null }), Authority);
+        await Assert.ThrowsAsync<TransportException>(async () => await dead.GetTimestampAsync(request));
+    }
+
+    [Fact]
     public async Task ADigestCanBeStampedDirectly()
     {
         FakeNetwork net = W.Network();

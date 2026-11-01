@@ -57,7 +57,7 @@ to be overridden by building your own profile.
 `Number` (cRLNumber, at most 20 octets), the entries (`RevokedCertificateInfo`: serial, revocation date, reason code, invalidity date) and optionally
 the issuingDistributionPoint (URL, only-user / only-CA certificates) and the freshestCRL URL of the delta. With `DeltaBaseNumber`
 set it is a delta CRL: a critical deltaCRLIndicator, a number greater than the base, no freshestCRL on the delta (§5.2.4, §5.2.6).
-`removeFromCRL` is refused outside a delta (§5.3.1). The CA certificate must permit cRLSign and be valid at thisUpdate. `PrepareCrl` /
+`removeFromCRL` is refused outside a delta (§5.3.1). The CA certificate must permit cRLSign and be valid at thisUpdate: `ThisUpdate` earlier than the certificate's `NotBefore` (or later than its `NotAfter`) raises `IssuanceException` with rule `issuer-validity`. That is deliberate. The list is signed with the CA's key, which is certified only for that window, and thisUpdate is the date the list was issued (RFC 5280 §5.1.2.4), so a list cannot predate the CA. A caller who wants a list that covers a time before it set `ThisUpdate` to the CA certificate's `NotBefore` or later; the message says so. `PrepareCrl` /
 `CompleteCrl` are the two-phase form.
 
 ## Checked against

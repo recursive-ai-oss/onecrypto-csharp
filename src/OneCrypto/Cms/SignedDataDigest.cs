@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Policy;
@@ -18,6 +19,17 @@ public sealed partial class SignedData
     /// <returns>The digest algorithm OID.</returns>
     /// <exception cref="PolicyViolationException">The policy refuses the signer's algorithm or key.</exception>
     public static string DigestAlgorithmFor(CmsSignerSpec signer, CryptoPolicy? policy = null) => SignerPlan.For(signer, policy).DigestOid;
+
+    /// <summary>
+    /// Like <see cref="DigestAlgorithmFor(CmsSignerSpec, CryptoPolicy?)"/>, as the platform's hash name instead of an OID, for callers that hash with
+    /// <see cref="IncrementalHash"/> or pass a <see cref="HashAlgorithmName"/> on (SHAKE256 comes back as <see cref="DigestNames.Shake256"/>).
+    /// </summary>
+    /// <param name="signer">The signer; needs a certificate and a key, a signer delegate or a signature spec.</param>
+    /// <param name="policy">The policy that judges the new signature; default <see cref="CryptoPolicy.Standard"/>.</param>
+    /// <returns>The hash name.</returns>
+    /// <exception cref="PolicyViolationException">The policy refuses the signer's algorithm or key.</exception>
+    public static HashAlgorithmName HashAlgorithmFor(CmsSignerSpec signer, CryptoPolicy? policy = null) =>
+        DigestNames.GetHashAlgorithmName(DigestAlgorithmFor(signer, policy));
 
     /// <summary>
     /// Hashes the rest of <paramref name="content"/> in constant memory with the digest algorithm <paramref name="digestAlgorithm"/> (an OID,
@@ -59,11 +71,17 @@ public sealed partial class SignedData
     /// <param name="signers">One or more signers with a key or a signer delegate; each must use signed attributes.</param>
     /// <param name="options">Choices (extra certificates, CRLs, policy); the message is always detached.</param>
     /// <returns>The message (definite-length DER).</returns>
-    /// <exception cref="ArgumentException">A signer uses another digest algorithm, or the digest has the wrong length.</exception>
+    /// <exception cref="DigestMismatchException">A signer uses another digest algorithm, or the digest has the wrong length.</exception>
+    /// <exception cref="InvalidOperationException">A signer has no key: see <see cref="PrepareDetachedFromDigest(ReadOnlySpan{byte}, string, IReadOnlyList{CmsSignerSpec}, DateTimeOffset, SignedDataOptions?)"/>.</exception>
     /// <exception cref="NotSupportedException">A signer has no signed attributes: a signature over bare content cannot be made from a digest.</exception>
     public static SignedData CreateDetachedFromDigest(ReadOnlySpan<byte> contentDigest, string digestAlgorithm, IReadOnlyList<CmsSignerSpec> signers, SignedDataOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(signers);
+        if (signers.FirstOrDefault(static s => !s.HasSigner) is not null)
+        {
+            throw new InvalidOperationException("A signer has no Key or Signer, so this call cannot produce its signature. When the key is elsewhere (a token, a remote service, another process), use SignedData.PrepareDetachedFromDigest with a SignatureSpec, sign PreparedSignedData.ToSign there, and finish with PreparedSignedData.Complete.");
+        }
+
         SignedDataOptions o = Detach(options);
         List<SignerPlan> plans = CheckDigest(contentDigest, digestAlgorithm, signers, o);
         byte[] digest = contentDigest.ToArray();
@@ -77,7 +95,37 @@ public sealed partial class SignedData
     }
 
     /// <summary>
-    /// Phase one of a two-step signature over content that is already hashed (see <see cref="CreateDetachedFromDigest"/>). The state serialises
+    /// Like <see cref="CreateDetachedFromDigest(ReadOnlySpan{byte}, string, IReadOnlyList{CmsSignerSpec}, SignedDataOptions?)"/>, naming the digest algorithm as a
+    /// <see cref="HashAlgorithmName"/>, the way PDF and hashing code usually has it.
+    /// </summary>
+    /// <param name="contentDigest">The digest of the content.</param>
+    /// <param name="digestAlgorithm">The hash the digest was made with; see <see cref="DigestNames"/> for the names that map.</param>
+    /// <param name="signers">One or more signers with a key or a signer delegate; each must use signed attributes.</param>
+    /// <param name="options">Choices (extra certificates, CRLs, policy); the message is always detached.</param>
+    /// <returns>The message (definite-length DER).</returns>
+    /// <exception cref="DigestMismatchException">A signer uses another digest algorithm, or the digest has the wrong length for the named hash.</exception>
+    /// <exception cref="NotSupportedException">The hash has no digest OID, or a signer has no signed attributes.</exception>
+    /// <exception cref="InvalidOperationException">A signer has no key (use <see cref="PrepareDetachedFromDigest(ReadOnlySpan{byte}, HashAlgorithmName, IReadOnlyList{CmsSignerSpec}, DateTimeOffset, SignedDataOptions?)"/> for a signature made elsewhere).</exception>
+    public static SignedData CreateDetachedFromDigest(ReadOnlySpan<byte> contentDigest, HashAlgorithmName digestAlgorithm, IReadOnlyList<CmsSignerSpec> signers, SignedDataOptions? options = null) =>
+        CreateDetachedFromDigest(contentDigest, DigestNames.GetOid(digestAlgorithm), signers, options);
+
+    /// <summary>
+    /// Like <see cref="PrepareDetachedFromDigest(ReadOnlySpan{byte}, string, IReadOnlyList{CmsSignerSpec}, DateTimeOffset, SignedDataOptions?)"/>, naming the digest algorithm as a
+    /// <see cref="HashAlgorithmName"/>.
+    /// </summary>
+    /// <param name="contentDigest">The digest of the content.</param>
+    /// <param name="digestAlgorithm">The hash the digest was made with.</param>
+    /// <param name="signers">One or more signers; the keys are not used here, a <see cref="CmsSignerSpec.SignatureSpec"/> will do.</param>
+    /// <param name="at">The moment of signing, for the policy and the state.</param>
+    /// <param name="options">Choices; the message is always detached.</param>
+    /// <returns>The prepared state.</returns>
+    /// <exception cref="DigestMismatchException">A signer uses another digest algorithm, or the digest has the wrong length for the named hash.</exception>
+    /// <exception cref="NotSupportedException">The hash has no digest OID.</exception>
+    public static PreparedSignedData PrepareDetachedFromDigest(ReadOnlySpan<byte> contentDigest, HashAlgorithmName digestAlgorithm, IReadOnlyList<CmsSignerSpec> signers, DateTimeOffset at, SignedDataOptions? options = null) =>
+        PrepareDetachedFromDigest(contentDigest, DigestNames.GetOid(digestAlgorithm), signers, at, options);
+
+    /// <summary>
+    /// Phase one of a two-step signature over content that is already hashed (see <see cref="CreateDetachedFromDigest(ReadOnlySpan{byte}, string, IReadOnlyList{CmsSignerSpec}, SignedDataOptions?)"/>). The state serialises
     /// (<see cref="PreparedSignedData.Encode"/>), so phase two may run in another process.
     /// </summary>
     /// <param name="contentDigest">The digest of the content under <paramref name="digestAlgorithm"/>.</param>
@@ -125,7 +173,11 @@ public sealed partial class SignedData
 
         if (digest.Length != empty.Length)
         {
-            throw new ArgumentException($"A {AlgorithmNames.Describe(digestAlgorithm)} digest is {empty.Length} bytes; got {digest.Length}.", nameof(digest));
+            throw new DigestMismatchException(
+                $"The digest algorithm is {AlgorithmNames.Describe(digestAlgorithm)}, whose digests are {empty.Length} bytes, but the digest given is {digest.Length} bytes. Hash the content with the algorithm you name (SignedData.DigestAlgorithmFor says which one the signer uses).",
+                $"{AlgorithmNames.Describe(digestAlgorithm)} ({empty.Length} bytes)",
+                $"{digest.Length} bytes",
+                nameof(digest));
         }
 
         List<SignerPlan> plans = [.. signers.Select(s => SignerPlan.For(s, options.Policy))];
@@ -133,7 +185,11 @@ public sealed partial class SignedData
         {
             if (p.DigestOid != digestAlgorithm)
             {
-                throw new ArgumentException($"A signer uses {AlgorithmNames.Describe(p.DigestOid)}, not {AlgorithmNames.Describe(digestAlgorithm)}; hash with SignedData.DigestAlgorithmFor.", nameof(signers));
+                throw new DigestMismatchException(
+                    $"A signer uses {AlgorithmNames.Describe(p.DigestOid)}, but the digest was declared as {AlgorithmNames.Describe(digestAlgorithm)}. Hash with SignedData.DigestAlgorithmFor (or HashAlgorithmFor) and pass that algorithm.",
+                    AlgorithmNames.Describe(p.DigestOid),
+                    AlgorithmNames.Describe(digestAlgorithm),
+                    nameof(signers));
             }
         }
 
