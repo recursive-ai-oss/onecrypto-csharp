@@ -33,7 +33,7 @@ platform with `ONECRYPTO_AVAILABILITY_UPDATE=1`.
 
 ## Windows (CNG)
 
-The `win-x64` section was generated on the `windows-latest` CI image (Windows Server 2025, build 26100 at the time). What the platform provides depends on the Windows build, because CNG gained algorithms with specific builds: on that image SHA-3/SHAKE (except SHA3-224, which no platform has), ChaCha20-Poly1305, Brainpool, AES-CCM, ML-KEM and ML-DSA come from the platform, while SLH-DSA is not available. Older Windows builds may lack more of these; the library probes `IsSupported` at run time, and an unavailable algorithm without a fallback reports `AlgorithmNotSupportedException` naming the Windows build. Only the table for the CI image is checked for drift.
+The `win-x64` section was generated on the `windows-latest` CI image (the build number is in the platform text of any `AlgorithmNotSupportedException` raised there). What the platform provides depends on the Windows build, because CNG gained algorithms with specific builds; the CI run showed that on that image SHA-3/SHAKE (except SHA3-224, which no platform has), ChaCha20-Poly1305, Brainpool, AES-CCM, ML-KEM and ML-DSA come from the platform, while SLH-DSA is not available. Older Windows builds may lack more of these; the library probes `IsSupported` at run time, and an unavailable algorithm without a fallback reports `AlgorithmNotSupportedException` naming the Windows build. Only the table for the CI image is checked for drift.
 
 ## Platforms
 
