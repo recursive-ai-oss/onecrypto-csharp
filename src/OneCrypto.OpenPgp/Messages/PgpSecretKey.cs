@@ -48,6 +48,12 @@ public sealed class PgpSecretKey : IDisposable
             return Finish(key, sp, sp.SecretData.Span, true);
         }
 
+        // GnuPG 2.5 writes a composite (Kyber) secret key unprotected as its own S-expression, marked by the private-use string-to-key mode 3 with no cipher.
+        if (prot.S2k is { TypeId: (byte)S2kType.GnuExtension, GnuMode: 3 } && prot.Cipher == SymmetricAlgorithm.Plaintext)
+        {
+            return Finish(key, sp, sp.SecretData.Span, false);
+        }
+
         foreach (byte[] pw in passwords ?? [])
         {
             byte[]? plain = TryDecrypt(sp, pw, limits);
@@ -102,7 +108,26 @@ public sealed class PgpSecretKey : IDisposable
         byte[] kdf = PgpAlgorithms.S2k(p.S2k, password, keySize, limits);
         try
         {
+            return OpenWithDerivedKey(sp, kdf, keySize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(kdf);
+        }
+    }
+
+    // The step after the string-to-key: from the derived key to the secret values (or null when the key or the integrity check is wrong). Split out
+    // so the timing test can exercise it without the password hashing, whose cost depends on the password by design.
+    internal static byte[]? OpenWithDerivedKey(SecretKeyPacket sp, byte[] kdf, int keySize)
+    {
+        SecretKeyProtection p = sp.Protection;
+        {
             ReadOnlySpan<byte> data = sp.SecretData.Span;
+            if (p.Usage == 253 && sp.Version == 5)
+            {
+                return TryDecryptLibrePgpOcb(sp, p, kdf);
+            }
+
             if (p.Usage == 253)
             {
                 // RFC 9580 §5.5.3: the KEK is HKDF-SHA256 of the S2K output with the packet tag, version, cipher and AEAD as info; the public part is the AD.
@@ -175,17 +200,36 @@ public sealed class PgpSecretKey : IDisposable
 
             throw new PgpException(PgpFailure.Unsupported, "This secret key protection method is not supported.");
         }
-        finally
+    }
+
+    // draft-koch-librepgp §5.5.3: usage 253 on a version 5 key. The S2K output is the OCB key itself (no HKDF), the nonce is the leading 15 octets of the
+    // block-sized IV field, and the additional data is the new-format tag, the cipher, the mode octet 2 and then the public key packet from its version octet.
+    // The authentication tag ends the secret data; there is no checksum or SHA-1.
+    private static byte[]? TryDecryptLibrePgpOcb(SecretKeyPacket sp, SecretKeyProtection p, byte[] key)
+    {
+        ReadOnlySpan<byte> data = sp.SecretData.Span;
+        if (p.Aead != AeadAlgorithm.Ocb || data.Length < 16 || p.Iv.Length < 15 || p.Iv.Span[15..].ContainsAnyExcept((byte)0))
         {
-            CryptographicOperations.ZeroMemory(kdf);
+            return null;
         }
+
+        byte[] ad = [(byte)(0xC0 | sp.TagId), (byte)p.Cipher, (byte)AeadAlgorithm.Ocb, .. sp.PublicBody.Span];
+        byte[] plain = new byte[data.Length - 16];
+        using var a = new PgpAlgorithms.Aead(AeadAlgorithm.Ocb, key);
+        if (!a.TryDecrypt(p.Iv.Span[..15], data[..^16], data[^16..], plain, ad))
+        {
+            CryptographicOperations.ZeroMemory(plain);
+            return null;
+        }
+
+        return plain;
     }
 
     private static PgpSecretKey Finish(PgpKey key, SecretKeyPacket sp, ReadOnlySpan<byte> plain, bool unprotected)
     {
-        if (unprotected && sp.Version <= 4)
+        if (unprotected && sp.Version <= 5)
         {
-            // RFC 9580 §5.5.3: an unprotected v3/v4 packet ends with the two-octet sum of the material.
+            // RFC 9580 §5.5.3, LibrePGP §5.5.3: an unprotected v3, v4 or v5 packet ends with the two-octet sum of the material.
             if (plain.Length < 2 || BinaryPrimitives.ReadUInt16BigEndian(plain[^2..]) != PgpAlgorithms.Checksum(plain[..^2]))
             {
                 throw new PgpException(PgpFailure.MalformedMessage, "The secret key checksum is wrong.");
@@ -248,6 +292,28 @@ public sealed class PgpSecretKey : IDisposable
             case PublicKeyAlgorithm.EdDsaLegacy:
             case PublicKeyAlgorithm.Ecdh:
                 parts.Add(ReadMpi(ref m));
+                break;
+            case PublicKeyAlgorithm.LibrePgpKyber:
+                // The draft (§5.6.7) gives the curve scalar as an octet string with a bit count and the ML-KEM decapsulation key with a four-octet count;
+                // GnuPG 2.5 writes its own S-expression instead.
+                if (!m.IsEmpty && m[0] == (byte)'(')
+                {
+                    parts.AddRange(GnuSecretExpression.CompositeParts(m));
+                    m = default;
+                }
+                else
+                {
+                    parts.Add(ReadMpi(ref m));
+                    if (m.Length < 4)
+                    {
+                        throw new PgpException(PgpFailure.MalformedMessage, "The Kyber secret key is truncated.");
+                    }
+
+                    int n = BinaryPrimitives.ReadInt32BigEndian(m);
+                    m = m[4..];
+                    parts.Add(Take(ref m, n));
+                }
+
                 break;
             default:
                 throw new PgpException(PgpFailure.Unsupported, $"The key algorithm {(byte)alg} ({alg}) is not supported for private operations.");
@@ -319,7 +385,7 @@ public sealed class PgpSecretKey : IDisposable
     /// <summary>
     /// Creates a signing key over the platform's (or the library's) primitives. The result is owned by this object and disposed with it.
     /// </summary>
-    /// <exception cref="PgpException">The algorithm cannot sign here.</exception>
+    /// <exception cref="PgpException">The algorithm cannot sign here, or the secret is not a valid key (<see cref="PgpFailure.KeyCannotPerform"/>).</exception>
     public ISigningKey SigningKey => _signer ??= CreateSigner();
 
     private ISigningKey CreateSigner()
@@ -355,6 +421,11 @@ public sealed class PgpSecretKey : IDisposable
                 default:
                     throw new PgpException(PgpFailure.KeyCannotPerform, $"The key algorithm {(byte)Key.Algorithm} cannot sign.");
             }
+        }
+        catch (Exception e) when (e is CryptographicException or ArgumentException)
+        {
+            // a secret that unlocks but is not a valid key for its public part (a point off the curve, inconsistent RSA primes) is a typed failure
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The secret key material is not a valid key for this algorithm.", e);
         }
         finally
         {
@@ -418,6 +489,9 @@ public sealed class PgpSecretKey : IDisposable
         _signer?.Dispose();
         _signer = null;
     }
+
+    // The unlocked secret values as stored in the packet, without checksum or hash; key management re-protects them under another password.
+    internal ReadOnlySpan<byte> PlainSecret => _plain.AsSpan(0, _length);
 
     // Decryption of the session key lives in SessionKeys.cs and reads the parts through this method.
     internal List<byte[]> SecretParts() => Parts();

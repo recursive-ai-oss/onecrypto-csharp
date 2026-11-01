@@ -15,7 +15,7 @@ for (const a of rest) {
   if (a.startsWith('--') && a.length > 2) {
     const i = a.indexOf('=');
     const k = i < 0 ? a : a.slice(0, i); const v = i < 0 ? true : a.slice(i + 1);
-    if (['--with-password', '--sign-with', '--verify-with', '--with-key-password'].includes(k)) (opts[k] ??= []).push(v); else opts[k] = v;
+    if (['--with-password', '--sign-with', '--verify-with', '--with-key-password', '--old-key-password', '--userid'].includes(k)) (opts[k] ??= []).push(v); else opts[k] = v;
   } else pos.push(a);
 }
 const fail = (code, msg) => { process.stderr.write(`sop.mjs: ${msg}\n`); process.exit(code); };
@@ -67,11 +67,50 @@ process.on('unhandledRejection', (e) => fail(1, String(e && e.message ? e.messag
 
 switch (sub) {
   case 'generate-key': {
-    const profile = opts['--profile'];
-    if (profile && profile !== 'default') fail(89, 'unknown profile');
-    const { privateKey } = await openpgp.generateKey({ type: 'ecc', curve: 'curve25519', userIDs: pos.map((u) => ({ name: u })), format: 'binary' });
+    const profile = opts['--profile'] ?? 'default';
+    const kinds = {
+      default: { type: 'curve25519' },
+      curve448: { type: 'curve448', config: { v6Keys: true } },
+      rsa: { type: 'rsa', rsaBits: 3072 },
+      'nist-p256': { type: 'ecc', curve: 'nistP256' },
+    };
+    if (!kinds[profile]) fail(89, 'unknown profile');
+    const pw = opts['--with-key-password'] ? text(readFileArg(opts['--with-key-password'][0])).trimEnd() : undefined;
+    const { privateKey } = await openpgp.generateKey({ ...kinds[profile], userIDs: pos.map((u) => ({ name: u })), passphrase: pw, format: 'binary' });
     const key = await openpgp.readPrivateKey({ binaryKey: privateKey });
     out(armorOn ? key.armor() : key.write());
+    break;
+  }
+  case 'change-key-password': {
+    const b = stdin();
+    let k = isArmor(b) ? await openpgp.readPrivateKey({ armoredKey: text(b) }) : await openpgp.readPrivateKey({ binaryKey: b });
+    if (!k.isDecrypted()) {
+      let done = false;
+      for (const p of passwords(opts['--old-key-password'])) { try { k = await openpgp.decryptKey({ privateKey: k, passphrase: p }); done = true; break; } catch {} }
+      if (!done) fail(67, 'key is protected');
+    }
+    if (opts['--new-key-password']) k = await openpgp.encryptKey({ privateKey: k, passphrase: text(readFileArg(opts['--new-key-password'])).trimEnd() });
+    out(armorOn ? k.armor() : k.write());
+    break;
+  }
+  case 'revoke-key': {
+    const b = stdin();
+    let k = isArmor(b) ? await openpgp.readPrivateKey({ armoredKey: text(b) }) : await openpgp.readPrivateKey({ binaryKey: b });
+    if (!k.isDecrypted()) {
+      let done = false;
+      for (const p of passwords(opts['--with-key-password'])) { try { k = await openpgp.decryptKey({ privateKey: k, passphrase: p }); done = true; break; } catch {} }
+      if (!done) fail(67, 'key is protected');
+    }
+    const { publicKey } = await openpgp.revokeKey({ key: k, format: 'object' });
+    out(armorOn ? publicKey.armor() : publicKey.write());
+    break;
+  }
+  case 'certify-userid': {
+    const keys = await secretKeys(pos, opts['--with-key-password']);
+    const b = stdin();
+    let cert = (await (isArmor(b) ? openpgp.readKeys({ armoredKeys: text(b) }) : openpgp.readKeys({ binaryKeys: b })))[0];
+    cert = await cert.signAllUsers(keys);
+    out(armorOn ? cert.armor() : cert.write());
     break;
   }
   case 'extract-cert': {
@@ -82,7 +121,7 @@ switch (sub) {
     break;
   }
   case 'list-profiles':
-    if (pos[0] === 'generate-key') out('default: OpenPGP.js default (v6 keys)\n'); else if (pos[0] === 'encrypt') out('default: OpenPGP.js default\n'); else fail(89, 'no profiles');
+    if (pos[0] === 'generate-key') out('default: OpenPGP.js default\ncurve448: v6 Ed448/X448\nrsa: RSA-3072\nnist-p256: NIST P-256\n'); else if (pos[0] === 'encrypt') out('default: OpenPGP.js default\n'); else fail(89, 'no profiles');
     break;
   case 'sign': {
     const keys = await secretKeys(pos, opts['--with-key-password']);

@@ -64,6 +64,36 @@ k0mXubZvyl4GBg==
         using var sig = new MemoryStream();
         PgpMessageWriter.SignDetached(new MemoryStream(data), sig, new PgpWriteOptions { Now = now, Signers = [signer] });
         PgpReadResult v = PgpMessageReader.VerifyDetached(new MemoryStream(data), new MemoryStream(sig.ToArray()), new PgpReadOptions { Now = now, Certificates = [pub] });
-        return dec.ToArray().AsSpan().SequenceEqual(data) && r.Signatures.Count == 1 && r.Signatures[0].IsValid && v.Signatures.Count == 1 && v.Signatures[0].IsValid;
+        // LibrePGP's OCB Encrypted Data with a password (SKESK version 5), and the BZip2 reader.
+        using var ocb = new MemoryStream();
+        PgpWriteResult written = PgpMessageWriter.Write(new MemoryStream(data), ocb, new PgpWriteOptions { Now = now, Passwords = [Encoding.UTF8.GetBytes("pw")], ForceLibrePgp = true, S2kIterationCode = 0x60 });
+        using var ocbDec = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(ocb.ToArray()), ocbDec, new PgpReadOptions { Now = now, MessagePasswords = [Encoding.UTF8.GetBytes("pw")] });
+        bool librePgp = written.Format == PgpEncryptionFormat.LibrePgpOcb && ocbDec.ToArray().AsSpan().SequenceEqual(data);
+        return librePgp && dec.ToArray().AsSpan().SequenceEqual(data) && r.Signatures.Count == 1 && r.Signatures[0].IsValid && v.Signatures.Count == 1 && v.Signatures[0].IsValid;
+    }
+
+    /// <summary>
+    /// Generates version 6 and version 4 keys, protects one with a password, certifies a User ID, revokes a key and finishes a two-phase signature, then checks
+    /// each result by using it.
+    /// </summary>
+    public static bool RunKeyManagement()
+    {
+        var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        byte[] password = Encoding.UTF8.GetBytes("smoke");
+        PgpCertificate alice = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = now, UserIds = ["Alice"], Password = password });
+        PgpCertificate bob = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = now, UserIds = ["Bob"], Profile = PgpKeyProfile.Rfc4880Curve25519 });
+        PgpCertificate pub = alice.ToPublicCertificate();
+        using PgpSecretKey aliceKey = PgpSecretKey.Unlock(alice.Primary, [password]);
+        using PgpSecretKey bobKey = PgpSecretKey.Unlock(bob.Primary);
+        PgpCertificate certified = PgpKeyEditor.Certify(pub, "Alice", bobKey, now.AddDays(1));
+        bool certifiedOk = PgpUserIds.IsCertified(certified, "Alice", [bob.ToPublicCertificate()], now.AddDays(2));
+        PgpCertificate revoked = PgpKeyEditor.RevokeKey(pub, aliceKey, PgpRevocationReason.None, "", now.AddDays(3));
+        bool revokedOk = !revoked.Primary.StateAt(now.AddDays(4)).IsValid;
+        byte[] data = Encoding.UTF8.GetBytes("two phase");
+        PgpPreparedSignature prepared = PgpPreparedSignature.Decode(PgpPreparedSignature.PrepareDetached(pub.Primary, new MemoryStream(data), now.AddDays(1)).Encode());
+        byte[] signature = prepared.SignWith(aliceKey.SigningKey);
+        PgpReadResult v = PgpMessageReader.VerifyDetached(new MemoryStream(data), new MemoryStream(signature), new PgpReadOptions { Now = now.AddDays(1), Certificates = [pub] });
+        return certifiedOk && revokedOk && v.Signatures.Count == 1 && v.Signatures[0].IsValid;
     }
 }

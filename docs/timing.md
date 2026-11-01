@@ -151,3 +151,14 @@ Argon2i is the data-independent variant and has a timing target. Argon2id has no
 slices of its first pass are addressed from public values, and the rest picks reference blocks from block contents (RFC 9106 §3.4),
 so password-dependent timing is expected. Measured once on Apple M2 (one pass, 64 KiB): |t| 12.05. The public API cannot time the
 data-independent part alone, so there is no Argon2id target. Argon2d and scrypt are data-dependent by design and have none either.
+
+## OpenPGP secret-key unlock
+
+`OpenPgpSecretKeyUnlock` times the check that decides whether a secret-key packet opened: fixed secret bytes against random ones, through the AEAD (version 6) and the SHA-1 checked CFB (version 4) unlock paths. Indicative runs (heavy class beside other work, N = 1,000,000, full-opt JIT):
+
+| Machine | AEAD v6 max \|t\| | CFB v4 max \|t\| |
+|---|---|---|
+| x64 (1-minute load up to 80) | 2.60 | 3.02 |
+| arm64 (Apple M2) | 1.68 | 0.78 |
+
+Both pass (threshold 4.5). The Argon2id step that derives the key is data-dependent by design and is not covered by the claim.

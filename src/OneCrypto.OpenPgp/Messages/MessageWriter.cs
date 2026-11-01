@@ -21,6 +21,12 @@ internal sealed class SignatureBuilder : IDisposable
         _type = type;
         KeyPacket kp = key.Key.Packet;
         _hash = hash ?? DefaultHash(kp);
+        if (PgpHash.IsManaged(_hash))
+        {
+            // SHA-224 and RIPEMD-160 are computed here only to check old signatures (RFC 9580 §9.5 does not recommend them for new ones).
+            throw new PgpException(PgpFailure.PolicyViolation, $"{_hash} is accepted when verifying old signatures but is not used for new ones.");
+        }
+
         PolicyDecision d = policy.CheckHash(PgpAlgorithms.HashName(_hash), CryptoUse.Sign, now);
         if (d.Verdict == PolicyVerdict.Rejected)
         {
@@ -34,10 +40,11 @@ internal sealed class SignatureBuilder : IDisposable
             throw new PgpException(PgpFailure.PolicyViolation, "The RSA key is smaller than the policy allows for new signatures.");
         }
 
-        Version = kp.Version == 6 ? (byte)6 : (byte)4;
-        if (kp.Version is not (4 or 6))
+        // A signature has its key's version: 6 for RFC 9580 keys, 4 for version 4 keys, and 5 only for a LibrePGP version 5 key, whose readers expect it.
+        Version = kp.Version;
+        if (kp.Version is not (4 or 5 or 6))
         {
-            throw new PgpException(PgpFailure.Unsupported, "Only version 4 and version 6 keys sign.");
+            throw new PgpException(PgpFailure.Unsupported, "Only version 4, 5 and 6 keys sign.");
         }
 
         Salt = Version == 6 ? RandomNumberGenerator.GetBytes(SignatureEngine.SaltLength(_hash)) : [];
@@ -47,7 +54,7 @@ internal sealed class SignatureBuilder : IDisposable
             SignatureSubpacket.Create((byte)SubpacketType.IssuerFingerprint, false, new byte[] { kp.Version }.Concat(kp.GetFingerprint()).ToArray()),
         };
         var unhashed = new List<SignatureSubpacket>();
-        if (Version == 4)
+        if (Version is 4 or 5)
         {
             unhashed.Add(SignatureSubpacket.Create((byte)SubpacketType.IssuerKeyId, false, kp.GetKeyId()));
         }
@@ -75,6 +82,9 @@ internal sealed class SignatureBuilder : IDisposable
 
     internal byte[] Salt { get; }
 
+    /// <summary>The literal packet fields a version 5 signature covers (draft-koch-librepgp §5.2.4): six zero octets for a detached signature unless set.</summary>
+    internal byte[] LiteralMeta { get; set; } = new byte[6];
+
     internal byte[] SignedHeader { get; }
 
     internal SigHasher Hasher { get; }
@@ -98,7 +108,7 @@ internal sealed class SignatureBuilder : IDisposable
     }
 
     // Default hashes: SHA-512 for the curve and RSA families, and the hash that matches the NIST curve's size for ECDSA.
-    private static PgpHashAlgorithm DefaultHash(KeyPacket kp)
+    internal static PgpHashAlgorithm DefaultHash(KeyPacket kp)
     {
         if (kp.Algorithm == PublicKeyAlgorithm.Ecdsa && SignatureEngine.Curves.TryFind(kp.Material.CurveOid.Span, out int size))
         {
@@ -116,52 +126,9 @@ internal sealed class SignatureBuilder : IDisposable
     /// <summary>Finishes the hash, signs the digest through the key's <see cref="ISigningKey"/> and returns the signature packet.</summary>
     internal Packet Complete()
     {
-        byte[] digest = Hasher.Finish(Version, SignedHeader);
-        // The composite ML-DSA keys sign through their own path: they hold two component keys.
-        ISigningKey signer = _key.Key.Algorithm is PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 ? null! : _key.SigningKey;
-        HashAlgorithmName hn = PgpAlgorithms.HashName(_hash);
-        KeyPacket kp = _key.Key.Packet;
-        byte[] material;
-        switch (kp.Algorithm)
-        {
-            case PublicKeyAlgorithm.Ed25519:
-                material = signer.Sign(digest, SignatureSpec.Ed25519());
-                break;
-            case PublicKeyAlgorithm.Ed448:
-                material = signer.Sign(digest, SignatureSpec.Ed448());
-                break;
-            case PublicKeyAlgorithm.MlDsa65Ed25519:
-            case PublicKeyAlgorithm.MlDsa87Ed448:
-                if (Version != 6 || PgpAlgorithms.HashSize(_hash) < 32)
-                {
-                    throw new PgpException(PgpFailure.KeyCannotPerform, "ML-DSA composite signatures need version 6 and a hash of at least 256 bits (RFC 9980 §5.3.1).");
-                }
-
-                material = _key.SignComposite(digest);
-                break;
-            case PublicKeyAlgorithm.EdDsaLegacy:
-                {
-                    byte[] raw = signer.Sign(digest, SignatureSpec.Ed25519());
-                    material = [.. SignatureEngine.Mpi(raw.AsSpan(0, 32)), .. SignatureEngine.Mpi(raw.AsSpan(32, 32))];
-                    break;
-                }
-
-            case PublicKeyAlgorithm.Rsa:
-            case PublicKeyAlgorithm.RsaSignOnly:
-                material = SignatureEngine.Mpi(signer.SignDigest(digest, SignatureSpec.RsaPkcs1(hn)));
-                break;
-            case PublicKeyAlgorithm.Ecdsa:
-                {
-                    byte[] rs = signer.SignDigest(digest, SignatureSpec.Ecdsa(hn, EcdsaSignatureFormat.Rfc4754));
-                    int half = rs.Length / 2;
-                    material = [.. SignatureEngine.Mpi(rs.AsSpan(0, half)), .. SignatureEngine.Mpi(rs.AsSpan(half))];
-                    break;
-                }
-
-            default:
-                throw new PgpException(PgpFailure.KeyCannotPerform, $"The key algorithm {(byte)kp.Algorithm} cannot sign.");
-        }
-
+        // v5 document signatures also hash the literal packet fields (LibrePGP draft §5.2.4), hence the meta
+        byte[] digest = Hasher.Finish(Version, SignedHeader, LiteralMeta);
+        byte[] material = SignatureMaterialBuilder.Sign(_key, _hash, Version, digest);
         var body = new List<byte>(SignedHeader);
         if (Version == 6)
         {
@@ -251,11 +218,58 @@ public sealed class PgpWriteOptions
     public bool ForceSeipd1 { get; init; }
 
     /// <summary>
+    /// True to write LibrePGP's OCB Encrypted Data packet (with version 5 SKESK packets for passwords) even when the recipients do not call for it, for
+    /// example for a password-only message meant for a LibrePGP reader. Default false: the format is chosen from the recipients
+    /// (see <see cref="PgpWriteResult.Format"/>). Ignored when <see cref="ForceSeipd1"/> is set.
+    /// </summary>
+    public bool ForceLibrePgp { get; init; }
+
+    /// <summary>
     /// The coded iteration count (RFC 9580 §3.7.1.3) of the iterated-salted string-to-key written for password messages with SEIPD v1.
     /// 0xCA hashes about 6.8 MB per password guess; 0xFF is the maximum (65 MB). Default 0xCA. Messages
     /// with SEIPD v2 use Argon2id instead.
     /// </summary>
     public byte S2kIterationCode { get; init; } = 0xCA;
+}
+
+/// <summary>The container that protects the data of an encrypted message.</summary>
+public enum PgpEncryptionFormat
+{
+    /// <summary>Not encrypted.</summary>
+    None = 0,
+
+    /// <summary>Symmetrically Encrypted Integrity Protected Data version 1: CFB with a modification detection code (RFC 9580 §5.13.1).</summary>
+    Seipd1 = 1,
+
+    /// <summary>Symmetrically Encrypted Integrity Protected Data version 2: chunked AEAD (RFC 9580 §5.13.2).</summary>
+    Seipd2 = 2,
+
+    /// <summary>LibrePGP's OCB Encrypted Data packet (draft-koch-librepgp §5.16).</summary>
+    LibrePgpOcb = 3,
+}
+
+/// <summary>What <see cref="PgpMessageWriter.Write"/> decided and did.</summary>
+public sealed class PgpWriteResult
+{
+    internal PgpWriteResult(PgpEncryptionFormat format, SymmetricAlgorithm? cipher, AeadAlgorithm? aead, string reason)
+    {
+        Format = format;
+        Cipher = cipher;
+        Aead = aead;
+        Reason = reason;
+    }
+
+    /// <summary>The container used, or <see cref="PgpEncryptionFormat.None"/> for a message that was not encrypted.</summary>
+    public PgpEncryptionFormat Format { get; }
+
+    /// <summary>The cipher that encrypted the data; null when not encrypted.</summary>
+    public SymmetricAlgorithm? Cipher { get; }
+
+    /// <summary>The AEAD mode for <see cref="PgpEncryptionFormat.Seipd2"/> and <see cref="PgpEncryptionFormat.LibrePgpOcb"/>; null otherwise.</summary>
+    public AeadAlgorithm? Aead { get; }
+
+    /// <summary>A sentence saying why the format was chosen, for example that a recipient's key can read nothing newer than SEIPD v1.</summary>
+    public string Reason { get; }
 }
 
 /// <summary>Writes OpenPGP messages: signed (one-pass), encrypted, or both, streaming in constant memory.</summary>
@@ -271,12 +285,15 @@ public static partial class PgpMessageWriter
     /// Writes <paramref name="plaintext"/> as a message: literal data, wrapped in one-pass signatures when <see cref="PgpWriteOptions.Signers"/> are given,
     /// and encrypted when recipients or passwords are given. With neither, only a literal packet (and signatures) is written.
     /// </summary>
+    /// <returns>The container chosen for the data and why. It is RFC 9580 SEIPD v2 when every recipient can read it, LibrePGP OCB Encrypted Data when every
+    /// recipient needs that (a version 5 key, or a key announcing OCB Encrypted Data and not SEIPD v2), and SEIPD v1 otherwise: the one container every
+    /// recipient reads.</returns>
     /// <exception cref="PgpException">A recipient has no usable encryption key, a key cannot sign, or the policy refuses the choice.</exception>
-    public static void Write(Stream plaintext, Stream output, PgpWriteOptions options)
+    public static PgpWriteResult Write(Stream plaintext, Stream output, PgpWriteOptions options)
     {
         try
         {
-            WriteCore(plaintext, output, options);
+            return WriteCore(plaintext, output, options);
         }
         catch (AlgorithmNotSupportedException e)
         {
@@ -285,7 +302,7 @@ public static partial class PgpMessageWriter
         }
     }
 
-    private static void WriteCore(Stream plaintext, Stream output, PgpWriteOptions options)
+    private static PgpWriteResult WriteCore(Stream plaintext, Stream output, PgpWriteOptions options)
     {
         ArgumentNullException.ThrowIfNull(plaintext);
         ArgumentNullException.ThrowIfNull(output);
@@ -296,16 +313,19 @@ public static partial class PgpMessageWriter
         try
         {
             bool encrypt = options.Recipients.Count + options.Passwords.Count > 0;
+            PgpWriteResult result;
             if (encrypt)
             {
-                WriteEncrypted(plaintext, sink, options, policy);
+                result = WriteEncrypted(plaintext, sink, options, policy);
             }
             else
             {
                 WriteInner(plaintext, sink, options, policy);
+                result = new PgpWriteResult(PgpEncryptionFormat.None, null, null, "The message is not encrypted.");
             }
 
             armor?.Complete();
+            return result;
         }
         finally
         {
@@ -313,7 +333,7 @@ public static partial class PgpMessageWriter
         }
     }
 
-    private static void WriteEncrypted(Stream plaintext, Stream sink, PgpWriteOptions o, CryptoPolicy policy)
+    private static PgpWriteResult WriteEncrypted(Stream plaintext, Stream sink, PgpWriteOptions o, CryptoPolicy policy)
     {
         var keys = new List<PgpKey>();
         foreach (PgpCertificate c in o.Recipients)
@@ -321,13 +341,9 @@ public static partial class PgpMessageWriter
             keys.Add(EncryptionKey(c, o.Now));
         }
 
-        // Defaults come from the recipients' keys (RFC 9580 §5.2.3.32): v2 SEIPD only when every key announces it or is itself version 6.
-        bool v2 = !o.ForceSeipd1 && keys.All(k => k.Packet.Version == 6 || (k.Features(o.Now) & 0x08) != 0);
-        if (v2 && keys.Any(k => k.Packet.Version == 5))
-        {
-            v2 = false;
-        }
-
+        (PgpEncryptionFormat format, string reason) = ChooseFormat(keys, o);
+        bool v2 = format == PgpEncryptionFormat.Seipd2;
+        bool ocbed = format == PgpEncryptionFormat.LibrePgpOcb;
         SymmetricAlgorithm cipher = SymmetricAlgorithm.Aes256;
         AeadAlgorithm aead = AeadAlgorithm.Ocb;
         if (v2)
@@ -336,7 +352,7 @@ public static partial class PgpMessageWriter
         }
         else if (keys.Count > 0)
         {
-            // RFC 9580 §5.2.3.14: with SEIPD v1 the cipher is one every recipient that lists preferences accepts; AES-128 is mandatory to implement.
+            // RFC 9580 §5.2.3.14: with SEIPD v1 (and LibrePGP's OCB) the cipher is one every recipient that lists preferences accepts; AES-128 is mandatory to implement.
             foreach (SymmetricAlgorithm c in new[] { SymmetricAlgorithm.Aes256, SymmetricAlgorithm.Aes192, SymmetricAlgorithm.Aes128 })
             {
                 if (keys.All(k => k.PreferredSymmetric(o.Now) is { IsEmpty: true } || k.PreferredSymmetric(o.Now).Span.Contains((byte)c)))
@@ -361,12 +377,13 @@ public static partial class PgpMessageWriter
             o.OnSessionKey?.Invoke(cipher, (byte[])sessionKey.Clone());
             foreach (PgpKey k in keys)
             {
+                // RFC 9580 §5.1: v6 PKESK for SEIPD v2. LibrePGP §5.1 knows only the version 3 packet, with the symmetric algorithm inside the encrypted value.
                 SessionKeys.Encrypt(k, sessionKey, cipher, v2 ? 6 : 3).WriteTo(sink);
             }
 
             foreach (byte[] pw in o.Passwords)
             {
-                Skesk(pw, sessionKey, cipher, aead, v2, policy, o.S2kIterationCode).WriteTo(sink);
+                Skesk(pw, sessionKey, cipher, aead, v2, ocbed, policy, o.S2kIterationCode).WriteTo(sink);
             }
 
             if (v2)
@@ -387,6 +404,23 @@ public static partial class PgpMessageWriter
 
                 body.Complete();
             }
+            else if (ocbed)
+            {
+                // LibrePGP §5.16: the session key is the cipher key itself; the starting IV is 15 random octets and the chunk index is folded into it.
+                aead = AeadAlgorithm.Ocb;
+                byte[] iv = RandomNumberGenerator.GetBytes(PgpAlgorithms.NonceSize(aead));
+                var framing = new AeadFraming(aead, ChunkOctet, (byte[])sessionKey.Clone(), iv, [0xD4, 1, (byte)cipher, (byte)aead, ChunkOctet], true);
+                using var body = new PacketBodyWriter(sink, PacketTag.OcbEncryptedData);
+                body.Write([1, (byte)cipher, (byte)aead, ChunkOctet]);
+                body.Write(iv);
+                using (var enc = new AeadChunkWriter(body, framing))
+                {
+                    WriteInner(plaintext, enc, o, policy);
+                    enc.Complete();
+                }
+
+                body.Complete();
+            }
             else
             {
                 using var body = new PacketBodyWriter(sink, PacketTag.SymmetricallyEncryptedIntegrityProtectedData);
@@ -399,11 +433,67 @@ public static partial class PgpMessageWriter
 
                 body.Complete();
             }
+
+            return new PgpWriteResult(format, cipher, v2 || ocbed ? aead : null, reason);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(sessionKey);
         }
+    }
+
+    // Dialect choice. RFC 9580 §5.2.3.32 and draft-koch-librepgp §5.2.3.26 let a key announce what it reads: Features bit 0x08 is SEIPD v2, bit 0x02 is
+    // OCB Encrypted Data (with version 5 SKESK), bit 0x01 is SEIPD v1. A version 6 key reads SEIPD v2 without saying so; a version 5 key is a LibrePGP key
+    // and never gets SEIPD v2. With no key at all (a password message) the newest RFC format is used unless the caller asked for LibrePGP.
+    private static (PgpEncryptionFormat Format, string Reason) ChooseFormat(List<PgpKey> keys, PgpWriteOptions o)
+    {
+        if (o.ForceSeipd1)
+        {
+            return (PgpEncryptionFormat.Seipd1, "SEIPD v1 was requested.");
+        }
+
+        if (o.ForceLibrePgp)
+        {
+            return (PgpEncryptionFormat.LibrePgpOcb, "OCB Encrypted Data was requested.");
+        }
+
+        if (keys.Count == 0)
+        {
+            return (PgpEncryptionFormat.Seipd2, "A password message uses SEIPD v2.");
+        }
+
+        bool allV2 = keys.All(k => k.Packet.Version != 5 && (k.Packet.Version == 6 || (k.Features(o.Now) & 0x08) != 0));
+        if (allV2)
+        {
+            return (PgpEncryptionFormat.Seipd2, "Every recipient reads SEIPD v2.");
+        }
+
+        // A key that lists its AEAD modes and leaves OCB out (an EAX-only key from the rfc4880bis days) is not sent OCB Encrypted Data.
+        // Both lists count: the legacy one (subpacket 34, a list of modes) and the ciphersuite one (subpacket 39, cipher and mode pairs).
+        bool AcceptsOcb(PgpKey k)
+        {
+            ReadOnlySpan<byte> modes = k.PreferredAeadModes(o.Now).Span;
+            ReadOnlySpan<byte> suites = k.PreferredAeadSuites(o.Now).Span;
+            bool listed = !modes.IsEmpty || !suites.IsEmpty;
+            bool ocb = modes.Contains((byte)AeadAlgorithm.Ocb);
+            for (int i = 1; i < suites.Length; i += 2)
+            {
+                ocb |= suites[i] == (byte)AeadAlgorithm.Ocb;
+            }
+
+            return !listed || ocb;
+        }
+
+        bool allOcb = keys.All(k => (k.Packet.Version == 5 || (k.Features(o.Now) & 0x02) != 0) && AcceptsOcb(k));
+        if (allOcb)
+        {
+            return (PgpEncryptionFormat.LibrePgpOcb, "Every recipient is a LibrePGP key that reads OCB Encrypted Data and not SEIPD v2.");
+        }
+
+        bool anyNewer = keys.Any(k => k.Packet.Version is 5 or 6 || (k.Features(o.Now) & 0x0A) != 0);
+        return (PgpEncryptionFormat.Seipd1, anyNewer
+            ? "The recipients share no newer container than SEIPD v1."
+            : "No recipient announces anything newer than SEIPD v1.");
     }
 
     private static PgpKey EncryptionKey(PgpCertificate c, DateTimeOffset now)
@@ -412,7 +502,7 @@ public static partial class PgpMessageWriter
         foreach (PgpKey k in c.Keys)
         {
             PgpKeyState st = k.StateAt(now);
-            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly or PublicKeyAlgorithm.Ecdh or PublicKeyAlgorithm.X25519 or PublicKeyAlgorithm.X448 or PublicKeyAlgorithm.MlKem768X25519 or PublicKeyAlgorithm.MlKem1024X448;
+            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaEncryptOnly or PublicKeyAlgorithm.Ecdh or PublicKeyAlgorithm.X25519 or PublicKeyAlgorithm.X448 or PublicKeyAlgorithm.MlKem768X25519 or PublicKeyAlgorithm.MlKem1024X448 or PublicKeyAlgorithm.LibrePgpKyber;
             if (!st.IsValid || !algOk || (st.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0)
             {
                 continue;
@@ -467,9 +557,29 @@ public static partial class PgpMessageWriter
         return (SymmetricAlgorithm.Aes128, AeadAlgorithm.Ocb);
     }
 
-    private static Packet Skesk(byte[] password, byte[] sessionKey, SymmetricAlgorithm cipher, AeadAlgorithm aead, bool v2, CryptoPolicy policy, byte iterationCode)
+    private static Packet Skesk(byte[] password, byte[] sessionKey, SymmetricAlgorithm cipher, AeadAlgorithm aead, bool v2, bool ocbed, CryptoPolicy policy, byte iterationCode)
     {
         int keySize = PgpAlgorithms.KeySize(cipher);
+        if (ocbed)
+        {
+            // draft-koch-librepgp §5.3, version 5: iterated-salted S2K output is the OCB key; the additional data is the tag, version, cipher and mode.
+            byte[] s2kOcb = [(byte)S2kType.IteratedSalted, (byte)PgpHashAlgorithm.Sha256, .. RandomNumberGenerator.GetBytes(8), iterationCode];
+            S2kSpecifier spec = S2kSpecifier.Parse(s2kOcb, out _);
+            byte[] key = PgpAlgorithms.S2k(spec, password, keySize, policy.KdfLimits);
+            byte[] ad = [0xC3, 5, (byte)cipher, (byte)AeadAlgorithm.Ocb];
+            byte[] nonce = RandomNumberGenerator.GetBytes(PgpAlgorithms.NonceSize(AeadAlgorithm.Ocb));
+            byte[] sealedKey = new byte[sessionKey.Length];
+            byte[] authTag = new byte[16];
+            using (var a = new PgpAlgorithms.Aead(AeadAlgorithm.Ocb, key))
+            {
+                a.Encrypt(nonce, sessionKey, sealedKey, authTag, ad);
+            }
+
+            CryptographicOperations.ZeroMemory(key);
+            return Packet.Create((byte)PacketTag.SymmetricKeyEncryptedSessionKey,
+                (byte[])[5, (byte)cipher, (byte)AeadAlgorithm.Ocb, .. s2kOcb, .. nonce, .. sealedKey, .. authTag]);
+        }
+
         if (v2)
         {
             // RFC 9580 §3.7.1.4: Argon2id with the second recommended parameter set (t=3, p=4, 64 MiB) keeps the cost modest on small machines.
@@ -538,7 +648,10 @@ public static partial class PgpMessageWriter
             SignatureType sigType = o.Text ? SignatureType.Text : SignatureType.Binary;
             foreach (PgpSecretKey k in o.Signers)
             {
-                builders.Add(new SignatureBuilder(k, sigType, o.SignatureHash, o.Now, policy));
+                builders.Add(new SignatureBuilder(k, sigType, o.SignatureHash, o.Now, policy)
+                {
+                    LiteralMeta = SignatureEngine.LiteralMeta(o.Text ? (byte)'u' : (byte)'b', o.FileName, o.LiteralDate),
+                });
             }
 
             for (int i = 0; i < builders.Count; i++)
@@ -675,11 +788,11 @@ public static partial class PgpMessageWriter
         }
 
         CryptoPolicy policy = options.Policy ?? CryptoPolicy.Standard;
-        var builders = options.Signers.Select(k => new SignatureBuilder(k, SignatureType.Text, options.SignatureHash, options.Now, policy)).ToList();
+        var builders = options.Signers.Select(k => new SignatureBuilder(k, SignatureType.Text, options.SignatureHash, options.Now, policy) { LiteralMeta = [(byte)'t', 0, 0, 0, 0, 0] }).ToList();
         try
         {
             var sb = new System.Text.StringBuilder("-----BEGIN PGP SIGNED MESSAGE-----\n");
-            foreach (PgpHashAlgorithm h in builders.Where(b => b.Version == 4).Select(b => b.Hash).Distinct())
+            foreach (PgpHashAlgorithm h in builders.Where(b => b.Version != 6).Select(b => b.Hash).Distinct())
             {
                 sb.Append("Hash: ").Append(HashHeaderName(h)).Append('\n');
             }
