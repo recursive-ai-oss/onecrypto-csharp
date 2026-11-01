@@ -21,6 +21,16 @@ internal static class SecretKeyWriter
     internal static SecretKeyPacket Build(KeyPacket publicKey, ReadOnlySpan<byte> secret, ReadOnlySpan<byte> password, bool protect, KdfLimits? limits = null)
     {
         limits ??= KdfLimits.Default;
+        byte[] pw = password.ToArray();
+        return Build(publicKey, secret, protect, (s2k, size) => PgpAlgorithms.S2k(s2k, pw, size, limits));
+    }
+
+    /// <summary>
+    /// Builds a secret key packet with the key derivation supplied by the caller: it receives the string-to-key specifier that was written and the key size, and
+    /// returns the derived key. The timing test uses it to seal many packets under one derived key without hashing a password each time.
+    /// </summary>
+    internal static SecretKeyPacket Build(KeyPacket publicKey, ReadOnlySpan<byte> secret, bool protect, Func<S2kSpecifier, int, byte[]> derive)
+    {
         byte tag = publicKey.IsSubkey ? (byte)PacketTag.SecretSubkey : (byte)PacketTag.SecretKey;
         var body = new List<byte>(publicKey.PublicBody.Length + secret.Length + 96);
         body.AddRange(publicKey.PublicBody.Span);
@@ -48,7 +58,7 @@ internal static class SecretKeyWriter
             return (SecretKeyPacket)Packet.Create(tag, body.ToArray());
         }
 
-        const SymmetricAlgorithm cipher = SymmetricAlgorithm.Aes256;
+        SymmetricAlgorithm cipher = SymmetricAlgorithm.Aes256;
         int keySize = PgpAlgorithms.KeySize(cipher);
         if (publicKey.Version == 6)
         {
@@ -56,7 +66,7 @@ internal static class SecretKeyWriter
             const AeadAlgorithm aead = AeadAlgorithm.Ocb;
             byte[] s2kBytes = [(byte)S2kType.Argon2, .. RandomNumberGenerator.GetBytes(16), 3, 4, 16];
             S2kSpecifier s2k = S2kSpecifier.Parse(s2kBytes, out _);
-            byte[] kdf = PgpAlgorithms.S2k(s2k, password, keySize, limits);
+            byte[] kdf = derive(s2k, keySize);
             byte packetTag = (byte)(0xC0 | tag);
             byte[] kek = HKDF.DeriveKey(HashAlgorithmName.SHA256, kdf, keySize, [], [packetTag, publicKey.Version, (byte)cipher, (byte)aead]);
             CryptographicOperations.ZeroMemory(kdf);
@@ -80,9 +90,20 @@ internal static class SecretKeyWriter
         else
         {
             // RFC 9580 §5.5.3: usage 254 is CFB with a SHA-1 hash of the secret values appended before encryption.
-            byte[] s2kBytes = [(byte)S2kType.IteratedSalted, (byte)PgpHashAlgorithm.Sha256, .. RandomNumberGenerator.GetBytes(8), IteratedCountOctet];
+            PgpHashAlgorithm s2kHash = PgpHashAlgorithm.Sha256;
+            if (publicKey.Algorithm == PublicKeyAlgorithm.Ecdh && publicKey.Material.CurveOid.Span.SequenceEqual(SignatureEngine.Curves.Curve25519Legacy))
+            {
+                // Observed with GnuPG 2.4.8: it cannot use a Curve25519 ECDH subkey whose protection is anything but AES-128 with a SHA-1 S2K (its agent
+                // rejects the unprotected scalar as a bad secret key), so keys in that legacy layout carry the protection GnuPG itself writes.
+                // The S2K hash only stretches the password here; the iteration count is unchanged.
+                cipher = SymmetricAlgorithm.Aes128;
+                s2kHash = PgpHashAlgorithm.Sha1;
+                keySize = PgpAlgorithms.KeySize(cipher);
+            }
+
+            byte[] s2kBytes = [(byte)S2kType.IteratedSalted, (byte)s2kHash, .. RandomNumberGenerator.GetBytes(8), IteratedCountOctet];
             S2kSpecifier s2k = S2kSpecifier.Parse(s2kBytes, out _);
-            byte[] key = PgpAlgorithms.S2k(s2k, password, keySize, limits);
+            byte[] key = derive(s2k, keySize);
             byte[] iv = RandomNumberGenerator.GetBytes(16);
             byte[] data = [.. secret, .. PgpAlgorithms.Sha1(secret)];
             byte[] ivWork = (byte[])iv.Clone();

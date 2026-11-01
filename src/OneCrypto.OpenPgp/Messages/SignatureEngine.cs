@@ -117,6 +117,13 @@ internal static class SignatureEngine
             return false;
         }
 
+        // RFC 9580 §5.2.3: the signature names the algorithm of the key that made it. A signature by a key of another algorithm (a third-party
+        // certification checked against the wrong key) cannot verify, and its values must not be read as this key's.
+        if (!SameSigningFamily(key.Algorithm, sig.Algorithm))
+        {
+            return false;
+        }
+
         PublicKeyMaterial pub = key.Material;
         IReadOnlyList<ReadOnlyMemory<byte>> sv = sig.Material.Values;
         if (!sig.Material.IsKnown)
@@ -218,6 +225,9 @@ internal static class SignatureEngine
                 throw new PgpException(PgpFailure.Unsupported, $"The signature algorithm {(byte)sig.Algorithm} ({sig.Algorithm}) is not supported.");
         }
     }
+
+    private static bool SameSigningFamily(PublicKeyAlgorithm key, PublicKeyAlgorithm signature) =>
+        key == signature || (key is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && signature is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly);
 
     internal static byte[] LeftPad(ReadOnlySpan<byte> value, int length)
     {

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.OpenPgp;
+using RecursiveAI.OneCrypto.OpenPgp.Packets;
 
 namespace OneCrypto.Timing;
 
@@ -22,7 +23,50 @@ internal static class OpenPgpTargets
         new Unwrap("checksum-unpadded-v6-key-bytes", padded: false, validity: false),
         new Unwrap("checksum-padded-ecdh-key-bytes", padded: true, validity: false),
         new Unwrap("checksum-padded-ecdh-bad-padding-vs-bad-checksum", padded: true, validity: true),
+        new Unlock("unlock-aead-v6-secret-bytes", version: 6),
+        new Unlock("unlock-cfb-sha1-v4-secret-bytes", version: 4),
     ];
+
+    /// <summary>
+    /// Opening a protected secret key packet after the string-to-key (RFC 9580 §5.5.3): the HKDF and AEAD open (version 6) or the CFB decryption and SHA-1
+    /// check (version 4). Key classes: the secret values are fixed against random, all sealed under the same derived key. The password hashing itself
+    /// depends on the password by design and is not part of the claim.
+    /// </summary>
+    private sealed class Unlock(string operation, byte version) : TimingTarget
+    {
+        private static readonly byte[] Derived = RandomNumberGenerator.GetBytes(32);
+        private readonly byte[] _fixed = RandomNumberGenerator.GetBytes(32);
+        private readonly KeyPacket _public = PublicKeyPacket.Create(version, 0, PublicKeyAlgorithm.Ed25519, RandomNumberGenerator.GetBytes(32));
+        private SecretKeyPacket[] _packets = [];
+
+        public override string Primitive => "OpenPgpSecretKeyUnlock";
+
+        public override string Operation => operation;
+
+        public override void Prepare(ReadOnlySpan<TimingClass> classes)
+        {
+            if (_packets.Length < classes.Length)
+            {
+                _packets = new SecretKeyPacket[classes.Length];
+            }
+
+            for (int i = 0; i < classes.Length; i++)
+            {
+                byte[] secret = classes[i] == TimingClass.Fixed ? _fixed : RandomNumberGenerator.GetBytes(32);
+                _packets[i] = SecretKeyWriter.Build(_public, secret, protect: true, (_, _) => (byte[])Derived.Clone());
+            }
+        }
+
+        public override void Run(int index)
+        {
+            byte[]? plain = PgpSecretKey.OpenWithDerivedKey(_packets[index], Derived, 32);
+            s_sink += plain?.Length ?? 0;
+            if (plain is not null)
+            {
+                CryptographicOperations.ZeroMemory(plain);
+            }
+        }
+    }
 
     private sealed class Unwrap(string operation, bool padded, bool validity) : TimingTarget
     {

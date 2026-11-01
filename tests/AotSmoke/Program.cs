@@ -429,5 +429,11 @@ if (!OneCrypto.Smoke.OpenPgpSmoke.RunMessages())
     return 1;
 }
 
+if (!OneCrypto.Smoke.OpenPgpSmoke.RunKeyManagement())
+{
+    Console.Error.WriteLine("key generation, certification, revocation or two-phase signing failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

@@ -9,7 +9,7 @@ export PATH=$HOME/dotnet10:$HOME/onecrypto/tools/node/bin:$PATH DOTNET_ROOT=$HOM
 export OPENPGP_JS_DIR=${OPENPGP_JS_DIR:-$ORACLES/openpgpjs-6.3.2}
 mkdir -p "$W"
 (cd "$root" && dotnet build -c Release src/OneCrypto.Cli -v quiet -clp:NoSummary) || exit 2
-dll=$(find "$ONECRYPTO_ARTIFACTS" -name onecrypto.dll -path '*release*' | head -1)
+dll=$(find "$ONECRYPTO_ARTIFACTS" -path '*/bin/OneCrypto.Cli/release/onecrypto.dll' | head -1)
 [ -n "$dll" ] || { echo "onecrypto.dll not found under $ONECRYPTO_ARTIFACTS" >&2; exit 2; }
 OURS="dotnet $dll sop"
 names=${*:-sqop gosop pgpjs}

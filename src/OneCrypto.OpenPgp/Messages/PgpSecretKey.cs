@@ -102,6 +102,20 @@ public sealed class PgpSecretKey : IDisposable
         byte[] kdf = PgpAlgorithms.S2k(p.S2k, password, keySize, limits);
         try
         {
+            return OpenWithDerivedKey(sp, kdf, keySize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(kdf);
+        }
+    }
+
+    // The step after the string-to-key: from the derived key to the secret values (or null when the key or the integrity check is wrong). Split out
+    // so the timing test can exercise it without the password hashing, whose cost depends on the password by design.
+    internal static byte[]? OpenWithDerivedKey(SecretKeyPacket sp, byte[] kdf, int keySize)
+    {
+        SecretKeyProtection p = sp.Protection;
+        {
             ReadOnlySpan<byte> data = sp.SecretData.Span;
             if (p.Usage == 253)
             {
@@ -174,10 +188,6 @@ public sealed class PgpSecretKey : IDisposable
             }
 
             throw new PgpException(PgpFailure.Unsupported, "This secret key protection method is not supported.");
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(kdf);
         }
     }
 

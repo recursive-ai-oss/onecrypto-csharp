@@ -231,7 +231,7 @@ internal static class KeyCommands
         o.RejectUnknown();
         o.NoPositionals();
         List<PgpCertificate> keys = ReadStdinCerts(io, secret: true);
-        List<PgpCertificate> others = MessageCommands.LoadCerts(o, io, mergeFiles, secret: false);
+        (List<PgpCertificate> others, List<SignaturePacket> bareSigs) = LoadMergeInputs(o, io, mergeFiles);
         DateTimeOffset now = Now();
         var result = new List<PgpCertificate>();
         foreach (PgpCertificate k in keys)
@@ -259,7 +259,7 @@ internal static class KeyCommands
                 updated = PgpKeyEditor.Merge(updated, other);
             }
 
-            result.Add(updated);
+            result.Add(ApplySignatures(updated, bareSigs));
         }
 
         WriteKeys(io, result, secret: true, noArmor);
@@ -277,6 +277,60 @@ internal static class KeyCommands
         return true;
     }
 
+    // CERTS given to merge-certs and update-key may also hold stand-alone revocation signatures, which is what `gpg --gen-revoke` writes. Those are
+    // read as signatures and applied to the certificate they revoke.
+    private static (List<PgpCertificate> Certs, List<SignaturePacket> Signatures) LoadMergeInputs(Options o, SopIo io, IEnumerable<string> designators)
+    {
+        var certs = new List<PgpCertificate>();
+        var sigs = new List<SignaturePacket>();
+        foreach (string d in designators)
+        {
+            byte[] data;
+            using (Stream s = io.OpenInput(d))
+            {
+                data = MessageCommands.ReadAll(s);
+            }
+
+            IReadOnlyList<Packet> packets;
+            try
+            {
+                packets = PacketParser.ParseAll(Armor.LooksArmored(data.Length > 0 ? data[0] : (byte)0x80) ? Armor.Decode(data, ArmorReadOptions.Lenient).Data : data);
+            }
+            catch (OpenPgpParseException e)
+            {
+                throw new SopException(SopExit.BadData, $"{d} is not a valid OpenPGP certificate: {e.Message}");
+            }
+
+            if (packets.Count > 0 && packets.All(p => p is SignaturePacket))
+            {
+                sigs.AddRange(packets.Cast<SignaturePacket>());
+            }
+            else
+            {
+                certs.AddRange(MessageCommands.LoadCerts(o, io, [d], secret: false));
+            }
+        }
+
+        return (certs, sigs);
+    }
+
+    private static PgpCertificate ApplySignatures(PgpCertificate cert, List<SignaturePacket> sigs)
+    {
+        foreach (SignaturePacket s in sigs)
+        {
+            try
+            {
+                cert = PgpKeyEditor.AddRevocationSignature(cert, s);
+            }
+            catch (PgpException)
+            {
+                // A signature that belongs to another certificate is ignored, like a certificate with another primary key (draft §5.2.6).
+            }
+        }
+
+        return cert;
+    }
+
     // ---- merge-certs ----
 
     public static int RunMergeCerts(Options o, SopIo io)
@@ -289,7 +343,7 @@ internal static class KeyCommands
         }
 
         List<PgpCertificate> input = ReadStdinCerts(io, secret: false);
-        List<PgpCertificate> others = MessageCommands.LoadCerts(o, io, o.Positionals, secret: false);
+        (List<PgpCertificate> others, List<SignaturePacket> bareSigs) = LoadMergeInputs(o, io, o.Positionals);
 
         // Certificates on standard input that share a primary key are merged into one; the others only add to a certificate that is already there.
         var merged = new List<PgpCertificate>();
@@ -314,7 +368,7 @@ internal static class KeyCommands
             }
         }
 
-        WriteKeys(io, merged, secret: false, noArmor);
+        WriteKeys(io, merged.Select(m => ApplySignatures(m, bareSigs)), secret: false, noArmor);
         return SopExit.Ok;
     }
 

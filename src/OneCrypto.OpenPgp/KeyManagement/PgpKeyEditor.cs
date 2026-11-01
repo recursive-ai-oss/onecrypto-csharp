@@ -836,6 +836,42 @@ public static class PgpKeyEditor
         return w.ToCertificate();
     }
 
+    /// <summary>
+    /// Adds a stand-alone revocation signature (the form GnuPG writes for a revocation certificate: the signature packet without the key) to the certificate it
+    /// belongs to. A key revocation (type 0x20) must verify against the primary key; a subkey revocation (type 0x28) against the primary key over the matching subkey.
+    /// </summary>
+    /// <returns>The certificate with the signature added; the same certificate if it already holds the signature.</returns>
+    /// <exception cref="PgpException">The signature is not a revocation of this certificate or does not verify.</exception>
+    public static PgpCertificate AddRevocationSignature(PgpCertificate cert, SignaturePacket revocation)
+    {
+        ArgumentNullException.ThrowIfNull(cert);
+        ArgumentNullException.ThrowIfNull(revocation);
+        KeyWork w = KeyWork.From(cert.Transferable);
+        byte[] pk = SignatureEngine.KeyInput(w.Primary);
+        List<Packet> target;
+        if (revocation.Type == SignatureType.KeyRevocation && Verifies(revocation, w.Primary, pk))
+        {
+            target = w.PrimaryItems;
+        }
+        else if (revocation.Type == SignatureType.SubkeyRevocation)
+        {
+            KeyWork.SubWork? sub = w.Subs.FirstOrDefault(x => Verifies(revocation, w.Primary, pk, SignatureEngine.KeyInput(x.Key)));
+            target = sub?.Items ?? throw new PgpException(PgpFailure.KeyCannotPerform, "The revocation does not match a subkey of this certificate.");
+        }
+        else
+        {
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The signature is not a revocation that verifies for this certificate.");
+        }
+
+        if (target.Any(p => p.TagId == revocation.TagId && p.Body.Span.SequenceEqual(revocation.Body.Span)))
+        {
+            return cert;
+        }
+
+        target.Add(revocation);
+        return w.ToCertificate();
+    }
+
     private static void MergeItems(List<Packet> mine, List<Packet> theirs, KeyPacket primary, byte[] pk, byte[]? extra = null)
     {
         foreach (Packet p in theirs)

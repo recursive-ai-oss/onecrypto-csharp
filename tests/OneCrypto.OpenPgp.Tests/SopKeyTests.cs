@@ -180,4 +180,29 @@ public class SopKeyTests
         Assert.Equal(69, SopApp.Run(["generate-key"], new SopIo(inStream, outStream, new StringWriter(), _ => null), sopvOnly: true));
         Assert.Equal(0, SopApp.Run(["version", "--sopv"], new SopIo(inStream, outStream, new StringWriter(), _ => null), sopvOnly: true));
     }
+
+    [Fact]
+    public void BareRevocationSignaturesAreAppliedByMergeCertsAndUpdateKey()
+    {
+        // `gpg --gen-revoke` writes the revocation signature without the key; merge-certs applies it to the matching certificate.
+        Result gen = Sop([], "generate-key", "--no-armor", "Bare");
+        PgpCertificate key = PgpCertificate.Parse(gen.Out);
+        using PgpSecretKey primary = PgpSecretKey.Unlock(key.Primary);
+        PgpCertificate rc = PgpKeyEditor.CreateRevocationCertificate(key, primary, PgpRevocationReason.Compromised, "lost", DateTimeOffset.UtcNow);
+        using var bare = new MemoryStream();
+        rc.Transferable.Packets[1].WriteTo(bare);
+        string bareArmored = Scratch("bare.rev", Encoding.ASCII.GetBytes(RecursiveAI.OneCrypto.OpenPgp.Packets.Armor.Encode(ArmorKind.Signature, bare.ToArray())));
+        Result cert = Sop(gen.Out, "extract-cert", "--no-armor");
+        Result merged = Sop(cert.Out, "merge-certs", "--no-armor", bareArmored);
+        Assert.Equal(0, merged.Code);
+        Assert.False(PgpCertificate.Parse(merged.Out).Primary.StateAt(DateTimeOffset.UtcNow.AddSeconds(5)).IsValid);
+        Result updated = Sop(gen.Out, "update-key", "--merge-certs=" + bareArmored);
+        Assert.Equal(0, updated.Code);
+        Assert.False(PgpCertificate.Parse(updated.Out).Primary.StateAt(DateTimeOffset.UtcNow.AddSeconds(5)).IsValid);
+        // A revocation of another key is ignored.
+        Result other = Sop(Sop([], "generate-key", "Other").Out, "extract-cert");
+        Result untouched = Sop(other.Out, "merge-certs", bareArmored);
+        Assert.Equal(0, untouched.Code);
+        Assert.True(PgpCertificate.Parse(untouched.Out).Primary.StateAt(DateTimeOffset.UtcNow.AddSeconds(5)).IsValid);
+    }
 }
