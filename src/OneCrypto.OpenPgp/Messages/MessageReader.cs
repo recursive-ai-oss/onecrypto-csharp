@@ -72,7 +72,7 @@ public static partial class PgpMessageReader
             hashers.Add(s.Type is SignatureType.Binary or SignatureType.Text ? new SigHasher(HashOrNull(s), s.Salt.Span, s.Type == SignatureType.Text) : null);
         }
 
-        byte[] buf = new byte[64 * 1024];
+        byte[] buf = Scratch.Rent();
         int n;
         while ((n = data.Read(buf, 0, buf.Length)) > 0)
         {
@@ -81,6 +81,8 @@ public static partial class PgpMessageReader
                 h?.Append(buf.AsSpan(0, n));
             }
         }
+
+        Scratch.Return(buf);
 
         var result = new PgpReadResult();
         for (int i = 0; i < sigs.Count; i++)
@@ -585,7 +587,7 @@ internal sealed class MessageProcessor : IDisposable
         _r.LiteralFormat = h.Format;
         _r.LiteralFileName = h.FileName.ToArray();
         _r.LiteralDate = h.Date;
-        byte[] buf = new byte[64 * 1024];
+        byte[] buf = Scratch.Rent();
         int n;
         while ((n = body.Read(buf, 0, buf.Length)) > 0)
         {
@@ -601,6 +603,8 @@ internal sealed class MessageProcessor : IDisposable
 
             _out?.Write(buf, 0, n);
         }
+
+        Scratch.Return(buf);
     }
 
     // ---- compression ----
@@ -1003,7 +1007,7 @@ internal sealed class MessageProcessor : IDisposable
         body = new PrefixStream(head, body);
         byte[] tail = new byte[22];
         int tailLen = 0;
-        byte[] buf = new byte[64 * 1024];
+        byte[] buf = Scratch.Rent();
         int carryLen = 0;
         while (true)
         {
@@ -1028,6 +1032,8 @@ internal sealed class MessageProcessor : IDisposable
             PgpAlgorithms.CfbDecrypt(chCipher, ch.Key, iv, last);
             Absorb(last, tail, ref tailLen, sha1, spool);
         }
+
+        Scratch.Return(buf);
 
         if (tailLen != 22 || tail[0] != 0xD3 || tail[1] != 0x14)
         {

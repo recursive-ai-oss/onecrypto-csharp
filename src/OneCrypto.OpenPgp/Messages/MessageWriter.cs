@@ -519,7 +519,7 @@ public static partial class PgpMessageWriter
                 byte[] date = new byte[4];
                 BinaryPrimitives.WriteUInt32BigEndian(date, o.LiteralDate);
                 lit.Write(date);
-                byte[] buf = new byte[64 * 1024];
+                byte[] buf = Scratch.Rent();
                 int n;
                 while ((n = plaintext.Read(buf, 0, buf.Length)) > 0)
                 {
@@ -530,6 +530,8 @@ public static partial class PgpMessageWriter
 
                     lit.Write(buf.AsSpan(0, n));
                 }
+
+                Scratch.Return(buf);
 
                 lit.Complete();
             }
@@ -566,7 +568,7 @@ public static partial class PgpMessageWriter
         var builders = options.Signers.Select(k => new SignatureBuilder(k, sigType, options.SignatureHash, options.Now, policy)).ToList();
         try
         {
-            byte[] buf = new byte[64 * 1024];
+            byte[] buf = Scratch.Rent();
             int n;
             while ((n = data.Read(buf, 0, buf.Length)) > 0)
             {
@@ -575,6 +577,8 @@ public static partial class PgpMessageWriter
                     b.Hasher.Append(buf.AsSpan(0, n));
                 }
             }
+
+            Scratch.Return(buf);
 
             ArmorWriteStream? armor = options.Armor ? new ArmorWriteStream(output, "PGP SIGNATURE", GnuPgCompatible, leaveOpen: true) : null;
             Stream sink = armor ?? output;

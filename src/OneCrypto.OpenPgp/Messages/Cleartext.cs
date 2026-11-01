@@ -212,12 +212,14 @@ internal static class Cleartext
             {
                 using var h = new SigHasher(s.Hash, s.Salt.Span, text: true);
                 canonical.Position = 0;
-                byte[] buf = new byte[64 * 1024];
+                byte[] buf = Scratch.Rent();
                 int n;
                 while ((n = canonical.Read(buf, 0, buf.Length)) > 0)
                 {
                     h.Append(buf.AsSpan(0, n));
                 }
+
+                Scratch.Return(buf);
 
                 digest = h.Finish(s.Version, s.SignedHeader.Span);
             }
