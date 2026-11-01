@@ -281,6 +281,11 @@ internal static class Platform
     public static string Describe()
     {
         string text = $"{Rid}, {RuntimeInformation.FrameworkDescription}";
+        if (OperatingSystem.IsWindows())
+        {
+            // CNG's algorithm set depends on the Windows build (post-quantum and SHA-3 arrived with specific builds).
+            text += ", Windows build " + Environment.OSVersion.Version.Build.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
         return OpenSslVersion is { } v ? text + ", OpenSSL " + v : text;
     }
 
