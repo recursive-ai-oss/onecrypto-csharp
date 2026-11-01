@@ -115,7 +115,7 @@ internal static class SopApp
         }
         else if (o.Flag("--sop-spec"))
         {
-            text = SpecName + "\nThe packet-level subcommands (armor, dearmor, extract-cert, inline-detach) only.";
+            text = SpecName + "\nSubcommands: version, list-profiles, armor, dearmor, extract-cert, inline-detach, sign, verify, inline-sign, inline-verify, encrypt, decrypt. Key generation and management are not provided.";
         }
         else if (o.Flag("--extended"))
         {
