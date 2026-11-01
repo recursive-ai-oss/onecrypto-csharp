@@ -46,7 +46,7 @@ for name in rnp-rsa rsa3072 ed25519; do
     sop decrypt $name.key < $name.renc > dec.bin 2>/dev/null && cmp -s dec.bin big.bin && ok "$name decrypt rnp [$opt]" || bad "$name decrypt rnp [$opt]"
   done
   $RNP --homedir "$H" --recipient "$uid" --userid "$uid" --password '' --sign --encrypt --output $name.rencs big.bin --overwrite >/dev/null 2>&1
-  sop decrypt --verify-with=$name.cert --verifications-out=$name.v $name.key < $name.rencs > dec.bin 2>/dev/null && cmp -s dec.bin big.bin && [ -s $name.v ] && ok "$name decrypt+verify rnp sign+encrypt" || bad "$name decrypt+verify rnp sign+encrypt"
+  rm -f $name.v; sop decrypt --verify-with=$name.cert --verifications-out=$name.v $name.key < $name.rencs > dec.bin 2>/dev/null && cmp -s dec.bin big.bin && [ -s $name.v ] && ok "$name decrypt+verify rnp sign+encrypt" || bad "$name decrypt+verify rnp sign+encrypt"
   # ours -> RNP
   sop sign $name.key < msg.txt > $name.osig
   $RNP --homedir "$H" --verify $name.osig --source msg.txt >/dev/null 2>&1 && ok "$name rnp verifies our detached" || bad "$name rnp verifies our detached"
