@@ -16,6 +16,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PrivateKey.SigningKeyFromCertificate` and `TrySigningKeyFromStore`: `ISigningKey`-typed twins of the operating-system key lookups, so `CmsSignerSpec.Key` needs no cast.
 - `DistinguishedName.FromDer`, `TryFromDer`, `Parse(string)` and `TryFromString`: names that say whether the input is DER or RFC 4514 text. `Parse(bytes)` stays and still means DER.
 - `TimeStampVerifyOptions.RevocationModel` and `RevocationDataTime`: judge the authority's revocation data in the past-time model.
+- `docs/decryption-review.md`: an internal review of the CMS, PKCS#8/#12 and OpenPGP decryption paths with 13 findings (each with a skipped test that demonstrates it) and the list of what was checked and found correct. Not an external audit.
 
 ### Changed
 
