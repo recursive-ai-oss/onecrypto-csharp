@@ -113,14 +113,25 @@ public sealed class PgpSecretKey : IDisposable
                 byte[] ad = new byte[1 + sp.PublicBody.Length];
                 ad[0] = tag;
                 sp.PublicBody.Span.CopyTo(ad.AsSpan(1));
-                if (data.Length < 16)
+                // A nonce of the wrong length (a LibrePGP version 5 key lays this field out differently) cannot be opened; the primitive would throw.
+                if (data.Length < 16 || p.Iv.Length != SecretKeyPacket.AeadNonceLength(aead))
                 {
                     return null;
                 }
 
                 byte[] plain = new byte[data.Length - 16];
                 using var a = new PgpAlgorithms.Aead(aead, kek);
-                bool ok = a.TryDecrypt(p.Iv.Span, data[..^16], data[^16..], plain, ad);
+                bool ok;
+                try
+                {
+                    ok = a.TryDecrypt(p.Iv.Span, data[..^16], data[^16..], plain, ad);
+                }
+                catch (ArgumentException)
+                {
+                    // A parameter combination the AEAD primitive rejects (found with a LibrePGP version 5 key): the key cannot be opened, which is not a crash.
+                    ok = false;
+                }
+
                 CryptographicOperations.ZeroMemory(kek);
                 if (!ok)
                 {
