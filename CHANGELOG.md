@@ -37,6 +37,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - CMS: CBC padding is checked by the library in constant time (also in the streaming call, PBES2 and legacy PEM), not by a platform exception; truncated zlib CompressedData is an error (Adler-32, RFC 1950); an AuthEnvelopedData tag shorter than `CryptoPolicy.MinAuthTagBytes` is refused; the password recipients of one decrypt call share `CmsLimits.MaxPbkdf2IterationsPerMessage`; the CBC streaming decrypt works for Triple DES; `CmsLimits.MaxDecompressionRatio` is 1032, as in OpenPGP.
 - Timing: `OpenPgpSessionKey` targets take their class by a byte mask and have A/A controls; new targets for the RSA session-key failure paths and the CBC padding check.
 
+### Fixed (OpenPGP, from the release interop runs)
+
+- OpenPGP: ECDH session-key values padded to 40 octets to hide the key size (RFC 9580 §11.5) are accepted; up to 24 octets of padding were rejected before.
+- OpenPGP: encryption refuses an RSA key smaller than the policy's size for new data (`PgpFailure.PolicyViolation`; RFC 9580 §12.4) instead of encrypting to it.
+
 ### Added (decryption paths)
 
 - `PgpReadResult.Protection` (`PgpProtection`: `Aead`, `OcbEncryptedData`, `Mdc`, `None`, `NotEncrypted`).

@@ -87,8 +87,8 @@ Every parser has a fuzz target (`fuzz/`). All 27 targets ran 600 s each on the r
 | Target | Executions | Coverage features | | Target | Executions | Coverage features |
 |---|---|---|---|---|---|---|
 | asn1 | 21,778,219 | 7,471 | | pgppacket | 13,372,923 | 9,412 |
-| pem | 31,343,493 | 1,612 | | pgpmessage | 294,959 | 8,470 |
-| x509 | 16,153,774 | 9,865 | | pgpkey | 144,700 | 6,886 |
+| pem | 31,343,493 | 1,612 | | pgpmessage | 429,262 | 9,088 |
+| x509 | 16,153,774 | 9,865 | | pgpkey | 397,140 | 7,444 |
 | ocsp | 24,868,637 | 4,864 | | gnupghome | 15,083,459 | 8,821 |
 | ocspresp | 19,943,086 | 5,260 | | bzip2 | 1,879,150 | 891 |
 | cms | 6,632,979 | 16,172 | | trust | 945,693 | 12,791 |
@@ -101,7 +101,7 @@ Every parser has a fuzz target (`fuzz/`). All 27 targets ran 600 s each on the r
 | online | 10,750,410 | 12,501 | | pades | 343,995 | 37,876 |
 | placeholder | 1,143,809 | 16,697 | | | | |
 
-The slowest targets are the ones that build keys or whole messages (`pgpkey`, `pgpmessage`, `pades`). The fuzzing ran on the tree before the two small OpenPGP fixes of this release (the padded ECDH value and the RSA size check on encryption); the message parser and key parser code they touch is reached by `pgpmessage` and `pgpkey`, which were not re-run.
+The slowest targets are the ones that build keys or whole messages (`pgpkey`, `pgpmessage`, `pades`). `pgpmessage` and `pgpkey` were run again for 600 s each on the final tree, after the two small OpenPGP fixes of this release (the padded ECDH value and the RSA size check on encryption), with no crashes; the numbers above are from that run.
 
 ## Platforms
 

@@ -136,11 +136,11 @@ Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib,
 | Oracle | Result |
 |---|---|
 | GnuPG 2.4.8 (`gpg-keys.sh`) | 121 pass, 0 fail, 8 n/a (version 6 keys and the native Ed25519 algorithms are not readable by GnuPG 2.4) |
-| GnuPG 2.5.24 | 113 pass, 10 n/a with the reasons below, 0 unexplained |
+| GnuPG 2.5.24 | 113 pass, 0 fail, 16 n/a (the reasons below, plus 6 revocation cells), 0 unexplained |
 | RNP 0.17 (`rnp-keys.sh`) | 93 pass, 0 fail, 4 n/a (version 6 profiles) |
-| sqop 0.38 / Sequoia 2.4.1 (`sop-keys-matrix.sh`, every non-post-quantum profile, with and without a password) | 294 pass, 0 fail, 2 unsupported |
-| gosop 1.1 / GopenPGP 3.0 (same profiles) | 229 pass, 0 fail, 79 unsupported (gosop has no `update-key`, `merge-certs` or `validate-userid`) |
-| OpenPGP.js 6.3 (our driver, same profiles) | 264 pass, 0 fail, 44 unsupported (same subcommands) |
+| sqop 0.38 / Sequoia 2.4.1 (`sop-keys-matrix.sh`, every non-post-quantum profile, with and without a password) | 302 pass, 0 fail, 6 unsupported (release-gate run) |
+| gosop 1.1 / GopenPGP 3.0 (same profiles) | 237 pass, 0 fail, 83 unsupported (release-gate run; gosop has no `update-key`, `merge-certs` or `validate-userid`) |
+| OpenPGP.js 6.3 (our driver, same profiles) | 272 pass, 0 fail, 48 unsupported (same subcommands; release-gate run) |
 | Post-quantum profiles (`pqc`, `pqc-high`) on OpenSSL 3.5.9, same matrices | sqop 50 pass / 0 fail / 6 unsupported, gosop 48 / 0 / 20, OpenPGP.js 56 / 0 / 12 (cells the other side cannot run are unsupported; our own round trips run in all) |
 | Three-process two-phase signing, verified by our `verify`, sqop 0.38 and GnuPG 2.5.24 | 46 pass, 0 fail; GnuPG 2.4.8: 36 pass, 0 fail |
 
