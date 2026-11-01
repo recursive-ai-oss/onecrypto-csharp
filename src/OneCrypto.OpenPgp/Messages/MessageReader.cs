@@ -25,6 +25,19 @@ public static partial class PgpMessageReader
     /// <exception cref="OpenPgpParseException">A packet is malformed.</exception>
     public static PgpReadResult Read(Stream input, Stream? output, PgpReadOptions options)
     {
+        try
+        {
+            return ReadCore(input, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static PgpReadResult ReadCore(Stream input, Stream? output, PgpReadOptions options)
+    {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(options);
         using var p = new MessageProcessor(options, output);
@@ -38,6 +51,19 @@ public static partial class PgpMessageReader
     /// <param name="options">Certificates, reference time and policy.</param>
     /// <exception cref="PgpException">The signature input holds no signature packet.</exception>
     public static PgpReadResult VerifyDetached(Stream data, Stream signatures, PgpReadOptions options)
+    {
+        try
+        {
+            return VerifyDetachedCore(data, signatures, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static PgpReadResult VerifyDetachedCore(Stream data, Stream signatures, PgpReadOptions options)
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(signatures);
@@ -104,6 +130,19 @@ public static partial class PgpMessageReader
     /// <exception cref="PgpException">The framing is malformed.</exception>
     public static PgpReadResult VerifyCleartext(Stream input, Stream? output, PgpReadOptions options)
     {
+        try
+        {
+            return VerifyCleartextCore(input, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static PgpReadResult VerifyCleartextCore(Stream input, Stream? output, PgpReadOptions options)
+    {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(options);
         return Cleartext.Verify(input, output, options);
@@ -113,6 +152,19 @@ public static partial class PgpMessageReader
     /// Reads an inline-signed message in either form: the cleartext framework (RFC 9580 §7) or a signed message packet sequence, binary or armored.
     /// </summary>
     public static PgpReadResult ReadSigned(Stream input, Stream? output, PgpReadOptions options)
+    {
+        try
+        {
+            return ReadSignedCore(input, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static PgpReadResult ReadSignedCore(Stream input, Stream? output, PgpReadOptions options)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(options);

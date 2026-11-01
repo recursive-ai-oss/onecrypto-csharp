@@ -80,6 +80,11 @@ internal static class SopApp
                 _ => SopExit.UnspecifiedFailure,
             };
         }
+        catch (RecursiveAI.OneCrypto.AlgorithmNotSupportedException e)
+        {
+            io.Stderr.WriteLine("onecrypto sop: " + e.Message);
+            return SopExit.UnsupportedAsymmetricAlgo;
+        }
         catch (RecursiveAI.OneCrypto.OpenPgp.Packets.OpenPgpParseException e)
         {
             io.Stderr.WriteLine("onecrypto sop: bad data: " + e.Message);

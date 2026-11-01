@@ -368,6 +368,16 @@ public class MessageTests
         Assert.False(PgpMessageReader.VerifyDetached(new MemoryStream("Testing!\n"u8.ToArray()), new MemoryStream(Pqc(sig)), new PgpReadOptions { Now = Now, Certificates = [pub] }).Signatures.Single().IsValid);
     }
 
+    [Fact]
+    public void APlatformWithoutMlDsaGivesATypedFailureNotACrash()
+    {
+        // Found by the interoperability suite on a platform whose OpenSSL has no ML-DSA: the platform exception escaped through the certificate checks.
+        Assert.SkipWhen(System.Security.Cryptography.MLDsa.IsSupported, "ML-DSA is available on this platform");
+        PgpCertificate pub = PgpCertificate.Parse(Pqc("A_3_pub.asc"));
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.VerifyDetached(new MemoryStream("Testing\n"u8.ToArray()), new MemoryStream(Pqc("A_3_sig.asc")), new PgpReadOptions { Now = Now, Certificates = [pub] }));
+        Assert.Equal(PgpFailure.Unsupported, e.Failure);
+    }
+
     [Theory]
     [InlineData("A_1")]
     [InlineData("A_3")]

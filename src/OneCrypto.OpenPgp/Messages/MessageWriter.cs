@@ -267,6 +267,19 @@ public static partial class PgpMessageWriter
     /// <exception cref="PgpException">A recipient has no usable encryption key, a key cannot sign, or the policy refuses the choice.</exception>
     public static void Write(Stream plaintext, Stream output, PgpWriteOptions options)
     {
+        try
+        {
+            WriteCore(plaintext, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static void WriteCore(Stream plaintext, Stream output, PgpWriteOptions options)
+    {
         ArgumentNullException.ThrowIfNull(plaintext);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(options);
@@ -569,6 +582,19 @@ public static partial class PgpMessageWriter
     /// <exception cref="PgpException">No signer is given, or a key cannot sign.</exception>
     public static IReadOnlyList<PgpHashAlgorithm> SignDetached(Stream data, Stream output, PgpWriteOptions options)
     {
+        try
+        {
+            return SignDetachedCore(data, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static List<PgpHashAlgorithm> SignDetachedCore(Stream data, Stream output, PgpWriteOptions options)
+    {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(options);
@@ -619,6 +645,19 @@ public static partial class PgpMessageWriter
     /// each line are not signed, and the final line ending is not part of the text. Version 4 signatures name their hash in a <c>Hash:</c> header.
     /// </summary>
     public static void SignCleartext(Stream text, Stream output, PgpWriteOptions options)
+    {
+        try
+        {
+            SignCleartextCore(text, output, options);
+        }
+        catch (AlgorithmNotSupportedException e)
+        {
+            // The platform lacks an algorithm the message needs (for example ML-DSA or ML-KEM on an older OpenSSL): a typed OpenPGP failure, not a crash.
+            throw new PgpException(PgpFailure.Unsupported, e.Message, e);
+        }
+    }
+
+    private static void SignCleartextCore(Stream text, Stream output, PgpWriteOptions options)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(output);
