@@ -7,10 +7,23 @@
     <Description>The onecrypto command-line tool: the Stateless OpenPGP interface (sop), inspection and convenience verbs. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
     <IsAotCompatible>false</IsAotCompatible>
     <IsTrimmable>false</IsTrimmable>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>onecrypto</ToolCommandName>
+    <PackageTags>cryptography;openpgp;sop;pgp;cli</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).OpenPgp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../OneCrypto/OneCrypto.csproj" />
+    <ProjectReference Include="../OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
   </ItemGroup>
 
 </Project>
