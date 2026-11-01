@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "exchanges": [
+    {
+      "method": "GET",
+      "uri": "https://openpgpkey.fsfe.org/.well-known/openpgpkey/fsfe.org/hu/mg6owx9w8c3ejg3tu31f4tha5n17d4rj?l=info",
+      "requestBodySha256": "",
+      "status": 404,
+      "headers": [
+        {
+          "name": "Alt-Svc",
+          "value": "h3=\u0022:443\u0022; ma=2592000"
+        },
+        {
+          "name": "Date",
+          "value": "Sun, 01 Nov 2026 17:19:12 GMT"
+        },
+        {
+          "name": "Via",
+          "value": "1.1 Caddy"
+        },
+        {
+          "name": "Content-Length",
+          "value": "236"
+        },
+        {
+          "name": "Content-Type",
+          "value": "text/html; charset=iso-8859-1"
+        }
+      ],
+      "body": "PCFET0NUWVBFIEhUTUwgUFVCTElDICItLy9XM0MvL0RURCBIVE1MIDQuMDEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvVFIvaHRtbDQvc3RyaWN0LmR0ZCI+CjxodG1sPjxoZWFkPgo8dGl0bGU+NDA0IE5vdCBGb3VuZDwvdGl0bGU+CjwvaGVhZD48Ym9keT4KPGgxPk5vdCBGb3VuZDwvaDE+CjxwPlRoZSByZXF1ZXN0ZWQgVVJMIHdhcyBub3QgZm91bmQgb24gdGhpcyBzZXJ2ZXIuPC9wPgo8L2JvZHk+PC9odG1sPgo=",
+      "recordedAt": "2026-11-01T17:19:12.2471434+00:00"
+    }
+  ]
+}

@@ -21,6 +21,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
     <ProjectReference Include="../../src/OneCrypto.Cli/OneCrypto.Cli.csproj" />
+    <!-- Discovery tests replay the Online clients' recordings through the OpenPGP filter. -->
+    <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
   </ItemGroup>
 
 </Project>

@@ -417,6 +417,12 @@ if (!await OneCrypto.Smoke.OnlineSmoke.Run())
     return 1;
 }
 
+if (!await OneCrypto.Smoke.DiscoverySmoke.Run())
+{
+    Console.Error.WriteLine("key discovery or Autocrypt gave a wrong result");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.OpenPgpSmoke.Run())
 {
     Console.Error.WriteLine("the v6 certificate parsed wrongly");
