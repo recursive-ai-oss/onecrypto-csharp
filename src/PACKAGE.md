@@ -5,5 +5,5 @@ Cryptography (not cryptocurrency) for .NET, written from the specifications on t
 This is an early preview. It is not yet independently audited.
 
 - Source, issues and the full package list: <https://github.com/recursive-ai-oss/onecrypto-csharp>
-- Changelog: <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/main/CHANGELOG.md>
-- Licence: MIT OR Apache-2.0, <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/main/LICENSE-MIT> and <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/main/LICENSE-APACHE>
+- Changelog: <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/v{VERSION}/CHANGELOG.md>
+- Licence: MIT OR Apache-2.0, <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/v{VERSION}/LICENSE-MIT> and <https://github.com/recursive-ai-oss/onecrypto-csharp/blob/v{VERSION}/LICENSE-APACHE>

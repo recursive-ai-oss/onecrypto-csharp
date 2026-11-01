@@ -150,6 +150,95 @@ public class Pkcs12Tests
         }
     }
 
+    [Fact]
+    public void DefaultPresetOpensInPlatformLoaderWithDefaultLimits()
+    {
+        (PrivateKeyInfo key, Certificate cert, X509Certificate2 bcl) = Pki();
+        using (key)
+        using (bcl)
+        {
+            Pkcs12File f = Pkcs12File.Create(key, cert, null, "pw", "name");
+            using X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12(f.Encoded.ToArray(), "pw");
+            Assert.True(loaded.HasPrivateKey);
+            Assert.Equal(bcl.Thumbprint, loaded.Thumbprint);
+
+            // The same file through the explicitly named preset, with the loader's limits spelled out.
+            Pkcs12File g = Pkcs12File.Create(key, cert, null, "pw", null, Pkcs12WriteOptions.DotNetCompatible);
+            using X509Certificate2 again = X509CertificateLoader.LoadPkcs12(g.Encoded.ToArray(), "pw", X509KeyStorageFlags.DefaultKeySet, Pkcs12LoaderLimits.Defaults);
+            Assert.Equal(bcl.Thumbprint, again.Thumbprint);
+        }
+    }
+
+    [Fact]
+    public void ManyKeysStayUnderThePlatformTotalLimit()
+    {
+        (PrivateKeyInfo k1, Certificate c1, X509Certificate2 b1) = Pki();
+        (PrivateKeyInfo k2, Certificate c2, X509Certificate2 b2) = Pki(ec: true);
+        using (k1)
+        using (k2)
+        using (b1)
+        using (b2)
+        {
+            var bags = new List<Pkcs12Bag> { Pkcs12Bag.ForPrivateKey(k1), Pkcs12Bag.ForPrivateKey(k2), Pkcs12Bag.ForCertificate(c1), Pkcs12Bag.ForCertificate(c2) };
+            Pkcs12File f = Pkcs12File.Create(bags, "pw");
+            Assert.NotNull(X509CertificateLoader.LoadPkcs12Collection(f.Encoded.ToArray(), "pw"));
+        }
+    }
+
+    [Fact]
+    public void StrongPresetIsRefusedByPlatformLoaderWithItsTypedLimitError()
+    {
+        (PrivateKeyInfo key, Certificate cert, X509Certificate2 bcl) = Pki();
+        using (key)
+        using (bcl)
+        {
+            Pkcs12File f = Pkcs12File.Create(key, cert, null, "pw", null, Pkcs12WriteOptions.StrongIncompatibleWithDotNet);
+            Assert.Throws<Pkcs12LoadLimitExceededException>(() => X509CertificateLoader.LoadPkcs12(f.Encoded.ToArray(), "pw"));
+            // With the limits raised by the caller the same bytes load, and ours always opens them.
+            using X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12(f.Encoded.ToArray(), "pw", X509KeyStorageFlags.DefaultKeySet, Pkcs12LoaderLimits.DangerousNoLimits);
+            Assert.Equal(bcl.Thumbprint, loaded.Thumbprint);
+            Assert.Equal(PkcsStatus.Ok, Pkcs12File.Parse(f.Encoded.Span).TryOpen("pw", out Pkcs12Contents? c));
+            c!.Dispose();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BothPresetsOpenInOpenSsl(bool strong)
+    {
+        OpenSslTool.RequireOrSkip();
+        (PrivateKeyInfo key, Certificate cert, X509Certificate2 bcl) = Pki();
+        using (key)
+        using (bcl)
+        {
+            Pkcs12File f = Pkcs12File.Create(key, cert, null, "pw", "name", strong ? Pkcs12WriteOptions.StrongIncompatibleWithDotNet : Pkcs12WriteOptions.DotNetCompatible);
+            string path = Path.Combine(ToolRunner.TempDir("pkcs12-preset"), "p.p12");
+            File.WriteAllBytes(path, f.Encoded.ToArray());
+            (int code, string output) = OpenSslTool.Run("pkcs12", "-info", "-in", path, "-noout", "-passin", "pass:pw");
+            Assert.True(code == 0, output);
+            Assert.Contains(strong ? "Iteration 600000" : "Iteration 300000", output, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void PrivateKeyBagsExposeFriendlyNameAndLocalKeyId()
+    {
+        (PrivateKeyInfo key, Certificate cert, X509Certificate2 bcl) = Pki();
+        using (key)
+        using (bcl)
+        {
+            Pkcs12File f = Pkcs12File.Create(key, cert, null, "pw", "my key", Fast);
+            Assert.Equal(PkcsStatus.Ok, f.TryOpen("pw", out Pkcs12Contents? c));
+            using (c)
+            {
+                Pkcs12Bag b = Assert.Single(c!.PrivateKeyBags);
+                Assert.Equal("my key", b.FriendlyName);
+                Assert.Equal(20, b.LocalKeyId.Length);
+            }
+        }
+    }
+
     // ---- OpenSSL, both directions ----
 
     [Theory]

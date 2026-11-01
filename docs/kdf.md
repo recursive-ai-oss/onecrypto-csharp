@@ -32,6 +32,12 @@ wrote:
 
 Raise a limit by passing your own `KdfLimits`; the memory check also refuses sizes no .NET array can hold.
 
+## Argon2 PHC strings
+
+`Argon2Phc` formats and parses `$argon2id$v=19$m=65536,t=2,p=1$<salt>$<hash>` (C2SP phc-strings; parameters and ranges from RFC 9106 §3.1), salt and hash in standard Base64 without padding. `Argon2Phc.Hash` makes a string with a fresh random salt; `Argon2Phc.Verify(password, phc)` recomputes the tag with the string's parameters and compares with `FixedTimeEquals`.
+
+Parsing is strict and raises `Argon2PhcFormatException` with an `Argon2PhcError` (or `TryParse` returns false): the string is at most 1,024 characters; the identifier is `argon2d`, `argon2i` or `argon2id`; the version field `v=19` is required (a string with no version means the obsolete 0x10, reported as `UnsupportedVersion`); the parameters are exactly `m`, `t`, `p` in that order, plain decimals with no sign, no leading zero and at most nine digits, within p 1 to 2^24 − 1, t ≥ 1, m ≥ 8p; the optional `keyid` and `data` parameters are `Unsupported`; salt (8 bytes or more) and hash (4 bytes or more) are canonical Base64: no padding, no characters outside the standard alphabet, no stray trailing bits. A string that parses formats back to itself. Cost limits (`KdfLimits`) apply at `Verify`, before any memory is allocated, so a hostile string cannot ask for gigabytes.
+
 ## Side channels
 
 - **Argon2i:** every memory index is computed from the pass, lane, slice and block counters and the parameters, never from the

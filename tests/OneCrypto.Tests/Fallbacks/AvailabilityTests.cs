@@ -44,7 +44,12 @@ public class AvailabilityTests(ITestOutputHelper output)
         }
 
         int end = text.IndexOf("<!-- end -->\n", start, StringComparison.Ordinal) + "<!-- end -->\n".Length;
-        Assert.Equal(text[start..end].ReplaceLineEndings("\n"), current);
+        string committed = text[start..end].ReplaceLineEndings("\n");
+        // Print the whole generated section on a mismatch: the string assertion alone shows only the first difference.
+        if (!string.Equals(committed, current, StringComparison.Ordinal))
+        {
+            Assert.Fail("The committed section differs from what this platform reports. Generated:\n" + current);
+        }
     }
 
     [Fact]
