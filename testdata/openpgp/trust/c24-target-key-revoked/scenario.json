@@ -1,0 +1,32 @@
+{
+ "name": "c24-target-key-revoked",
+ "text": "the signed key is revoked",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "6D37AACA2EEECE4EB8ACE972BD301C9B4DE96204",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "4DABB1AF8B1B707903DBAF1B2FE0B50BB849BCF2",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "6D37AACA2EEECE4EB8ACE972BD301C9B4DE96204": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "4DABB1AF8B1B707903DBAF1B2FE0B50BB849BCF2",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

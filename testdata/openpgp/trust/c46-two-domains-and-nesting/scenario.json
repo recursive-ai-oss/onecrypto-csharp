@@ -1,0 +1,68 @@
+{
+ "name": "c46-two-domains-and-nesting",
+ "text": "a trust signature restricted to two domains; a second-level one restricted to one",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "B7BADEF99689A7D5C8BBFF42BCBA95137EACB453",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "7273A2888DF6AA1852B97C12B38479706E8E396A",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "5335F4E7C5F064120D09B6A57B33CAF8510745AE",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t1": {
+   "fingerprint": "2C4B8ED0191234CED3B7C00413CE8C880D010C39",
+   "userIds": [
+    "T1 <t1@one.example>"
+   ]
+  },
+  "t2": {
+   "fingerprint": "4F61F1ED4811D56144825762A58E9BCE81A6CBBF",
+   "userIds": [
+    "T2 <t2@two.example>"
+   ]
+  },
+  "t3": {
+   "fingerprint": "21D0334A5820D4DDA9548564780A1BE9926A19FB",
+   "userIds": [
+    "T3 <t3@three.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "B7BADEF99689A7D5C8BBFF42BCBA95137EACB453": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "2C4B8ED0191234CED3B7C00413CE8C880D010C39",
+   "targetName": "t1",
+   "userId": "T1 <t1@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "4F61F1ED4811D56144825762A58E9BCE81A6CBBF",
+   "targetName": "t2",
+   "userId": "T2 <t2@two.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "21D0334A5820D4DDA9548564780A1BE9926A19FB",
+   "targetName": "t3",
+   "userId": "T3 <t3@three.example>",
+   "at": 1748736000
+  }
+ ]
+}

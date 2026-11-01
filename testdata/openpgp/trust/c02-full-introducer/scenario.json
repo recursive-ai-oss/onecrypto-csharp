@@ -1,0 +1,45 @@
+{
+ "name": "c02-full-introducer",
+ "text": "a (ultimate) signs b, b (full) signs t",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "56D58A36A79C21EA9A65F4512CE140026216064D",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "3A3AE52B23531210A0283A0A5EB354AD02E6D621",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "2D78F91F5527CCEBC36AFBC4B0BCDE5F6A7B9590",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "56D58A36A79C21EA9A65F4512CE140026216064D": "u",
+  "3A3AE52B23531210A0283A0A5EB354AD02E6D621": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "2D78F91F5527CCEBC36AFBC4B0BCDE5F6A7B9590",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "3A3AE52B23531210A0283A0A5EB354AD02E6D621",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

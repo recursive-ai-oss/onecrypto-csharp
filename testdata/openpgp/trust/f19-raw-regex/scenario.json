@@ -1,0 +1,50 @@
+{
+ "name": "f19-raw-regex",
+ "text": "a raw expression anchored on the email domain",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "99B5F6F8ECC3B6E75D1DB0E2F78424FCF4A75DB9",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "ca": {
+   "fingerprint": "1795E46DEFF8DF000FC72F9A6A5C53B99A667308",
+   "userIds": [
+    "Ca <ca@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "E3512241F84C5275A56A8E86273D0FC5E5854559",
+   "userIds": [
+    "T <t@raw.example>"
+   ]
+  },
+  "u": {
+   "fingerprint": "31E336EE8A28EE6AF6B6E61CCD0EA4E0B06E7466",
+   "userIds": [
+    "U <u@other.example>"
+   ]
+  }
+ },
+ "roots": [
+  "99B5F6F8ECC3B6E75D1DB0E2F78424FCF4A75DB9"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "E3512241F84C5275A56A8E86273D0FC5E5854559",
+   "targetName": "t",
+   "userId": "T <t@raw.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "31E336EE8A28EE6AF6B6E61CCD0EA4E0B06E7466",
+   "targetName": "u",
+   "userId": "U <u@other.example>",
+   "at": 1748736000
+  }
+ ]
+}

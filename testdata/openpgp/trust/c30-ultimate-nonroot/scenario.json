@@ -1,0 +1,39 @@
+{
+ "name": "c30-ultimate-nonroot",
+ "text": "a second ultimately trusted key signs b",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "E97A8AE598E72482658DA25DD8AA44D1488B0434",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "B8E7418DFEC8ADB35F400C092B8AEB45680884EB",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "F6536A031CA8FF86068E320244D7742761F5B8C9",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "E97A8AE598E72482658DA25DD8AA44D1488B0434": "u",
+  "B8E7418DFEC8ADB35F400C092B8AEB45680884EB": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "F6536A031CA8FF86068E320244D7742761F5B8C9",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

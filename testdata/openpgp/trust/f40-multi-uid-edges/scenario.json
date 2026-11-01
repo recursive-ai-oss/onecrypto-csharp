@@ -1,0 +1,39 @@
+{
+ "name": "f40-multi-uid-edges",
+ "text": "two certifications of different user IDs of the same introducer count as separate edges",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "6A6BFCD27258C0D12B4A2BECD13A16738D9C3A4A",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "14E2B96EA1C8AB310E6B48C645ED622C536C1804",
+   "userIds": [
+    "B <b@example.org>",
+    "Bee <bee@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "3CB44EE08AAE8AB7E3E9ED9D916ADFE71AB3CF5B",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "6A6BFCD27258C0D12B4A2BECD13A16738D9C3A4A"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "3CB44EE08AAE8AB7E3E9ED9D916ADFE71AB3CF5B",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

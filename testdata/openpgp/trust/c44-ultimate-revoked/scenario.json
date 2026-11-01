@@ -1,0 +1,38 @@
+{
+ "name": "c44-ultimate-revoked",
+ "text": "an ultimately trusted key that is revoked signs b",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "C06B8C5DBBB317997C91A6C296B59EB4E5F0FAF1",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "87E9A246A97C163CB589A03BE8D45680E846873C",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "C06B8C5DBBB317997C91A6C296B59EB4E5F0FAF1": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "C06B8C5DBBB317997C91A6C296B59EB4E5F0FAF1",
+   "targetName": "a",
+   "userId": "A <a@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "87E9A246A97C163CB589A03BE8D45680E846873C",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

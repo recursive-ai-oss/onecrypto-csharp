@@ -1,0 +1,50 @@
+{
+ "name": "f07-unlimited-depth",
+ "text": "depth 255 means no limit",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "00D2DEED67C6C8AE6D23A35DE558CD285164424C",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "444EA5B5595BE634DE6C8F3DBB2E332AE8444C73",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "72A35B953E9627AC172CA40F398C79587300A5E8",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "E120F4BB12F1A487F38611BEA331433FFD4E52BA",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "205F6DCDFDDDC82C24A0D78F51E12B54842E8B98",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "00D2DEED67C6C8AE6D23A35DE558CD285164424C"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "205F6DCDFDDDC82C24A0D78F51E12B54842E8B98",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

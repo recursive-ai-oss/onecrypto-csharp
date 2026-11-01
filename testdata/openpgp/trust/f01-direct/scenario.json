@@ -1,0 +1,32 @@
+{
+ "name": "f01-direct",
+ "text": "a root certifies b's user ID",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "3AC6B3655F73D324D23291DE5A1A0034E8B00C44",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "EC092454126230D86E6AB9B1B337B766D31840D2",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "3AC6B3655F73D324D23291DE5A1A0034E8B00C44"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "EC092454126230D86E6AB9B1B337B766D31840D2",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

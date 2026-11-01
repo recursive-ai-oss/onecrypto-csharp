@@ -1,0 +1,39 @@
+{
+ "name": "f35-uncertified-uid",
+ "text": "nothing certifies the second user ID",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "7BD227AB1968060B753B2F776C48A932C704407C",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "F7ECA2C178245ADE457679F4DC628581EC2EF5D8",
+   "userIds": [
+    "T <t@example.org>",
+    "Tee <tee@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "7BD227AB1968060B753B2F776C48A932C704407C"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "F7ECA2C178245ADE457679F4DC628581EC2EF5D8",
+   "targetName": "t",
+   "userId": "Tee <tee@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "F7ECA2C178245ADE457679F4DC628581EC2EF5D8",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

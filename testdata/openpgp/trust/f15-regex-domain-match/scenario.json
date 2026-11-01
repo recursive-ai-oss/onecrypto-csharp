@@ -1,0 +1,38 @@
+{
+ "name": "f15-regex-domain-match",
+ "text": "a trusts ca only for corp.example; t's user ID is in that domain",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "4BF0BAC3F0FD66CF7A58DFABAF3054406FCBB1BB",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "ca": {
+   "fingerprint": "2F8A2533EB60342DC986F0EBAC4FBAE34702658B",
+   "userIds": [
+    "Ca <ca@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "FA58ED2EED1E730681251BE4E8F789C854556A4C",
+   "userIds": [
+    "T <t@corp.example>"
+   ]
+  }
+ },
+ "roots": [
+  "4BF0BAC3F0FD66CF7A58DFABAF3054406FCBB1BB"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "FA58ED2EED1E730681251BE4E8F789C854556A4C",
+   "targetName": "t",
+   "userId": "T <t@corp.example>",
+   "at": 1748736000
+  }
+ ]
+}

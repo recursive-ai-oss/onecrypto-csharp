@@ -1,0 +1,82 @@
+{
+ "name": "c10-chain-depth-2",
+ "text": "the same chain with --max-cert-depth 2",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "B89E9D2E7C966B44E5668EF963958E662C90C4A2",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "16CA4132F419C59BB9A85A533BA08C1DABAD4098",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "B025AF32C136FF24C42122A4B82635A948DFAFCE",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "72FDBCC1B5C88974FD8AFDCE6A0F1CE9DBAD3F3C",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "e": {
+   "fingerprint": "F4A10D14FCF103B98D2D00AF02A68372990F0619",
+   "userIds": [
+    "E <e@example.org>"
+   ]
+  },
+  "f": {
+   "fingerprint": "1612E6239BB5B7E806FE8E201BD4077356DB93AB",
+   "userIds": [
+    "F <f@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "B89E9D2E7C966B44E5668EF963958E662C90C4A2": "u",
+  "16CA4132F419C59BB9A85A533BA08C1DABAD4098": "f",
+  "B025AF32C136FF24C42122A4B82635A948DFAFCE": "f",
+  "72FDBCC1B5C88974FD8AFDCE6A0F1CE9DBAD3F3C": "f",
+  "F4A10D14FCF103B98D2D00AF02A68372990F0619": "f",
+  "1612E6239BB5B7E806FE8E201BD4077356DB93AB": "f"
+ },
+ "gpgArgs": [
+  "--max-cert-depth",
+  "2"
+ ],
+ "queries": [
+  {
+   "target": "16CA4132F419C59BB9A85A533BA08C1DABAD4098",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "B025AF32C136FF24C42122A4B82635A948DFAFCE",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "72FDBCC1B5C88974FD8AFDCE6A0F1CE9DBAD3F3C",
+   "targetName": "d",
+   "userId": "D <d@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "F4A10D14FCF103B98D2D00AF02A68372990F0619",
+   "targetName": "e",
+   "userId": "E <e@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

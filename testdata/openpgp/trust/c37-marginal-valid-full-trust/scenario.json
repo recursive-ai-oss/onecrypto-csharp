@@ -1,0 +1,58 @@
+{
+ "name": "c37-marginal-valid-full-trust",
+ "text": "b is only marginally valid but has full owner trust: does b's certification count",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "A32FCB3B0B2E7EF7B11BB6A903A0467FF4ED84BF",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "m": {
+   "fingerprint": "D0028C09348A0822D3738A9C95A4314463700C66",
+   "userIds": [
+    "M <m@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "EE90AEC7E78B62024445BA569CDD6CDBA7BE2F1C",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "EF9A042432EC0B8974569DB79733AD07C41818C3",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "987AEFC246EB4A938B700B29C24737E933F518CD",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "A32FCB3B0B2E7EF7B11BB6A903A0467FF4ED84BF": "u",
+  "D0028C09348A0822D3738A9C95A4314463700C66": "m",
+  "EE90AEC7E78B62024445BA569CDD6CDBA7BE2F1C": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "EE90AEC7E78B62024445BA569CDD6CDBA7BE2F1C",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "EF9A042432EC0B8974569DB79733AD07C41818C3",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

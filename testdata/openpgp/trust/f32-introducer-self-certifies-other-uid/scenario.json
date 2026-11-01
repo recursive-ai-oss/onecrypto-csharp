@@ -1,0 +1,39 @@
+{
+ "name": "f32-introducer-self-certifies-other-uid",
+ "text": "a makes b an introducer; b's second user ID is certified only by b itself",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "CFC7BA7F6AE6DB7A5EBFED9B39101E130E16C025",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "2401B01697EC063EA42571944431FF6302BC1A7C",
+   "userIds": [
+    "B <b@example.org>",
+    "Bee <bee@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "CFC7BA7F6AE6DB7A5EBFED9B39101E130E16C025"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "2401B01697EC063EA42571944431FF6302BC1A7C",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "2401B01697EC063EA42571944431FF6302BC1A7C",
+   "targetName": "b",
+   "userId": "Bee <bee@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

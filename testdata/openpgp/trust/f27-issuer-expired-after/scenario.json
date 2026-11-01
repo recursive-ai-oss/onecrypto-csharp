@@ -1,0 +1,44 @@
+{
+ "name": "f27-issuer-expired-after",
+ "text": "the issuer's key expired after it certified: the certification still counts",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "A4375C1BD1C28A5408500DC7333C4D8CF9A6A07C",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "17C8E48D9C4F4C14E5B9C1F169DBA21AB3E950F4",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "A82A7D23CD46F1D42BFAD845447BEFD065B5ADBD",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "A4375C1BD1C28A5408500DC7333C4D8CF9A6A07C"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A82A7D23CD46F1D42BFAD845447BEFD065B5ADBD",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "A82A7D23CD46F1D42BFAD845447BEFD065B5ADBD",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "name": "f09-amount-min-last-edge",
+ "text": "a -> b at 120, b -> t at 30 gives 30",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "F23B50C7240886530359FA25A4AEC42B2871E1B7",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "B8757732EFFC4E9382914A82733A87E5459E1093",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "05876677EE73E1BB03BA9AC1335A9ADB707E6BA7",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "F23B50C7240886530359FA25A4AEC42B2871E1B7"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "05876677EE73E1BB03BA9AC1335A9ADB707E6BA7",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "name": "c26-uid-revoked",
+ "text": "the target revoked its user ID",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "00EA12D745A9EE1E5867A79B68C354500152ABC7",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "CCC5D65553C448A6BAA12B4541B4727B73AE6634",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "00EA12D745A9EE1E5867A79B68C354500152ABC7": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "CCC5D65553C448A6BAA12B4541B4727B73AE6634",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

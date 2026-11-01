@@ -1,0 +1,39 @@
+{
+ "name": "c28-two-uids",
+ "text": "only one of two user IDs is signed",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "51E8960A1B59D30F079799B4182DFAB39FA38A4F",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "44481349BA05084C8D7F909E09DB9610AA13E490",
+   "userIds": [
+    "B <b@example.org>",
+    "Bee <bee@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "51E8960A1B59D30F079799B4182DFAB39FA38A4F": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "44481349BA05084C8D7F909E09DB9610AA13E490",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "44481349BA05084C8D7F909E09DB9610AA13E490",
+   "targetName": "b",
+   "userId": "Bee <bee@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

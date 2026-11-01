@@ -1,0 +1,55 @@
+{
+ "name": "c11-marginals-needed-2",
+ "text": "--marginals-needed 2 makes two marginals enough",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "432503662503F01D6D5E3DD4B364001D2298E8ED",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "F08AA1AC613BB3404712F106E638D656EFC904EE",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "115AEEA4AAD3E4FD4A128AC0CE380C424DDBB7AF",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "84478EAA926DE153BFD942F06F3FD3FAF658A647",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "24BFF6CBEC6A5D5C526D2647E44612C0DD5A5100",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "432503662503F01D6D5E3DD4B364001D2298E8ED": "u",
+  "F08AA1AC613BB3404712F106E638D656EFC904EE": "m",
+  "115AEEA4AAD3E4FD4A128AC0CE380C424DDBB7AF": "m"
+ },
+ "gpgArgs": [
+  "--marginals-needed",
+  "2"
+ ],
+ "queries": [
+  {
+   "target": "24BFF6CBEC6A5D5C526D2647E44612C0DD5A5100",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

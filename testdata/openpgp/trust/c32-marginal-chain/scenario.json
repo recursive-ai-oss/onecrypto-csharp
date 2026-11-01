@@ -1,0 +1,52 @@
+{
+ "name": "c32-marginal-chain",
+ "text": "a marginally valid key with full owner trust signs t",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "D370E8CDCEFF64088DED03558A401A53BCD6CAB6",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "0EE9C10781E2162146D6F61BB5A8D7793E510E73",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "FA6AA128A87F9E6D257F64847A0E0792D25CBEFF",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "12A68A0907726036241F2950B00CE90239617C90",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "D370E8CDCEFF64088DED03558A401A53BCD6CAB6": "u",
+  "0EE9C10781E2162146D6F61BB5A8D7793E510E73": "m",
+  "FA6AA128A87F9E6D257F64847A0E0792D25CBEFF": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "FA6AA128A87F9E6D257F64847A0E0792D25CBEFF",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "12A68A0907726036241F2950B00CE90239617C90",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

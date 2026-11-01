@@ -1,0 +1,469 @@
+{
+ "oracle": "gnupg-2.5.24",
+ "results": [
+  {
+   "query": {
+    "target": "7AA447EEBFEFCA60621EF28B77962D7786C02A0C",
+    "targetName": "t0",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "32DE325E764959CDECD740379F4CBE723A52875C",
+    "targetName": "t1",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "BC7D90EAE34048838296C4E78E4B36A7C9A8DB29",
+    "targetName": "t2",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "867A8E135ACFD45FC701D018A60A1E32C84E81F5",
+    "targetName": "t3",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "2FFD03EB08A93B608DE801998A08E64022DBBDF1",
+    "targetName": "t4",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "CA3AF82601EAE9FA00997E00051FE16C6CF4FA0A",
+    "targetName": "t5",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "E860D5A519A01261D1F383577DF40F3DB2FFA200",
+    "targetName": "t6",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "798FEBC38D503BE5D56854E506F9D62DE2C6CDCF",
+    "targetName": "t7",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "ABA70339CC431212D1DE6955FB19B75D06D15A3D",
+    "targetName": "t8",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "D094204FBEA8E5494CA4811F3072C07BD4988779",
+    "targetName": "t9",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "B62041F28B984B3EDAC5602D2F2DA0CC6F17F9B9",
+    "targetName": "t10",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "618C2009D597E963E8A77F2092BCE91DE4F3B4CF",
+    "targetName": "t11",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "CD7151891F22BC5D303CA145B8EEF590551620E2",
+    "targetName": "t12",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "0DE04434771F76D5709A914909C896884EC1D2E9",
+    "targetName": "t13",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "10D6E945ED4017530A167975E2C1E8E7C5F2F7F8",
+    "targetName": "t14",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "5E5CC2EBAC3A576E52E5BA87E968CC60A18B812A",
+    "targetName": "t15",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "E52701FDCFBAF9E0233C865F793788E95FD4682B",
+    "targetName": "t16",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "443BDDCEDDC22E323A10E61AB856C81E041428EE",
+    "targetName": "t17",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "D781ECBCACA152207084C64708B0C5F3A9E4F190",
+    "targetName": "t18",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "72E6CCAA385908CF924E8EABF4291A58395D4671",
+    "targetName": "t19",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "B343D6E47168AECB73857F4A1241324D82E2D862",
+    "targetName": "t20",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "2FDDA82AD89D050E7EB8946CE058EB4C8F7DB76E",
+    "targetName": "t21",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "A450E6E465A14C36438D1BF86CAA8110C99337E0",
+    "targetName": "t22",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "74C3B31B66E6B194780DA5D45621652AB6F832BA",
+    "targetName": "t23",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "E0EB3918327258F91D7C7D593F3A0679782D3B89",
+    "targetName": "t24",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "BB6142DBF51AD5164972EE6C94C3F3C7D3FDE40D",
+    "targetName": "t25",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "E69EBB2B10CC7D88BB6A39A5075068A6BD381EF2",
+    "targetName": "t26",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "BF28E976130E451D8F63622772A94BB8F06BDF1F",
+    "targetName": "t27",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "-",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "-"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  },
+  {
+   "query": {
+    "target": "B8C2B1F7F329EAEC2F6A4AA8DA0A2A25C55C4153",
+    "targetName": "t28",
+    "userId": "Tee One <tee@one.example>",
+    "at": 1748736000
+   },
+   "pub": "f",
+   "uids": [
+    {
+     "userId": "Tee One <tee@one.example>",
+     "validity": "f"
+    }
+   ],
+   "stderr": "gpg: WARNING: running with faked system time: 2025-06-01 00:00:00\n"
+  }
+ ]
+}

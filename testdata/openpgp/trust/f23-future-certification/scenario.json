@@ -1,0 +1,38 @@
+{
+ "name": "f23-future-certification",
+ "text": "the certification is made after the reference time",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "0F20A808DB51201E31DA1BB043AB3B7754CB827E",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "1EC33DA2CD6DEA2750B87D5DC5C227BDE62AC95B",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "0F20A808DB51201E31DA1BB043AB3B7754CB827E"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "1EC33DA2CD6DEA2750B87D5DC5C227BDE62AC95B",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "1EC33DA2CD6DEA2750B87D5DC5C227BDE62AC95B",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1764374400
+  }
+ ]
+}

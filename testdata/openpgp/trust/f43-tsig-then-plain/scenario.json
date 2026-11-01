@@ -1,0 +1,44 @@
+{
+ "name": "f43-tsig-then-plain",
+ "text": "a newer plain certification replaces the earlier delegation",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "C44E234A34A50887AE5A6FF74B38B89B07D21931",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "C322281DD4C0E02A2DA13532CDA3DD3314563A34",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "C44E234A34A50887AE5A6FF74B38B89B07D21931"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "C322281DD4C0E02A2DA13532CDA3DD3314563A34",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

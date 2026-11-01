@@ -1,0 +1,32 @@
+{
+ "name": "f42-target-key-revoked",
+ "text": "the target's key is revoked after it was certified",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "C6C519D4EE972E6198DAB3CAAD8AA171155ABC07",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "A12ECDA42754B7CA4FC4E26305296FB15E518407",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "C6C519D4EE972E6198DAB3CAAD8AA171155ABC07"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A12ECDA42754B7CA4FC4E26305296FB15E518407",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

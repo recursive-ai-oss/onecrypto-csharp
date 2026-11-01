@@ -1,0 +1,45 @@
+{
+ "name": "c23-certification-revoked",
+ "text": "the root's certification of b was revoked",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "6D0A1A503E319B27F56849FA79DB629FC3F3CC93",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "C770C882863520C409CBB09FF33E68E93C34BEAA",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "11C9231E3C2932F3B34ACC3CF0F92086B91B3B95",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "6D0A1A503E319B27F56849FA79DB629FC3F3CC93": "u",
+  "C770C882863520C409CBB09FF33E68E93C34BEAA": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "C770C882863520C409CBB09FF33E68E93C34BEAA",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "11C9231E3C2932F3B34ACC3CF0F92086B91B3B95",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

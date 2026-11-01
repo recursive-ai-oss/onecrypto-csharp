@@ -1,0 +1,44 @@
+{
+ "name": "c19-tsig-domain-mismatch",
+ "text": "the trust signature is restricted to corp.example and t is elsewhere",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "1E1C50D5CCA8F37A37915923AB5C57CA5D094C62",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "3475791122E9CFE4985C0DE9DAADE717B00DB4B6",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "A65A846B278827219092BC07C9546897BEC21BFA",
+   "userIds": [
+    "T <t@other.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "1E1C50D5CCA8F37A37915923AB5C57CA5D094C62": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A65A846B278827219092BC07C9546897BEC21BFA",
+   "targetName": "t",
+   "userId": "T <t@other.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "3475791122E9CFE4985C0DE9DAADE717B00DB4B6",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "name": "f08-amount-min-first-edge",
+ "text": "the path carries the smallest amount: a -> b at 60, b -> t at 120 gives 60",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "4C220E87882FE14230219DCA9FA2FC602A715EFD",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "56FCBE09634AF3A55FE5004124CDA2C1409D4A4B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "A23DEFAF1462C8516D21A11A5F2CEC3BD0A70D49",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "4C220E87882FE14230219DCA9FA2FC602A715EFD"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A23DEFAF1462C8516D21A11A5F2CEC3BD0A70D49",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

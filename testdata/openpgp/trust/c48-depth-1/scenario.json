@@ -1,0 +1,55 @@
+{
+ "name": "c48-depth-1",
+ "text": "--max-cert-depth 1: only keys certified directly by an ultimate key",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "A6A7E14E888FAD504F0C624D2AABDC803B9D7DDD",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "14D1FF47BFF4069586BE85677B4F47B4A7D8F689",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "C9A9225BA522A3B485894A6344F6A7D43D46BFE8",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "FF921F670B64BCAD38505F555B06F10FBC1BA364",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "A6A7E14E888FAD504F0C624D2AABDC803B9D7DDD": "u",
+  "14D1FF47BFF4069586BE85677B4F47B4A7D8F689": "f",
+  "C9A9225BA522A3B485894A6344F6A7D43D46BFE8": "f"
+ },
+ "gpgArgs": [
+  "--max-cert-depth",
+  "1"
+ ],
+ "queries": [
+  {
+   "target": "14D1FF47BFF4069586BE85677B4F47B4A7D8F689",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "C9A9225BA522A3B485894A6344F6A7D43D46BFE8",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

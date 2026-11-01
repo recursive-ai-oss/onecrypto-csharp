@@ -1,0 +1,49 @@
+{
+ "name": "c13-completes-needed-2-both",
+ "text": "--completes-needed 2 with two full introducers",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "28377CB1DEED5508FE57BD7E33B608E889660E90",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "50214C6AFB19F3C2925518C0863B2E5DBEF43A74",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "2AF765EE0CD5BAB82FCAE17DA3B5DFCEFF7EFC81",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "85D81AAD2B6E255C9B5419DB18D4C36D3C06ADEC",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "28377CB1DEED5508FE57BD7E33B608E889660E90": "u",
+  "50214C6AFB19F3C2925518C0863B2E5DBEF43A74": "f",
+  "2AF765EE0CD5BAB82FCAE17DA3B5DFCEFF7EFC81": "f"
+ },
+ "gpgArgs": [
+  "--completes-needed",
+  "2"
+ ],
+ "queries": [
+  {
+   "target": "85D81AAD2B6E255C9B5419DB18D4C36D3C06ADEC",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

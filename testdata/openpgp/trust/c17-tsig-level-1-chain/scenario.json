@@ -1,0 +1,50 @@
+{
+ "name": "c17-tsig-level-1-chain",
+ "text": "a -> b (level 1) -> c (level 1): c is valid, its signatures do not extend",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "1D53D0A742DF1CBD5F970A7DBD1CB17209C2F9FC",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "0CA34E03A1E57CFA87BEEFC5357385A11B432022",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "DFB1632752249ED536BBD842808A9DC48B92CEC5",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "75857EA676014573B38A5383C68B606FE84BCE56",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "1D53D0A742DF1CBD5F970A7DBD1CB17209C2F9FC": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "DFB1632752249ED536BBD842808A9DC48B92CEC5",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "75857EA676014573B38A5383C68B606FE84BCE56",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}
