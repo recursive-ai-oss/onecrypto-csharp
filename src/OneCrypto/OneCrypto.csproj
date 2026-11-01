@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <!-- The last published version; a pack fails on an unintended breaking change against it. Bump after every release. -->
+    <PackageValidationBaselineVersion>0.1.0-preview.1</PackageValidationBaselineVersion>
     <Description>Cryptography (not cryptocurrency) for .NET on the base class library alone: ASN.1, CMS, RFC 3161 time-stamps, X.509 and the cryptographic primitives the platform lacks. A clean-room alternative to BouncyCastle for formats and protocols. Unaffiliated with other products named OneCrypto.</Description>
     <PackageTags>cryptography;asn1;cms;pkcs7;rfc3161;timestamp;x509;pkcs8;pkcs12;ed25519;x25519;nativeaot;trimmable;bouncycastle;alternative</PackageTags>
   </PropertyGroup>

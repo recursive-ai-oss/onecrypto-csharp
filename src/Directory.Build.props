@@ -29,7 +29,7 @@
 
   <PropertyGroup Label="Packaging">
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <!-- No baseline until the first release is published; the check then guards every later one. -->
+    <!-- Each published package sets PackageValidationBaselineVersion in its own project file; a package with no release yet has none. -->
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
