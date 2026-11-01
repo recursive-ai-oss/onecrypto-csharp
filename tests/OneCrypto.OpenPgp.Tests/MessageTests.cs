@@ -94,6 +94,26 @@ public class MessageTests
     }
 
     [Fact]
+    public void SmallMessagesDoNotAllocateTheStreamingScratchBuffers()
+    {
+        // A 1 KiB password message (SEIPD v1) used to allocate several 64 KiB copy buffers per call; they come from a pool now.
+        byte[] data = new byte[1024];
+        using var enc = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream(data), enc, new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], ForceSeipd1 = true, S2kIterationCode = 0x10 });
+        byte[] message = enc.ToArray();
+        for (int i = 0; i < 3; i++)
+        {
+            PgpMessageReader.Read(new MemoryStream(message), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        PgpMessageReader.Read(new MemoryStream(message), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        
+        Assert.True(allocated < 96 * 1024, "allocated " + allocated);
+    }
+
+    [Fact]
     public void LockedSecretKeyNeedsItsPassword()
     {
         PgpCertificate locked = Cert("A_5.asc");
