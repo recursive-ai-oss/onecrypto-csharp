@@ -511,7 +511,9 @@ public static partial class PgpMessageWriter
             return (PgpEncryptionFormat.Seipd2, "Every recipient reads SEIPD v2.");
         }
 
-        bool allOcb = keys.All(k => k.Packet.Version == 5 || (k.Features(o.Now) & 0x02) != 0);
+        // A key that lists its AEAD modes and leaves OCB out (an EAX-only key from the rfc4880bis days) is not sent OCB Encrypted Data.
+        bool AcceptsOcb(PgpKey k) => k.PreferredAeadModes(o.Now) is { Length: > 0 } modes ? modes.Span.Contains((byte)AeadAlgorithm.Ocb) : true;
+        bool allOcb = keys.All(k => (k.Packet.Version == 5 || (k.Features(o.Now) & 0x02) != 0) && AcceptsOcb(k));
         if (allOcb)
         {
             return (PgpEncryptionFormat.LibrePgpOcb, "Every recipient is a LibrePGP key that reads OCB Encrypted Data and not SEIPD v2.");

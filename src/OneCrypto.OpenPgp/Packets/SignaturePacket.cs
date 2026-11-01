@@ -445,6 +445,10 @@ public sealed class SignaturePacket : Packet
     public ReadOnlyMemory<byte>? PreferredCompressionAlgorithms => HashedSubpackets.Find(SubpacketType.PreferredCompressionAlgorithms)?.Data;
 
     /// <summary>The preferred AEAD ciphersuites as (symmetric, AEAD) octet pairs (hashed subpacket); null if absent.</summary>
+    /// <summary>The legacy Preferred AEAD Algorithms subpacket (type 34, draft-koch-librepgp), a list of AEAD identifiers; null when absent.</summary>
+    public ReadOnlyMemory<byte>? PreferredAeadAlgorithms => HashedSubpackets.Find(SubpacketType.PreferredAeadAlgorithms)?.Data;
+
+    /// <summary>The Preferred AEAD Ciphersuites subpacket (type 39); null when absent.</summary>
     public ReadOnlyMemory<byte>? PreferredAeadCiphersuites => HashedSubpackets.Find(SubpacketType.PreferredAeadCiphersuites)?.Data;
 
     /// <summary>True when the hashed Primary User ID subpacket is present and set.</summary>
