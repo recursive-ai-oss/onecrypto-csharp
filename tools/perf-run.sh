@@ -31,11 +31,26 @@ if [[ "${1:-}" == "--inner" ]]; then
   } > "$outdir/machine.txt"
 
   load() { uptime | sed 's/.*load average[s]*: //'; }
+  load1() { load | tr -d ',' | awk '{print $1}'; }
+  mac_idle() { top -l 2 -n 0 -s 2 2>/dev/null | grep 'CPU usage' | tail -1 | sed -E 's/.* ([0-9.]+)% idle.*/\1/'; }
+  # An exclusive slot opens the moment the queue drains, while the 1-minute load average still carries the jobs that just
+  # finished. Wait (up to PERF_SETTLE seconds, default 180) for the machine to go quiet before measuring anything.
+  if [[ "${PERF_CLASS:-heavy}" == bench ]]; then
+    deadline=$(( $(date +%s) + ${PERF_SETTLE:-180} ))
+    while (( $(date +%s) < deadline )); do
+      if [[ -r /proc/cpuinfo ]]; then
+        awk -v p="$(load1)" -v l="${PERF_MAX_LOAD:-2.0}" 'BEGIN{exit !(p<=l)}' && break
+      else
+        i=$(mac_idle); [[ -n "$i" ]] && awk -v i="$i" -v m="${PERF_MIN_IDLE:-90}" 'BEGIN{exit !(i>=m)}' && break
+      fi
+      sleep 10
+    done
+  fi
   echo "before: $(load)" > "$outdir/load.log"
   # macOS keeps a 1-minute load average near 2 with nothing running, so there the gate is the idle share of the CPU just
   # before the run (second sample of top, which measures over its interval).
   if [[ ! -r /proc/cpuinfo ]]; then
-    idle=$(top -l 2 -n 0 -s 2 2>/dev/null | grep 'CPU usage' | tail -1 | sed -E 's/.* ([0-9.]+)% idle.*/\1/')
+    idle=$(mac_idle)
     echo "idle-before: ${idle:-unknown}" >> "$outdir/load.log"
   fi
   ( while true; do echo "during: $(date -u +%T) $(load)" >> "$outdir/load.log"; sleep 5; done ) &
