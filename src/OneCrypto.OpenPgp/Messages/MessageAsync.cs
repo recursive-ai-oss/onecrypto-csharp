@@ -106,14 +106,16 @@ public static partial class PgpMessageWriter
     /// <param name="output">Receives the message.</param>
     /// <param name="options">As for <see cref="Write"/>.</param>
     /// <param name="cancellationToken">Cancels the copy steps.</param>
-    public static async Task WriteAsync(Stream plaintext, Stream output, PgpWriteOptions options, CancellationToken cancellationToken = default)
+    /// <returns>What <see cref="Write"/> returns.</returns>
+    public static async Task<PgpWriteResult> WriteAsync(Stream plaintext, Stream output, PgpWriteOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plaintext);
         ArgumentNullException.ThrowIfNull(output);
         using SpoolStream source = await PgpMessageReader.Spool(plaintext, cancellationToken).ConfigureAwait(false);
         using var result = new SpoolStream();
-        Write(source, result, options);
+        PgpWriteResult written = Write(source, result, options);
         await PgpMessageReader.Drain(result, output, cancellationToken).ConfigureAwait(false);
+        return written;
     }
 
     /// <summary>Asynchronous <see cref="SignDetached"/>.</summary>

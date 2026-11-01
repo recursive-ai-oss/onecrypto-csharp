@@ -7,7 +7,7 @@ namespace RecursiveAI.OneCrypto.OpenPgp;
 /// <summary>A running signature hash that can canonicalise text on the way in (RFC 9580 §5.2.1: type 0x01 hashes line endings as CR LF).</summary>
 internal sealed class SigHasher : IDisposable
 {
-    private readonly IncrementalHash _h;
+    private readonly PgpHash _h;
     private readonly bool _text;
     private bool _lastWasCr;
     private readonly bool _unsupported;
@@ -22,7 +22,7 @@ internal sealed class SigHasher : IDisposable
         {
             // A signature with a hash we do not know is skipped rather than failing the whole message (RFC 9580 §9.5: unknown algorithms are ignored);
             // its digest is never produced, so the signature is reported as not matched.
-            _h = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            _h = new PgpHash(PgpHashAlgorithm.Sha256);
             _unsupported = true;
         }
 
@@ -33,7 +33,7 @@ internal sealed class SigHasher : IDisposable
     {
         if (!_text)
         {
-            _h.AppendData(data);
+            _h.Append(data);
             return;
         }
 
@@ -44,10 +44,10 @@ internal sealed class SigHasher : IDisposable
             if (b == (byte)'\n')
             {
                 // A line feed after a carriage return is the second half of CR LF, already emitted; a bare one becomes CR LF.
-                _h.AppendData(data[start..i]);
+                _h.Append(data[start..i]);
                 if (!_lastWasCr)
                 {
-                    _h.AppendData("\r\n"u8);
+                    _h.Append("\r\n"u8);
                 }
 
                 start = i + 1;
@@ -55,8 +55,8 @@ internal sealed class SigHasher : IDisposable
             }
             else if (b == (byte)'\r')
             {
-                _h.AppendData(data[start..i]);
-                _h.AppendData("\r\n"u8);
+                _h.Append(data[start..i]);
+                _h.Append("\r\n"u8);
                 start = i + 1;
                 _lastWasCr = true;
             }
@@ -66,14 +66,14 @@ internal sealed class SigHasher : IDisposable
             }
         }
 
-        _h.AppendData(data[start..]);
+        _h.Append(data[start..]);
     }
 
-    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader) =>
-        _unsupported ? throw new PgpException(PgpFailure.Unsupported, "The hash algorithm is not supported.") : SignatureEngine.Finish(_h, version, signedHeader);
+    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default) =>
+        _unsupported ? throw new PgpException(PgpFailure.Unsupported, "The hash algorithm is not supported.") : SignatureEngine.Finish(_h, version, signedHeader, literalMeta);
 
     /// <summary>The digest, or null when the hash algorithm is one we do not support.</summary>
-    internal byte[]? FinishOrNull(byte version, ReadOnlySpan<byte> signedHeader) => _unsupported ? null : SignatureEngine.Finish(_h, version, signedHeader);
+    internal byte[]? FinishOrNull(byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default) => _unsupported ? null : SignatureEngine.Finish(_h, version, signedHeader, literalMeta);
 
     public void Dispose() => _h.Dispose();
 }

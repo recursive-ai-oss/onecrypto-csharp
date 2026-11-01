@@ -14,6 +14,8 @@
 | `sign`, `verify`, `inline-sign`, `inline-verify`, `encrypt`, `decrypt` | implemented, with `--as`, `--no-armor`, `--with-password`, `--with-key-password`, `--session-key-out`, `--with-session-key`, `--verifications-out`, `--not-before`/`--not-after`, `--profile`; value options take `--name=value` or `--name value` |
 | `generate-key`, `change-key-password`, `revoke-key`, `update-key`, `merge-certs`, `certify-userid`, `validate-userid` | exit 69 (`UNSUPPORTED_SUBCOMMAND`) |
 
+`encrypt` chooses the container from the recipients' keys (see [openpgp.md](openpgp.md#messages)): SEIPD v2 for keys that read it, LibrePGP OCB Encrypted Data for version 5 keys and keys announcing it, SEIPD v1 otherwise; `--profile=rfc4880` forces SEIPD v1. `decrypt` also reads GnuPG 2.5's Kyber keys (X25519 and X448) and bzip2-compressed messages.
+
 An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL without them) exits 13 (`UNSUPPORTED_ASYMMETRIC_ALGO`). The subcommands are covered by in-process tests (`tests/OneCrypto.OpenPgp.Tests/SopTests.cs`) and the two-way scripts in `tools/oracles/` (`gpg-messages.sh`, `rnp-messages.sh`, `sop-matrix.sh`).
 
 ## The scoreboard

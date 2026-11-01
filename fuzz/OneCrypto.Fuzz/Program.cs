@@ -43,6 +43,7 @@ internal static class Program
         ["pgppacket"] = PgpPacketTarget.Run,
         ["pgpmessage"] = PgpMessageTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
+        ["bzip2"] = Bzip2Target.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -69,6 +70,7 @@ internal static class Program
         "pgppacket" => PgpPacketTarget.Seeds(),
         "pgpmessage" => PgpMessageTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
+        "bzip2" => Bzip2Target.Seeds(),
         _ => [],
     };
 
