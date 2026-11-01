@@ -59,6 +59,21 @@ public class MessageTests
         Assert.Equal(expected, Encoding.UTF8.GetString(output.ToArray()));
     }
 
+    [Fact]
+    public void LibrePgpOcbEncryptedDataDecryptsAndFailsClosedWhenTampered()
+    {
+        byte[] data = File.ReadAllBytes(TestFiles.OpenPgp("legacy", "ocbed-librepgp.gpg"));
+        using var output = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(data), output, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
+        Assert.Equal("ocbed test\n", Encoding.UTF8.GetString(output.ToArray()));
+
+        byte[] bad = (byte[])data.Clone();
+        bad[^20] ^= 1;
+        using var sink = new MemoryStream();
+        Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(bad), sink, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] }));
+        Assert.Equal(0, sink.Length);
+    }
+
     [Theory]
     [InlineData("A_12_1.asc")]
     [InlineData("A_12_2.asc")]
@@ -208,5 +223,66 @@ public class MessageTests
         using var sink = new MemoryStream();
         Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(bad), sink, new PgpReadOptions { Now = Now, SecretKeys = [secret] }));
         Assert.Equal(0, sink.Length);
+    }
+
+    [Fact]
+    public void Seipd1MdcAndTruncationFailClosed()
+    {
+        PgpCertificate secret = Cert("A_4.asc");
+        PgpCertificate pub = PgpCertificate.Parse(secret.ExportPublic());
+        using var enc = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream(new byte[5_000]), enc, new PgpWriteOptions { Now = Now, Recipients = [pub], ForceSeipd1 = true });
+        byte[] good = enc.ToArray();
+        var ro = new PgpReadOptions { Now = Now, SecretKeys = [secret] };
+        foreach (int back in new[] { 1, 10, 22, 23 })
+        {
+            byte[] bad = (byte[])good.Clone();
+            bad[^back] ^= 0x80;
+            using var sink = new MemoryStream();
+            Assert.ThrowsAny<PgpException>(() => PgpMessageReader.Read(new MemoryStream(bad), sink, ro));
+            Assert.Equal(0, sink.Length);
+        }
+
+        foreach (int cut in new[] { 1, 21, 22, 40, 2000 })
+        {
+            using var sink = new MemoryStream();
+            Assert.ThrowsAny<Exception>(() => PgpMessageReader.Read(new MemoryStream(good.AsSpan(0, good.Length - cut).ToArray()), sink, ro));
+            Assert.Equal(0, sink.Length);
+        }
+    }
+
+    [Fact]
+    public void DeeplyNestedCompressionIsRefused()
+    {
+        // A literal packet wrapped in 40 compressed-data layers: the reader stops at its nesting limit instead of recursing.
+        byte[] packet = [0xCB, 7, (byte)'b', 0, 0, 0, 0, 0, (byte)'x'];
+        for (int i = 0; i < 40; i++)
+        {
+            using var raw = new MemoryStream();
+            using (var z = new System.IO.Compression.DeflateStream(raw, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
+            {
+                z.Write(packet);
+            }
+
+            byte[] body = [1, .. raw.ToArray()];
+            int len = body.Length;
+            packet = [0xC8, 0xFF, (byte)(len >> 24), (byte)(len >> 16), (byte)(len >> 8), (byte)len, .. body];
+        }
+
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(packet), new MemoryStream(), new PgpReadOptions { Now = Now }));
+        Assert.Equal(PgpFailure.LimitExceeded, e.Failure);
+    }
+
+    [Theory]
+    [InlineData(CompressionAlgorithm.Zip)]
+    [InlineData(CompressionAlgorithm.Zlib)]
+    public void CompressedMessagesRoundTrip(CompressionAlgorithm algorithm)
+    {
+        byte[] data = Encoding.ASCII.GetBytes(string.Concat(Enumerable.Repeat("compressible ", 5000)));
+        using var enc = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream(data), enc, new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], Compression = algorithm });
+        using var dec = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(enc.ToArray()), dec, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
+        Assert.Equal(data, dec.ToArray());
     }
 }

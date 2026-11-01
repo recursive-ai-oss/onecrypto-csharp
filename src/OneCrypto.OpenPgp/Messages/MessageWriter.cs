@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.OpenPgp.Packets;
@@ -457,9 +458,29 @@ public static class PgpMessageWriter
     {
         if (o.Compression != CompressionAlgorithm.Uncompressed)
         {
-            throw new PgpException(PgpFailure.Unsupported, "Writing compressed data is not supported yet.");
+            // RFC 9580 §5.6: the compressed packet holds the whole inner message, signatures included. BZip2 has no platform support here.
+            using var packet = new PacketBodyWriter(sink, PacketTag.CompressedData);
+            packet.Write([(byte)o.Compression]);
+            Stream compressor = o.Compression switch
+            {
+                CompressionAlgorithm.Zip => new DeflateStream(packet, CompressionLevel.Optimal, leaveOpen: true),
+                CompressionAlgorithm.Zlib => new ZLibStream(packet, CompressionLevel.Optimal, leaveOpen: true),
+                _ => throw new PgpException(PgpFailure.Unsupported, $"Writing the compression algorithm {(byte)o.Compression} is not supported."),
+            };
+            using (compressor)
+            {
+                WriteLayers(plaintext, compressor, o, policy);
+            }
+
+            packet.Complete();
+            return;
         }
 
+        WriteLayers(plaintext, sink, o, policy);
+    }
+
+    private static void WriteLayers(Stream plaintext, Stream sink, PgpWriteOptions o, CryptoPolicy policy)
+    {
         var builders = new List<SignatureBuilder>();
         try
         {

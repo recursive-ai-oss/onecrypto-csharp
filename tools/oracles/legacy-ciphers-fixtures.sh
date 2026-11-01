@@ -15,3 +15,7 @@ echo 'sed test cast' | gpg --batch --yes --allow-old-cipher-algos --pinentry-mod
   --cipher-algo CAST5 --s2k-cipher-algo CAST5 --compress-algo none -o "$out/sed-cast5.gpg"
 gpg --version | head -1 > "$out/VERSION"
 gpgconf --kill all || true; rm -rf "$home"
+# LibrePGP: SKESK v5 and OCB Encrypted Data (tag 20) from GnuPG (plaintext "ocbed test\n").
+home=$(mktemp -d); chmod 700 "$home"; export GNUPGHOME="$home"
+echo 'ocbed test' | gpg --batch --yes --pinentry-mode loopback --passphrase pw --symmetric --force-ocb --compress-algo none -o "$out/ocbed-librepgp.gpg"
+gpgconf --kill all || true; rm -rf "$home"

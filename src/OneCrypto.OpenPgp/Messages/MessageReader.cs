@@ -807,6 +807,24 @@ internal sealed class MessageProcessor : IDisposable
                 return a.TryDecrypt(s.Iv.Span, data[..^16], data[^16..], key, info) ? new Candidate(null, key) : null;
             }
 
+            if (s.Version == 5)
+            {
+                // LibrePGP §5.3: version 5 uses the S2K output directly as the AEAD key (OCB); the additional data is 0xC3, 5, cipher, mode.
+                AeadAlgorithm aead = s.Aead!.Value;
+                byte[] info = [0xC3, 5, (byte)s.Cipher, (byte)aead];
+                ReadOnlySpan<byte> data = s.EncryptedSessionKey.Span;
+                if (data.Length < 16 + 16)
+                {
+                    CryptographicOperations.ZeroMemory(kdf);
+                    return null;
+                }
+
+                byte[] key = new byte[data.Length - 16];
+                using var a = new PgpAlgorithms.Aead(aead, kdf);
+                CryptographicOperations.ZeroMemory(kdf);
+                return a.TryDecrypt(s.Iv.Span, data[..^16], data[^16..], key, info) ? new Candidate(null, key) : null;
+            }
+
             return null;
         }
         catch (PgpException e) when (e.Failure == PgpFailure.Unsupported)
