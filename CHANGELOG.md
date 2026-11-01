@@ -10,6 +10,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `docs/policy.md` is retitled "CryptoPolicy: algorithm and key-size policy".
 - `CryptoPolicy` asks by signature use: PKI signatures (certificates, CRLs, OCSP, requests) use `CryptoUse.VerifyPki`, under which `Standard` rejects SHA-1 from 2017-01-01 (flagged from 2011) while message signatures keep the later SP 800-131A dates. The validator asks the policy about CRL, delta CRL, OCSP response and responder-certificate signatures too, reports the decisions in `RevocationReport.PolicyDecisions` and the reasons data was not used in `RevocationReport.Notes`. Revocation: an authentic stale CRL that lists a certificate for a final reason gives `Revoked`; delegated OCSP responders without `nocheck` are checked against supplied CRLs; `removeFromCRL` lifts only holds. Nested CRL-signer validations share one work budget and the pool is indexed (`MaxSignerValidations`).
 
+### Removed
+
+- `CryptoPolicy.WebPki`: `Standard` now refuses SHA-1 in certificate, CRL and OCSP signatures from 2017, which is what the preset was for (see `docs/policy.md`). An intentional break of the preview API, recorded in `src/OneCrypto/CompatibilitySuppressions.xml`.
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).
