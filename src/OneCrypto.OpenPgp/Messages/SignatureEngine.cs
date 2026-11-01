@@ -49,7 +49,16 @@ internal static class SignatureEngine
     internal static byte[] Finish(IncrementalHash h, byte version, ReadOnlySpan<byte> signedHeader)
     {
         h.AppendData(signedHeader);
-        if (version >= 4)
+        if (version == 5)
+        {
+            // draft-koch-librepgp §5.2.4: the version 5 trailer counts the hashed header in eight octets.
+            Span<byte> trailer = new byte[10];
+            trailer[0] = version;
+            trailer[1] = 0xFF;
+            BinaryPrimitives.WriteUInt64BigEndian(trailer[2..], (ulong)signedHeader.Length);
+            h.AppendData(trailer);
+        }
+        else if (version >= 4)
         {
             // The trailer: version, 0xFF, and the length of everything hashed from the header (four octets, big endian).
             Span<byte> trailer = new byte[6];

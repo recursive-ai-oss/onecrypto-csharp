@@ -323,16 +323,19 @@ internal sealed class CountingStream : Stream
 /// <summary>Limits how far a decompressor may expand: a fixed allowance plus a ratio of the compressed octets consumed.</summary>
 internal sealed class InflateLimitStream : Stream
 {
-    private const long Allowance = 1 << 20;
-    private const long Ratio = 1032; // DEFLATE cannot exceed about 1032:1 on valid data
+    private readonly long _allowance;
+    private readonly long _ratio;
     private readonly Stream _inflater;
     private readonly CountingStream _compressed;
     private long _out;
 
-    internal InflateLimitStream(Stream inflater, CountingStream compressed)
+    // DEFLATE cannot exceed about 1032:1 on valid data, so that is the ratio and 1 MiB the allowance for the first octets.
+    internal InflateLimitStream(Stream inflater, CountingStream compressed, long allowance = 1 << 20, long ratio = 1032)
     {
         _inflater = inflater;
         _compressed = compressed;
+        _allowance = allowance;
+        _ratio = ratio;
     }
 
     public override bool CanRead => true;
@@ -365,7 +368,7 @@ internal sealed class InflateLimitStream : Stream
         }
 
         _out += n;
-        if (_out > Allowance + (_compressed.Count * Ratio))
+        if (_out > _allowance + (_compressed.Count * _ratio))
         {
             throw new PgpException(PgpFailure.LimitExceeded, "The compressed data expands beyond the allowed ratio.");
         }
@@ -711,6 +714,10 @@ internal sealed class MessageProcessor : IDisposable
                 return new InflateLimitStream(new DeflateStream(counted, CompressionMode.Decompress), counted);
             case CompressionAlgorithm.Zlib:
                 return new InflateLimitStream(new ZLibStream(counted, CompressionMode.Decompress), counted);
+            case CompressionAlgorithm.BZip2:
+                // A single bzip2 block of one repeated byte shrinks to a few dozen octets and expands to about 46 MB, far past DEFLATE's ratio, so
+                // the allowance is large and the ratio stays at 1032: 128 MiB of any content, more only at ordinary ratios.
+                return new InflateLimitStream(new Bzip2DecompressStream(counted), counted, 128L << 20, 1032);
             default:
                 throw new PgpException(PgpFailure.Unsupported, $"The compression algorithm {algo} is not supported.");
         }

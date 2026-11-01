@@ -44,6 +44,8 @@ internal static class SessionKeys
                 case PublicKeyAlgorithm.MlKem768X25519:
                 case PublicKeyAlgorithm.MlKem1024X448:
                     return PqcSessionKeys.Decrypt(key, p);
+                case PublicKeyAlgorithm.LibrePgpKyber:
+                    return LibrePgpKyber.Decrypt(key, p);
                 default:
                     return null;
             }
@@ -194,7 +196,13 @@ internal static class SessionKeys
     /// <summary>RFC 9580 §11.4 and §11.5: the single-round concatenation KDF over the shared point and the recipient-binding parameters.</summary>
     private static byte[] EcdhKdf(ReadOnlySpan<byte> oid, ReadOnlySpan<byte> kdfParameters, KeyPacket recipient, ReadOnlySpan<byte> zb, PgpHashAlgorithm hash, SymmetricAlgorithm wrap)
     {
+        // draft-koch-librepgp §13.5: the KDF names a 20-octet fingerprint, the leftmost 20 octets of a version 5 key's 32.
         byte[] fp = recipient.GetFingerprint();
+        if (fp.Length > 20)
+        {
+            fp = fp[..20];
+        }
+
         var param = new List<byte> { (byte)oid.Length };
         param.AddRange(oid.ToArray());
         param.Add((byte)PublicKeyAlgorithm.Ecdh);
@@ -369,6 +377,9 @@ internal static class SessionKeys
                 break;
             case PublicKeyAlgorithm.Ecdh:
                 body.AddRange(EncryptEcdh(recipient, sessionKey, v3 ? cipher : null));
+                break;
+            case PublicKeyAlgorithm.LibrePgpKyber when v3:
+                body.AddRange(LibrePgpKyber.Encrypt(recipient, sessionKey, cipher));
                 break;
             default:
                 throw new PgpException(PgpFailure.Unsupported, $"Encrypting to the key algorithm {(byte)kp.Algorithm} ({kp.Algorithm}) is not supported.");
