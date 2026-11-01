@@ -241,12 +241,16 @@ internal static class SessionKeys
                 return null;
             }
 
+            // RFC 9580 §11.5: the padding is PKCS #5 style (each octet holds the count), and a sender may pad the value to 40 octets to hide the key size,
+            // which is up to 22 octets of padding. 24 leaves a little room; the loop bound depends on the public length only.
+            const uint MaxPad = 24;
             pad = m[^1];
             bad |= IsZero(pad);
-            uint over = (8 - pad) >> 31; // 1 when pad > 8
+            uint over = (MaxPad - pad) >> 31; // 1 when pad > MaxPad
             bad |= over;
-            pad ^= (pad ^ 8) & (0 - over); // keep the arithmetic below inside 1..8 whatever the input
-            for (int i = 0; i < 8; i++)
+            pad ^= (pad ^ 8) & (0 - over); // keep the arithmetic below inside 1..MaxPad whatever the input
+            int span = Math.Min(len, (int)MaxPad);
+            for (int i = 0; i < span; i++)
             {
                 uint inPad = ((uint)(i - (int)pad) >> 31) & 1; // 1 when i < pad
                 bad |= (0 - inPad) & (uint)(m[len - 1 - i] ^ (byte)pad);

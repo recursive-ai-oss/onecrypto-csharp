@@ -476,6 +476,67 @@ public class MessageTests
         Assert.Null(SessionKeys.FromChecksummed(new byte[padded ? 8 : 0], v3, padded));
     }
 
+    /// <summary>RFC 9580 §12.4: no encryption to an RSA key under the policy's size for new data.</summary>
+    [Fact]
+    public void NoEncryptionToAnRsaKeyUnderThePolicysSize()
+    {
+        // the test key was made by GnuPG some time in 2026 and does not expire
+        DateTimeOffset keyTime = new(2027, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        PgpCertificate rsa = PgpCertificate.Parse(File.ReadAllBytes(TestFiles.OpenPgp("keys", "test-rsa3072.pub.asc")));
+        using var ok = new MemoryStream();
+        PgpMessageWriter.Write(new MemoryStream("x"u8.ToArray()), ok, new PgpWriteOptions { Now = keyTime, Recipients = [rsa] });
+        Assert.True(ok.Length > 0);
+
+        // The same 3072-bit key is too small for a policy that asks for 4096 bits.
+        using var refused = new MemoryStream();
+        var e = Assert.Throws<PgpException>(() => PgpMessageWriter.Write(new MemoryStream("x"u8.ToArray()), refused,
+            new PgpWriteOptions { Now = keyTime, Recipients = [rsa], Policy = RecursiveAI.OneCrypto.Policy.CryptoPolicy.Standard with { MinRsaBitsNew = 4096 } }));
+        Assert.Equal(PgpFailure.PolicyViolation, e.Failure);
+        Assert.Equal(0, refused.Length);
+    }
+
+    /// <summary>RFC 9580 §11.5: a sender may pad the wrapped value to 40 octets (21, 13 or 5 padding octets for AES-128, -192, -256 in a version 3 packet), as Sequoia does.</summary>
+    [Theory]
+    [InlineData(16, true, 21)]
+    [InlineData(24, true, 13)]
+    [InlineData(32, true, 5)]
+    [InlineData(16, false, 22)]
+    [InlineData(32, false, 6)]
+    public void EcdhValuesPaddedTo40OctetsAreAccepted(int keyLength, bool v3, int padCount)
+    {
+        byte[] key = new byte[keyLength];
+        new Random(11).NextBytes(key);
+        ushort sum = 0;
+        foreach (byte b in key)
+        {
+            sum += b;
+        }
+
+        var l = new List<byte>();
+        if (v3)
+        {
+            l.Add(7);
+        }
+
+        l.AddRange(key);
+        l.Add((byte)(sum >> 8));
+        l.Add((byte)sum);
+        l.AddRange(Enumerable.Repeat((byte)padCount, padCount));
+        Assert.Equal(40, l.Count);
+
+        SessionKeys.Recovered? ok = SessionKeys.FromChecksummed([.. l], v3, padded: true);
+        Assert.NotNull(ok);
+        Assert.Equal(key, ok!.Value.Key);
+
+        // still refused when one padding octet is wrong, or the count is beyond anything a sender may use
+        byte[] bad = [.. l];
+        bad[^2] ^= 1;
+        Assert.Null(SessionKeys.FromChecksummed(bad, v3, padded: true));
+        byte[] huge = [.. l];
+        Array.Fill(huge, (byte)30, 10, 30);
+        Assert.Null(SessionKeys.FromChecksummed(huge, v3, padded: true));
+    }
+
     [Theory]
     [InlineData(40, 3, 4)] // memory far beyond any limit
     [InlineData(16, 200, 4)] // too many passes

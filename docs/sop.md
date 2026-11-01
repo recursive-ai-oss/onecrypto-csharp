@@ -46,27 +46,36 @@ The scoreboard script writes `config.json` for the drivers it finds, leaves out 
 
 ### Latest run (251 tests, 14 sections, one score per driver per case)
 
-| Driver | Failure | Neutral | Success |
-|---|---|---|---|
-| sqop 0.38.0 (Sequoia 2.4.1, nettle) | 72 | 546 | 1193 |
-| gosop 1.1.0 (GopenPGP 3.0.0) | 100 | 546 | 1165 |
-| onecrypto (this tool, x64, OpenSSL 3.0 platform without ML-KEM/ML-DSA) | 131 | 546 | 1134 |
+Run on the release tree, twice: on a platform with ML-KEM and ML-DSA (OpenSSL 3.5.9) and on one without (OpenSSL 3.0.13, as hosted CI has). The suite reports four scores here, Success, Failure, Neutral and Unknown; no IO score appears. "Unknown" is the suite's verdict when the producer chose another algorithm than the one under test (9 cells, below).
 
-Before `generate-key` and the other key subcommands existed, the same suite scored onecrypto 131 failures, 1 IO, 536 neutral and 1013 successes: the round-trip cells that start from `generate-key` now run (Key Generation: 185 successes, 13 neutral, no failures; Revocations 88 successes). The failures did not change and no cell that Sequoia passes was lost. The round-trip cells exist for every driver once it can generate keys, which is why the other drivers' totals moved too; the summary script shows no IO score in this run.
+| Driver | Platform | Failure | Neutral | Success | Unknown |
+|---|---|---|---|---|---|
+| sqop 0.38.0 (Sequoia 2.4.1, nettle) | with ML-KEM/ML-DSA | 108 | 554 | 1193 | 0 |
+| gosop 1.1.0 (GopenPGP 3.0.0) | with ML-KEM/ML-DSA | 136 | 554 | 1165 | 0 |
+| onecrypto (this tool, x64) | with ML-KEM/ML-DSA | 110 | 554 | 1182 | 9 |
+| sqop 0.38.0 | without | 72 | 554 | 1193 | 0 |
+| gosop 1.1.0 | without | 100 | 554 | 1165 | 0 |
+| onecrypto | without | 119 | 554 | 1137 | 9 |
 
-The first run of the message subcommands scored 904 successes and 226 failures; the rest of the difference is fixes found by reading the failing cells (certificate evaluation, message grammar, unknown packets, armor, parser strictness).
+On the platform with ML-KEM and ML-DSA our driver generates the post-quantum profiles, so `sqop` and `gosop` each fail 36 more cells there, in which our post-quantum keys and messages are consumed by them (`sqop`'s nettle build has no ML-KEM or ML-DSA at all; the `gosop` failures were not investigated). Our own 9 extra failures on the platform without ML-KEM and ML-DSA are the post-quantum message and signature cells, which exit 13 there.
 
-**Cells where Sequoia succeeds and we do not: 69 (unchanged), all explained.**
+**Cells where Sequoia succeeds and we do not: 59 on both platforms, none unexplained.** The platform without ML-KEM/ML-DSA adds no cell to this list.
 
 | Cells | Test | Why |
 |---|---|---|
-| 60 | RSA key sizes (512 to 2047 bits, as primary key and subkey; sign, verify, encrypt, decrypt) | `CryptoPolicy.Standard` refuses RSA keys under 2048 bits for new data and for verification. Sequoia handles them under its own cut-offs. A caller who needs them passes a weaker policy. |
-| 5 | Signature over the shattered SHA-1 collision | `Standard` flags SHA-1 data signatures made before 2031 (SP 800-131A dates) and accepts them with the flag; Sequoia rejects them. A `Strict` policy rejects them. |
-| 4 | Encrypt-decrypt round trip with a v4 EdDSA/ECDH + ML-KEM-768+X25519 key | The platform of the run (OpenSSL 3.0) has no ML-KEM, so the message cannot be opened here: `AlgorithmNotSupportedException`, `sop` exit 13. Platforms with ML-KEM and ML-DSA run the post-quantum cells. |
+| 36 | RSA key sizes, **primary key** 512 to 2047 bits (signing, verification, encryption, decryption; 9 sizes each) | The suite's keys have a weak RSA primary key that certifies a 3072-bit subkey. We accept the certificate: the library does not apply an RSA size limit to the key that certifies, only to the key that signs, encrypts or decrypts (a gap against RFC 9580 §12.4, "MUST NOT encrypt, sign, or verify using RSA keys of a size less than 2048 bits", which Sequoia follows). GnuPG 2.5.24 does what we do: it verifies, encrypts, signs and decrypts with these keys at every size (checked on the suite's artifacts), apart from the size 1025 for the secret-key operations (below). |
+| 6 | RSA key sizes, **subkey** 1024 to 2047 bits, verification | `CryptoPolicy.Standard` verifies with RSA keys of 1024 bits and more and flags those under 2048 from 2014 (SP 800-131A); it refuses smaller keys (the 512, 768 and 1023-bit cells pass). RFC 9580 §12.4 says MUST NOT under 2048; Sequoia follows it. GnuPG 2.5.24 verifies all 6. `CryptoPolicy.Strict` refuses them. |
+| 9 | RSA key sizes, **subkey** 512 to 2047 bits, decryption | The expected result is a warning or a failure (SHOULD warn under 3072 bits); we decrypt without a warning. GnuPG 2.5.24 decrypts 8 of the 9 without a warning. |
+| 5 | Signature over the shattered SHA-1 collision | `Standard` flags SHA-1 data signatures made before 2031 (SP 800-131A dates) and accepts them with the flag; Sequoia rejects them. GnuPG 2.5.24 verifies all of them as good. A `Strict` policy rejects them. |
+| 3 | Production with a version 5 key that announces AEAD (OCB), AES-128, -192 and -256 | We write the LibrePGP OCB Encrypted Data container for such a recipient; Sequoia cannot read it (`sqop` answers "Invalid data type"), and the suite scores the producer by whether Sequoia opens the message. GnuPG 2.5.24 opens all three of ours with their session keys, and writes the same container itself. Sequoia and GnuPG disagree here. |
 
-The post-quantum message and signature cells score as failures on a platform without ML-KEM/ML-DSA (exit 13) and pass where the platform has them (RFC 9980 Appendix A is checked by unit tests there). 
+**Cells where Sequoia and GnuPG agree and we fail: none.** GnuPG is not a driver of the suite, so each class was run against GnuPG 2.5.24 by hand on the suite's own artifacts (`gpg --verify`, `--encrypt`, `--decrypt`, `--sign`). Of the 36 + 9 secret-key cells the only ones GnuPG does not do are the 3 with a 1025-bit RSA key (primary key decryption, subkey decryption and primary key signing): its agent does not import that secret key ("No secret key"), a limitation of its key import, not a policy decision, while Sequoia refuses on policy and we perform the operation. We list them here instead of counting them as agreement.
 
-Cells where only GopenPGP succeeds, or where Sequoia and GopenPGP disagree about what the right answer is, are not listed: for example unknown packets before the literal data (Sequoia refuses, GopenPGP and the draft's text accept; we refuse), and signatures with the old signature-before-literal layout (GopenPGP accepts; Sequoia and we refuse).
+The nine "Unknown" cells (Symmetric Encryption Algorithm support, production side, OCB with a version 5 key that lists IDEA, TripleDES, CAST5 or Blowfish): the suite asks for a message under an algorithm that cannot be used with OCB; we use AES-128 with OCB, `sqop` and `gosop` write SEIPD version 1 ("Producer did not use AEAD"), which the suite accepts.
+
+The list documented before this run had 69 cells (60 RSA, 5 SHA-1, 4 ML-KEM). On the merged tree it first came to 72: the 3 version 5 cells above were new with the LibrePGP writer, and the 4 ML-KEM cells ("Encrypt-Decrypt roundtrip with v4 EdDSA/ECDH,ML-KEM-768+X25519 key") had been put down to the platform but also failed on OpenSSL 3.5.9. That was a defect, with another one beside it, both fixed in this run: Sequoia pads the wrapped ECDH value to 40 octets (21 padding octets for AES-128), which RFC 9580 §11.5 allows, and we accepted 8 octets of padding at most; and we encrypted to RSA keys under the policy's size for new data (RFC 9580 §12.4), which removed the 9 "subkey, encryption" cells. Cells where only GopenPGP succeeds, or where Sequoia and GopenPGP disagree about what the right answer is, are not listed: for example unknown packets before the literal data (Sequoia refuses, GopenPGP and the draft's text accept; we refuse), and signatures with the old signature-before-literal layout (GopenPGP accepts; Sequoia and we refuse).
+
+Reproduce: `tools/oracles/interop-scoreboard.sh` (once per OpenSSL), then `interop-summary.py` and `interop-vs-sqop.py` on `results.json`.
 
 Left out of the scoreboard: GnuPG (no sop driver ships with it), RNP (none packaged), OpenPGP.js (the published sop driver, `sop-openpgp-js` 0.1.1, bundles OpenPGP.js 4 and does not start on the pinned Node.js 26; a driver over OpenPGP.js 6 is not written yet). They are covered by the two-way scripts and the corpus below.
 
