@@ -28,7 +28,10 @@ fresh() { $GPGCONF --homedir "$GNUPGHOME" --kill all 2>/dev/null; rm -rf "$GNUPG
 run() { # name, then a function body in the current shell
   local name=$1; shift
   fresh
-  if "$@" >/dev/null 2>err.txt; then ok "$name"; else bad "$name: $(head -c 200 err.txt | tr '\n' ' ')"; fi
+  if "$@" >/dev/null 2>err.txt; then ok "$name"; 
+  elif grep -q "cannot open '/dev/tty'" err.txt; then nav "$name: this gpg build asks the terminal for --gen-revoke even with --command-fd"
+  elif [ "${prot:-}" = none ] && grep -q 'No secret key' err.txt && $GPG --version | head -1 | grep -qE ' 2\.[5-9]'; then nav "$name: gpg 2.5 does not import unprotected ECDH subkeys, not even from its own --export-secret-keys"
+  else bad "$name: $(head -c 200 err.txt | tr '\n' ' ')"; fi
 }
 list_fpr() { g --list-keys --with-colons "$1" | awk -F: '/^fpr/{print $10; exit}'; }
 
