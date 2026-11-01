@@ -1,42 +1,50 @@
 #!/usr/bin/env bash
-# The key-secret timing targets and the OpenPGP/CMS glue targets, split into groups that each fit a 20-minute slot at N = 1,000,000
-# on both reference machines (durations measured per group in docs/timing.md).
+# The key-secret timing targets and the OpenPGP/CMS glue targets, split into groups that each fit a 20-minute slot on both reference
+# machines (measured durations: docs/timing.md). N defaults to 1,000,000 calls per target, with the exceptions explained at group_n.
 #
-#   tools/timing-groups.sh list                    every group with its members
-#   tools/timing-groups.sh run <group> <outdir> [N]   one group through the queue (indicative heavy job by default;
-#                                                      PERF_CLASS=bench for a publishable exclusive run, PERF_MAX overrides 20m)
-#   tools/timing-groups.sh all                     the group names, one per line
+#   tools/timing-groups.sh list                       every group with its members and default N
+#   tools/timing-groups.sh all                        the group names, one per line
+#   tools/timing-groups.sh run <group> <outdir> [N]   one group through the queue (an indicative heavy job by default;
+#                                                     PERF_CLASS=bench for a publishable exclusive run; PERF_MAX overrides 20m)
 #
 # Needs the .NET 10 SDK on PATH. Members are primitives (all their operations) or exact Primitive/operation entries.
+# macOS ships bash 3.2, so no associative arrays: one case branch per group.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# macOS ships bash 3.2, so no associative arrays: one case branch per group.
 members() {
   case "$1" in
-    camellia) echo "Camellia-128 Camellia-256" ;;
-    small-ciphers) echo "CAST5 IDEA" ;;
-    blowfish-decrypt-key) echo "Blowfish/decrypt-key" ;;
-    blowfish-control-key) echo "Blowfish/control-decrypt-key" ;;
-    blowfish-setup) echo "Blowfish/key-setup Blowfish/control-key-setup Blowfish/decrypt-data" ;;
-    twofish) echo "Twofish-128 Twofish-256" ;;
-    aes-modes) echo "AES-OCB AES-EAX AES-KW" ;;
+    small-and-glue) echo "Camellia-128 Camellia-256 CAST5 IDEA Twofish-128 Twofish-256 AES-OCB AES-EAX AES-KW ChaCha20-Poly1305 OpenPgpSessionKey/checksum-unpadded-v6-key-bytes OpenPgpSessionKey/checksum-unpadded-v6-key-bytes-control OpenPgpSessionKey/checksum-padded-ecdh-key-bytes OpenPgpSessionKey/checksum-padded-ecdh-key-bytes-control OpenPgpSessionKey/checksum-padded-ecdh-bad-padding-vs-bad-checksum OpenPgpSecretKeyUnlock CmsCbc" ;;
     curves) echo "Ed25519 Ed448 X25519 X448" ;;
-    chacha) echo "ChaCha20-Poly1305" ;;
-    glue-session-key) echo "OpenPgpSessionKey/checksum-unpadded-v6-key-bytes OpenPgpSessionKey/checksum-unpadded-v6-key-bytes-control OpenPgpSessionKey/checksum-padded-ecdh-key-bytes OpenPgpSessionKey/checksum-padded-ecdh-key-bytes-control OpenPgpSessionKey/checksum-padded-ecdh-bad-padding-vs-bad-checksum" ;;
     glue-pkesk-rsa) echo "OpenPgpSessionKey/pkesk-rsa-bad-padding-vs-bad-checksum" ;;
-    glue-unlock-cms) echo "OpenPgpSecretKeyUnlock CmsCbc" ;;
+    blowfish-dk-?) echo "Blowfish/decrypt-key" ;;
+    blowfish-ck-?) echo "Blowfish/control-decrypt-key" ;;
+    blowfish-ks-?) echo "Blowfish/key-setup" ;;
+    blowfish-cks-?) echo "Blowfish/control-key-setup Blowfish/decrypt-data" ;;
     *) return 1 ;;
   esac
 }
-ORDER=(camellia small-ciphers blowfish-decrypt-key blowfish-control-key blowfish-setup twofish aes-modes curves chacha glue-session-key glue-pkesk-rsa glue-unlock-cms)
+
+# Blowfish builds a key object in 1.2 to 2.4 ms, so 1,000,000 calls would overrun a 20-minute slot on the slower machine: each Blowfish
+# target runs as two independent halves of 500,000 calls (suffix -1 and -2), and both halves must pass. The RSA PKESK target is a
+# platform residual with no timing claim (about 2.7 ms a call on arm64) and runs at 300,000.
+group_n() {
+  case "$1" in
+    blowfish-*) echo 500000 ;;
+    glue-pkesk-rsa) echo 300000 ;;
+    *) echo 1000000 ;;
+  esac
+}
+
+ORDER=(small-and-glue curves glue-pkesk-rsa blowfish-dk-1 blowfish-dk-2 blowfish-ck-1 blowfish-ck-2 blowfish-ks-1 blowfish-ks-2 blowfish-cks-1 blowfish-cks-2)
 
 case "${1:-}" in
-  list) for g in "${ORDER[@]}"; do echo "$g: $(members "$g")"; done ;;
+  list) for g in "${ORDER[@]}"; do echo "$g (N=$(group_n "$g")): $(members "$g")"; done ;;
   all) printf '%s\n' "${ORDER[@]}" ;;
   run)
-    g=${2:?group}; out=${3:?outdir}; n=${4:-1000000}
+    g=${2:?group}; out=${3:?outdir}
     mem=$(members "$g") || { echo "unknown group '$g'; try 'list'" >&2; exit 2; }
+    n=${4:-$(group_n "$g")}
     export DOTNET_TieredCompilation=0 DOTNET_TieredPGO=0 DOTNET_ReadyToRun=0
     dotnet build -c Release tests/Timing/OneCrypto.Timing.csproj -v quiet -clp:NoSummary
     mkdir -p "$out"
