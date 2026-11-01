@@ -94,6 +94,15 @@ public class MessageTests
     }
 
     [Fact]
+    public void AnUnsupportedCompressedStreamIsAMalformedMessage()
+    {
+        // Found by fuzzing: the platform's inflater raised InvalidDataException through the reader.
+        byte[] data = File.ReadAllBytes(TestFiles.OpenPgp("fuzz", "inflate-invalid-data.bin"));
+        Exception? e = Record.Exception(() => PgpMessageReader.Read(new MemoryStream(data), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("password")] }));
+        Assert.True(e is PgpException or OpenPgpParseException, e?.GetType().Name);
+    }
+
+    [Fact]
     public void SessionKeyPacketsMustBeFollowedByEncryptedData()
     {
         // RFC 9580 §10.3: a message that has a session key packet and then plain literal data is malformed, not a plain message.

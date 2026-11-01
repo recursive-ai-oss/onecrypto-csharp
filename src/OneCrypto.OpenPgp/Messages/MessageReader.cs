@@ -301,7 +301,17 @@ internal sealed class InflateLimitStream : Stream
 
     public override int Read(Span<byte> buffer)
     {
-        int n = _inflater.Read(buffer);
+        int n;
+        try
+        {
+            n = _inflater.Read(buffer);
+        }
+        catch (InvalidDataException e)
+        {
+            // A corrupt or unsupported compressed stream is a malformed message, whichever of the platform's inflaters notices.
+            throw new PgpException(PgpFailure.MalformedMessage, "The compressed data is corrupt.", e);
+        }
+
         _out += n;
         if (_out > Allowance + (_compressed.Count * Ratio))
         {
