@@ -54,12 +54,13 @@ internal static class LegacyCipherTargets
                 yield return new KeyTarget(c, "encrypt-key", c.Encrypting, control: false);
             }
 
-            yield return new KeySetupTarget(c);
+            yield return new KeySetupTarget(c, control: false);
         }
 
         // A/A controls, one per key kind: both classes use distinct random keys, so a flagged difference is the harness or the machine.
         foreach (Cipher c in Ciphers())
         {
+            yield return new KeySetupTarget(c, control: true);
             yield return new KeyTarget(c, "control-decrypt-key", c.Decrypting, control: true);
             if (c.Encrypting is not null)
             {
@@ -138,14 +139,14 @@ internal static class LegacyCipherTargets
         public override void Run(int index) => _op!.Run(_input, _out);
     }
 
-    private sealed class KeySetupTarget(Cipher c) : TimingTarget
+    private sealed class KeySetupTarget(Cipher c, bool control) : TimingTarget
     {
         private readonly byte[] _fixedKey = RandomNumberGenerator.GetBytes(c.KeyLength);
         private byte[][] _keys = [];
 
         public override string Primitive => c.Name;
 
-        public override string Operation => "key-setup";
+        public override string Operation => control ? "control-key-setup" : "key-setup";
 
         public override void Prepare(ReadOnlySpan<TimingClass> classes)
         {
@@ -158,16 +159,11 @@ internal static class LegacyCipherTargets
                 }
             }
 
+            // The fixed key is blended in with a byte mask, not an if: both classes run the same instructions before the timed call.
+            // The control (mask zero) makes both classes random, so a flag there is the harness or the machine.
             for (int i = 0; i < classes.Length; i++)
             {
-                if (classes[i] == TimingClass.Fixed)
-                {
-                    _fixedKey.CopyTo(_keys[i], 0);
-                }
-                else
-                {
-                    RandomNumberGenerator.Fill(_keys[i]);
-                }
+                FillKey(_keys[i], _fixedKey, classes[i], control);
             }
         }
 
