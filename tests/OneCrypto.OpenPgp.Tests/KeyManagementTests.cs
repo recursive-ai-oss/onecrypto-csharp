@@ -46,6 +46,20 @@ public class KeyManagementTests
     }
 
     [Fact]
+    public void ASecretKeyWithAnArgon2SpecifierOfZeroLanesIsATypedFailure()
+    {
+        // a minimized fuzz input: the S2K says Argon2 with parallelism 0
+        byte[] key = File.ReadAllBytes(Path.Combine(TestFiles.TestData, "fuzz-repros", "pgpkey-argon2-zero-parallelism.bin"));
+        foreach (PgpCertificate c in PgpCertificate.ParseAll(key))
+        {
+            foreach (PgpKey k in c.Keys)
+            {
+                Assert.Throws<PgpException>(() => PgpSecretKey.TryUnlock(k, [Pw("x"), []], out _)); // typed, like an Argon2 cost over the limit
+            }
+        }
+    }
+
+    [Fact]
     public void ASecretThatDoesNotMatchAnEcPointIsATypedFailure()
     {
         // found by fuzzing: an unprotected secret whose public point was altered unlocks, and the platform then refuses the pair

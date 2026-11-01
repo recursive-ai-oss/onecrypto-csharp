@@ -240,6 +240,11 @@ internal static class PgpAlgorithms
             {
                 throw new PgpException(PgpFailure.LimitExceeded, "The Argon2 parameters exceed the limits.", e);
             }
+            catch (ArgumentException e)
+            {
+                // RFC 9106 §3.1: passes and lanes are at least 1 and memory at least 8 KiB per lane; a key that says otherwise is malformed, not a caller error
+                throw new PgpException(PgpFailure.MalformedMessage, "The Argon2 parameters are not valid.", e);
+            }
 
             return key;
         }
