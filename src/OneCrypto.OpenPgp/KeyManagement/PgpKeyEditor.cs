@@ -769,7 +769,8 @@ public static class PgpKeyEditor
             hashed.Add(SignatureSubpacket.Create((byte)SubpacketType.SignatureExpirationTime, false, b));
         }
 
-        u.Items.Add(KeySignatures.Make(certifier, (SignatureType)options.Level, hashed, now, P(policy), pk, SignatureEngine.UserIdInput(u.Identity)));
+        // the key is framed by the version of the signature, which is the certifier key's (RFC 9580 §5.2.4)
+        u.Items.Add(KeySignatures.Make(certifier, (SignatureType)options.Level, hashed, now, P(policy), SignatureEngine.KeyInput(w.Primary, certifier.Key.Packet.Version), SignatureEngine.UserIdInput(u.Identity)));
         return w.ToCertificate();
     }
 
@@ -781,7 +782,7 @@ public static class PgpKeyEditor
         KeyWork w = KeyWork.From(target.Transferable);
         KeyWork.UserWork u = FindUser(w, userId);
         u.Items.Add(KeySignatures.Make(certifier, SignatureType.CertificationRevocation, [Subpackets.Revocation((byte)reason, text ?? string.Empty)], now, P(policy),
-            SignatureEngine.KeyInput(w.Primary), SignatureEngine.UserIdInput(u.Identity)));
+            SignatureEngine.KeyInput(w.Primary, certifier.Key.Packet.Version), SignatureEngine.UserIdInput(u.Identity)));
         return w.ToCertificate();
     }
 

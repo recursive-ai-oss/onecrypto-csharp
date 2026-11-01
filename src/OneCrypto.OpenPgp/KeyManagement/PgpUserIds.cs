@@ -28,6 +28,8 @@ public static class PgpUserIds
 
         KeyPacket target = cert.Primary.Packet;
         byte[] pk = SignatureEngine.KeyInput(target);
+        // the framing of the covered key follows each signature's version (RFC 9580 §5.2.4)
+        byte[] PkFor(SignaturePacket s) => s.Version == target.Version ? pk : SignatureEngine.KeyInput(target, s.Version);
         long now = at.ToUnixTimeSeconds();
         foreach (UserComponent u in cert.Transferable.Users)
         {
@@ -51,7 +53,7 @@ public static class PgpUserIds
                 {
                     bool isCert = s.Type is SignatureType.GenericCertification or SignatureType.PersonaCertification or SignatureType.CasualCertification or SignatureType.PositiveCertification;
                     long t = s.CreationTime ?? 0;
-                    if (!isCert || t > now || (s.ExpirationSeconds is { } e and > 0 && t + e <= now) || !PgpKeyEditor.IssuedBy(s, ak) || !PgpKeyEditor.Verifies(s, ak, pk, uid))
+                    if (!isCert || t > now || (s.ExpirationSeconds is { } e and > 0 && t + e <= now) || !PgpKeyEditor.IssuedBy(s, ak) || !PgpKeyEditor.Verifies(s, ak, PkFor(s), uid))
                     {
                         continue;
                     }
@@ -63,7 +65,7 @@ public static class PgpUserIds
                     }
 
                     bool revoked = u.Signatures.Any(r => r.Type == SignatureType.CertificationRevocation && (r.CreationTime ?? 0) >= t && (r.CreationTime ?? 0) <= now
-                        && PgpKeyEditor.IssuedBy(r, ak) && PgpKeyEditor.Verifies(r, ak, pk, uid));
+                        && PgpKeyEditor.IssuedBy(r, ak) && PgpKeyEditor.Verifies(r, ak, PkFor(r), uid));
                     if (!revoked)
                     {
                         return true;

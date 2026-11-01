@@ -63,14 +63,20 @@ internal static class SignatureEngine
         return digest;
     }
 
-    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed.</summary>
-    internal static byte[] KeyInput(KeyPacket key)
+    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed, framed for a signature made by a key of the same version.</summary>
+    internal static byte[] KeyInput(KeyPacket key) => KeyInput(key, key.Version);
+
+    /// <summary>
+    /// RFC 9580 §5.2.4: the framing follows the version of the signature, not of the key it covers: a version 4 signature hashes 0x99 and a two-octet length,
+    /// a version 6 signature 0x9B and a four-octet length (0x9A for version 5), so a third-party certification of a key of another version is framed by its issuer.
+    /// </summary>
+    internal static byte[] KeyInput(KeyPacket key, int signatureVersion)
     {
         ReadOnlySpan<byte> body = key.PublicBody.Span;
-        if (key.Version >= 5)
+        if (signatureVersion >= 5)
         {
             byte[] b = new byte[5 + body.Length];
-            b[0] = key.Version == 5 ? (byte)0x9A : (byte)0x9B;
+            b[0] = signatureVersion == 5 ? (byte)0x9A : (byte)0x9B;
             BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(1), (uint)body.Length);
             body.CopyTo(b.AsSpan(5));
             return b;

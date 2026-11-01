@@ -35,8 +35,9 @@ for prof in $profiles; do
     k=k-$prof-$prot; kp=""; ow=""; xw=""
     if [ $prot = pw ]; then kp="--with-key-password=pw1.txt"; fi
     rm -f $k.*
-    if ! o generate-key --profile=$prof $kp "$UID1" > $k.key 2>gen.err; then
-      if [ $? -eq 13 ]; then echo "unsup [$prof/$prot] our generate-key (platform lacks the algorithm)"; unsup=$((unsup+1)); continue; fi
+    o generate-key --profile=$prof $kp "$UID1" > $k.key 2>gen.err; grc=$?
+    if [ $grc -ne 0 ]; then
+      if [ $grc -eq 13 ] || grep -q 'is not supported on' gen.err; then echo "unsup [$prof/$prot] our generate-key (platform lacks the algorithm)"; unsup=$((unsup+1)); continue; fi
       echo "FAIL  [$prof/$prot] our generate-key: $(head -c 200 gen.err)"; fail=$((fail+1)); continue
     fi
     o extract-cert < $k.key > $k.cert
@@ -46,7 +47,7 @@ for prof in $profiles; do
     cell "[$prof/$prot] ours sign -> other verify" bash -c "$OURS sign $kp $k.key < msg.txt > s2.sig && $OTHER verify s2.sig $k.cert < msg.txt"
     cell "[$prof/$prot] other encrypt -> ours decrypt" bash -c "$OTHER encrypt $k.cert < msg.txt > e1.asc && $OURS decrypt $kp $k.key < e1.asc | cmp - msg.txt"
     cell "[$prof/$prot] ours encrypt -> other decrypt" bash -c "$OURS encrypt $k.cert < msg.txt > e2.asc && $OTHER decrypt $kp $k.key < e2.asc | cmp - msg.txt"
-    cell "[$prof/$prot] ours encrypt+sign -> other decrypt+verify" bash -c "$OURS encrypt --sign-with=$k.key $kp $k.cert < msg.txt > e3.asc && $OTHER decrypt $kp --verifications-out=v.out --verify-with=$k.cert $k.key < e3.asc | cmp - msg.txt && test -s v.out"
+    cell "[$prof/$prot] ours encrypt+sign -> other decrypt+verify" bash -c "rm -f v.out; $OURS encrypt --sign-with=$k.key $kp $k.cert < msg.txt > e3.asc && $OTHER decrypt $kp --verifications-out=v.out --verify-with=$k.cert $k.key < e3.asc | cmp - msg.txt && test -s v.out"
     # revocation: a revoked certificate neither verifies nor takes messages
     cell "[$prof/$prot] ours revoke-key -> other refuses verify" bash -c "$OURS revoke-key $kp < $k.key > r.cert && $OURS sign $kp $k.key < msg.txt > s3.sig && ! $OTHER verify s3.sig r.cert < msg.txt"
     cell "[$prof/$prot] ours revoke-key -> other refuses encrypt" bash -c "! $OTHER encrypt r.cert < msg.txt"
