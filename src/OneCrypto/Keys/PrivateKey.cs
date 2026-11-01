@@ -24,6 +24,80 @@ public static class PrivateKey
         return new RsaBackend(key, ownsKey);
     }
 
+    /// <summary>
+    /// Builds an RSA private key from its integer components, big-endian magnitudes (leading zeros allowed), and wraps it. The CRT exponents
+    /// d mod (p-1) and d mod (q-1) are derived without branching on the secret, so a format that stores only d, p, q and the inverse (such as
+    /// GnuPG's key files) can be loaded. The integers are not validated beyond what the platform checks on import.
+    /// </summary>
+    /// <param name="modulus">The modulus n.</param>
+    /// <param name="exponent">The public exponent e.</param>
+    /// <param name="d">The private exponent.</param>
+    /// <param name="p">The prime P in the platform's convention.</param>
+    /// <param name="q">The prime Q.</param>
+    /// <param name="inverseQ">Q^-1 mod P.</param>
+    /// <returns>A key that owns its platform RSA object.</returns>
+    /// <exception cref="ArgumentException">A prime is zero or even.</exception>
+    /// <exception cref="CryptographicException">The components are inconsistent or longer than the modulus.</exception>
+    /// <exception cref="AlgorithmNotSupportedException">The platform has no RSA.</exception>
+    public static IRsaKey FromRsaComponents(ReadOnlySpan<byte> modulus, ReadOnlySpan<byte> exponent, ReadOnlySpan<byte> d, ReadOnlySpan<byte> p, ReadOnlySpan<byte> q, ReadOnlySpan<byte> inverseQ)
+    {
+        while (modulus.Length > 0 && modulus[0] == 0)
+        {
+            modulus = modulus[1..];
+        }
+
+        int half = (modulus.Length + 1) / 2;
+        byte[] pm1 = p.ToArray();
+        byte[] qm1 = q.ToArray();
+        if (pm1.Length == 0 || qm1.Length == 0 || (pm1[^1] & 1) == 0 || (qm1[^1] & 1) == 0)
+        {
+            throw new ArgumentException("RSA primes must be odd.");
+        }
+
+        pm1[^1] &= 0xFE; // the primes are odd, so prime - 1 only clears the lowest bit
+        qm1[^1] &= 0xFE;
+        byte[] dp = new byte[pm1.Length];
+        byte[] dq = new byte[qm1.Length];
+        var prm = new RSAParameters
+        {
+            Modulus = modulus.ToArray(),
+            Exponent = exponent.ToArray(),
+            D = SecretMod.Fixed(d, modulus.Length),
+            P = SecretMod.Fixed(p, half),
+            Q = SecretMod.Fixed(q, half),
+            InverseQ = SecretMod.Fixed(inverseQ, half),
+        };
+        try
+        {
+            SecretMod.Reduce(d, pm1, dp);
+            SecretMod.Reduce(d, qm1, dq);
+            prm.DP = SecretMod.Fixed(dp, half);
+            prm.DQ = SecretMod.Fixed(dq, half);
+            RSA rsa = Platform.CreateRsa("RSA private key");
+            try
+            {
+                rsa.ImportParameters(prm);
+            }
+            catch
+            {
+                rsa.Dispose();
+                throw;
+            }
+
+            return new RsaBackend(rsa, true);
+        }
+        finally
+        {
+            foreach (byte[]? x in new[] { pm1, qm1, dp, dq, prm.D, prm.P, prm.Q, prm.InverseQ, prm.DP, prm.DQ })
+            {
+                if (x is not null)
+                {
+                    CryptographicOperations.ZeroMemory(x);
+                }
+            }
+        }
+    }
+
     /// <summary>Wraps an ECDSA private key (DER or P1363, SHA-1, SHA-256, SHA-384, SHA-512).</summary>
     public static ISigningKey FromECDsa(ECDsa key, bool ownsKey = false)
     {

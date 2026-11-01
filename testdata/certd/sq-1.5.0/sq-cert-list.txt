@@ -1,0 +1,59 @@
+  - 014A05594D61A69411133FF39CCB0F41F356517B
+    - created 2026-11-01 09:14:52 UTC
+ 
+    - [   0/120 ] Test u-ed25519 <u-ed25519@onecrypto.invalid>
+ 
+  - 1425E79C911ABD89AD0D97AE117E1DCF81E0A778
+    - created 2026-11-01 09:14:46 UTC
+ 
+    - [   0/120 ] Test u-nistp256 <u-nistp256@onecrypto.invalid>
+ 
+  - 1B050C35021419419B1E3D8DABFAD62C81E7C132
+    - created 2026-11-01 09:14:48 UTC
+ 
+    - [   0/120 ] Test p-nistp384 <p-nistp384@onecrypto.invalid>
+ 
+  - 24211F170A74F94A48E44A6109056A03836617CC
+    - created 2026-11-01 09:14:54 UTC
+ 
+    - [   0/120 ] Test revoked <revoked@onecrypto.invalid>
+ 
+  - 406E1EF250C15A2DAB90CAF4BDBCFC9605C967B7
+    - created 2026-11-01 09:14:42 UTC
+ 
+    - [   0/120 ] Test u-rsa2048 <u-rsa2048@onecrypto.invalid>
+ 
+  - 5D81153C9CF954BD4E67D7185CD3F810A12068A5
+    - created 2026-11-01 09:14:48 UTC
+ 
+    - [   0/120 ] Test u-nistp384 <u-nistp384@onecrypto.invalid>
+ 
+  - 6E37EFF353420A3D9962FE7CC252D6453A1AEEEF
+    - created 2026-11-01 09:14:43 UTC
+ 
+    - [   0/120 ] Test p-rsa2048 <p-rsa2048@onecrypto.invalid>
+ 
+  - 721A146C264C67C879943B2FE7CA63EFB697E36F
+    - created 2026-11-01 09:14:52 UTC
+ 
+    - [   0/120 ] Test p-ed25519 <p-ed25519@onecrypto.invalid>
+ 
+  - 8CFA93141E4A21E4D7C3ED01D545585BA0C0B005
+    - created 2026-11-01 09:14:46 UTC
+ 
+    - [   0/120 ] Test p-nistp256 <p-nistp256@onecrypto.invalid>
+ 
+  - AE9326C6368CF1CB067B4520657D73449F5F8560
+    - created 2026-11-01 09:14:54 UTC
+ 
+    - [   0/120 ] Second Name <second@onecrypto.invalid>
+    - [   0/120 ] Test twouid <twouid@onecrypto.invalid>
+ 
+ Hint: To view why a user ID is considered valid, pass `--show-paths`.
+ 
+ Hint: To see more details about a certificate, for example AE9326C6368CF1CB067B4520657D73449F5F8560, run:
+ 
+   $ sq inspect --cert=AE9326C6368CF1CB067B4520657D73449F5F8560
+ After checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.
+ 14 bindings found.
+ Skipped 3 bindings, which are unusable.

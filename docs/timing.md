@@ -123,6 +123,28 @@ None of the Camellia and AES-KW signals reproduces with a fresh object per call 
 taken apart further: which of its differences (identical schedules, placement, footprint) caused the Camellia and AES-KW flags
 is not isolated. The class-dependent copy branch was isolated for Twofish-128 (above). AES-KW runs on the platform's AES and passes.
 
+## Results: decryption paths (indicative)
+
+N = 200,000 calls per target, full-opt JIT, x64 Ryzen 9 7950X3D, .NET 10.0.402, shared-host heavy jobs (1-minute load 10 to 24), so not publishable.
+
+| Target | max \|t\| | Fixed / random mean | Verdict |
+|---|---|---|---|
+| OpenPgpSessionKey checksum-unpadded-v6-key-bytes (control) | 2.36 (2.97) | 92.9 / 92.7 ns | pass |
+| OpenPgpSessionKey checksum-padded-ecdh-key-bytes (control) | 3.11 (1.58) | 135.7 / 134.9 ns | pass |
+| OpenPgpSessionKey checksum-padded-ecdh-bad-padding-vs-bad-checksum | 1.77 | 130.5 / 130.3 ns | pass |
+| CmsCbc cbc-bad-padding-shape (bad against good padding, D12) | 1.08 | 1321.7 / 1321.2 ns | pass |
+| OpenPgpSessionKey pkesk-rsa-bad-padding-vs-bad-checksum (D1) | 40.87 | 697.5 / 708.5 us | platform residual, no claim |
+
+The earlier x64 flags on the key-bytes targets (7.73, 6.25) came from how the harness built its classes: the fixed class was built from
+identical arrays and the random class from fresh bytes behind a branch. The messages are now built by a byte-mask blend with an A/A control
+for each, and both targets pass with no source change to `FromChecksummed`, which has no branch, index or early exit on the bytes.
+
+The RSA packet target differs by 11 us in 700 us (1.5%). The RSA private-key operation is the platform's. Bad PKCS #1 padding makes the
+platform's `Decrypt` throw, which our reader catches; valid padding with a wrong checksum does not throw. The difference matches the cost
+of one caught exception and is in the platform's call, not in our checksum glue. Both outcomes return the same failure with the same
+message; the timing difference between them is a documented residual for RSA PKCS #1 session keys and no constant-time claim is made for
+that path.
+
 ## Argon2id
 
 Argon2i is the data-independent variant and has a timing target. Argon2id has no constant-time claim as a whole: only the first two

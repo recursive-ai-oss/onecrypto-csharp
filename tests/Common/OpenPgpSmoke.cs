@@ -64,7 +64,13 @@ k0mXubZvyl4GBg==
         using var sig = new MemoryStream();
         PgpMessageWriter.SignDetached(new MemoryStream(data), sig, new PgpWriteOptions { Now = now, Signers = [signer] });
         PgpReadResult v = PgpMessageReader.VerifyDetached(new MemoryStream(data), new MemoryStream(sig.ToArray()), new PgpReadOptions { Now = now, Certificates = [pub] });
-        return dec.ToArray().AsSpan().SequenceEqual(data) && r.Signatures.Count == 1 && r.Signatures[0].IsValid && v.Signatures.Count == 1 && v.Signatures[0].IsValid;
+        // LibrePGP's OCB Encrypted Data with a password (SKESK version 5), and the BZip2 reader.
+        using var ocb = new MemoryStream();
+        PgpWriteResult written = PgpMessageWriter.Write(new MemoryStream(data), ocb, new PgpWriteOptions { Now = now, Passwords = [Encoding.UTF8.GetBytes("pw")], ForceLibrePgp = true, S2kIterationCode = 0x60 });
+        using var ocbDec = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(ocb.ToArray()), ocbDec, new PgpReadOptions { Now = now, MessagePasswords = [Encoding.UTF8.GetBytes("pw")] });
+        bool librePgp = written.Format == PgpEncryptionFormat.LibrePgpOcb && ocbDec.ToArray().AsSpan().SequenceEqual(data);
+        return librePgp && dec.ToArray().AsSpan().SequenceEqual(data) && r.Signatures.Count == 1 && r.Signatures[0].IsValid && v.Signatures.Count == 1 && v.Signatures[0].IsValid;
     }
 
     /// <summary>

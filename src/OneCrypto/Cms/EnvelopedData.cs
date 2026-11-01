@@ -100,6 +100,10 @@ internal static class RecipientOpener
         real = false;
         matched = false;
         bool transportFailed = false;
+        // One PBKDF2 budget for the whole call: each PasswordRecipientInfo asks for its own iteration count, so without it a message with many
+        // recipients multiplies the work a wrong password costs (RFC 8018 §5.2 leaves the count to the sender).
+        long pbkdf2Budget = options.Limits.MaxPbkdf2IterationsPerMessage;
+        bool budgetExceeded = false;
         foreach (RecipientInfo ri in recipients)
         {
             byte[]? found = null;
@@ -124,7 +128,7 @@ internal static class RecipientOpener
                         found = OpenKek(kek, key, ref matched);
                         break;
                     case PasswordRecipientInfo pw:
-                        found = OpenPassword(pw, key, options, ref matched);
+                        found = OpenPassword(pw, key, options, ref pbkdf2Budget, ref budgetExceeded, ref matched);
                         break;
                     case KemRecipientInfo kem when key.Certificate is null || kem.Identifier.Matches(key.Certificate):
                         matched = true;
@@ -151,6 +155,11 @@ internal static class RecipientOpener
         {
             cek = RandomNumberGenerator.GetBytes(cekLength);
             return true;
+        }
+
+        if (budgetExceeded)
+        {
+            throw new CmsParseException("PasswordRecipientInfo", CmsError.LimitExceeded, "the password recipients ask for more key derivation than one call may spend");
         }
 
         return false;
@@ -211,7 +220,7 @@ internal static class RecipientOpener
         return cek;
     }
 
-    private static byte[]? OpenPassword(PasswordRecipientInfo ri, CmsDecryptionKey key, CmsDecryptOptions options, ref bool matched)
+    private static byte[]? OpenPassword(PasswordRecipientInfo ri, CmsDecryptionKey key, CmsDecryptOptions options, ref long budget, ref bool budgetExceeded, ref bool matched)
     {
         if (ri.KeyDerivationAlgorithm is not { Oid: CmsOids.Pbkdf2 } kdf || ri.KeyEncryptionAlgorithm.Oid != CmsOids.PwriKek)
         {
@@ -255,9 +264,17 @@ internal static class RecipientOpener
         }
 
         CmsCiphers.ReadParameters(c, cipherAlg, out byte[] iv, out _);
+        if (iterations > budget)
+        {
+            budgetExceeded = true;
+            return null;
+        }
+
+        budget -= iterations;
         byte[]? kek = key.DerivePasswordKey(salt, iterations, hash, c.KeyBytes);
         if (kek is null)
         {
+            budget += iterations; // not a password key: nothing was spent
             return null;
         }
 
@@ -526,7 +543,15 @@ public sealed partial class EnvelopedData
     /// <see cref="AuthEnvelopedData"/> when you control the sender.
     /// </summary>
     /// <exception cref="CmsParseException">No recipient matches the key (<see cref="CmsError.NoMatchingRecipient"/>), or decryption failed.</exception>
-    public byte[] Decrypt(CmsDecryptionKey key, CmsDecryptOptions? options = null)
+    public byte[] Decrypt(CmsDecryptionKey key, CmsDecryptOptions? options = null) => DecryptWithReport(key, options).Content;
+
+    /// <summary>
+    /// Decrypts like <see cref="Decrypt"/> and says what protected the content: <see cref="CmsDecryptResult.Authenticated"/> is false for CBC, which no
+    /// check of its own covers. Under <see cref="Policy.CryptoPolicy.Standard"/> CBC still decrypts, because S/MIME relies on an outer signature over the same
+    /// bytes; <see cref="Policy.CryptoPolicy.Strict"/> refuses it before any key is used.
+    /// </summary>
+    /// <exception cref="CmsParseException">No recipient matches the key (<see cref="CmsError.NoMatchingRecipient"/>), or decryption failed.</exception>
+    public CmsDecryptResult DecryptWithReport(CmsDecryptionKey key, CmsDecryptOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(key);
         options ??= new CmsDecryptOptions { Limits = Limits };
@@ -555,7 +580,7 @@ public sealed partial class EnvelopedData
             throw DecryptionFailed("EnvelopedData");
         }
 
-        return plaintext;
+        return new CmsDecryptResult(plaintext, cipher.Name, cipher.Authenticated);
     }
 
     internal static CmsParseException DecryptionFailed(string what) => new(what, CmsError.DecryptionFailed, "the message could not be decrypted");

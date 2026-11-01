@@ -106,14 +106,21 @@ public sealed class CmsLimits
     /// <summary>Largest encapsulated or encrypted content a one-shot call holds in memory (default 1 GiB).</summary>
     public long MaxContentBytes { get; init; } = 1L << 30;
 
-    /// <summary>Largest ratio of decompressed to compressed size accepted for CompressedData (default 1000).</summary>
-    public int MaxDecompressionRatio { get; init; } = 1000;
+    /// <summary>Largest ratio of decompressed to compressed size accepted for CompressedData (default 1032, the most DEFLATE can reach, as in OpenPGP).</summary>
+    public int MaxDecompressionRatio { get; init; } = 1032;
 
     /// <summary>Largest decompressed size accepted whatever the ratio (default 1 GiB).</summary>
     public long MaxDecompressedBytes { get; init; } = 1L << 30;
 
-    /// <summary>Largest PBKDF2 iteration count accepted from a PasswordRecipientInfo (default 10 million).</summary>
+    /// <summary>Largest PBKDF2 iteration count accepted from one PasswordRecipientInfo (default 10 million).</summary>
     public int MaxPbkdf2Iterations { get; init; } = 10_000_000;
+
+    /// <summary>
+    /// Most PBKDF2 iterations one decrypt call may spend over all its PasswordRecipientInfos together (default 10 million). A recipient that would pass the
+    /// remaining budget is skipped, so a message full of expensive recipients costs one derivation's worth of time, not one per recipient; when nothing else
+    /// opens the message the call fails with <see cref="CmsError.LimitExceeded"/>.
+    /// </summary>
+    public int MaxPbkdf2IterationsPerMessage { get; init; } = 10_000_000;
 
     /// <summary>Limits of the ASN.1 layer under the CMS parser.</summary>
     public Asn1Limits Asn1 { get; init; } = Asn1Limits.Default;

@@ -189,6 +189,7 @@ public sealed record CryptoPolicy
         [
             new("MD5", null, DateTimeOffset.MinValue, true, "RFC 6151 §2"),
             new("SHA-1", null, DateTimeOffset.MinValue, true, "RFC 9155 §3; NIST SP 800-131A Rev. 2 §3"),
+            new("RIPEMD-160", null, DateTimeOffset.MinValue, true, "RFC 9580 §9.5: not recommended; a 160-bit digest"),
         ],
         MinRsaBitsNew = 3072,
         MinRsaBitsVerify = 2048,
@@ -196,6 +197,7 @@ public sealed record CryptoPolicy
         MinEcBits = 256,
         LegacyCiphers = LegacyCipherMode.Reject,
         MinPbkdf2Iterations = 100_000,
+        MinAuthTagBytes = 16,
         FlagAsRejected = true,
     };
 
@@ -213,6 +215,7 @@ public sealed record CryptoPolicy
         MinEcBits = 0,
         LegacyCiphers = LegacyCipherMode.DecryptOnly,
         MinPbkdf2Iterations = 1,
+        MinAuthTagBytes = 4,
     };
 
     /// <summary>A name for reports.</summary>
@@ -227,6 +230,8 @@ public sealed record CryptoPolicy
             // Certificates, CRLs and OCSP responses: public CAs stopped issuing SHA-1 certificates in 2016 and chosen-prefix collisions make forgery practical.
             PkiRejectFrom = s_2017,
         },
+        // RIPEMD-160 has a 160-bit digest like SHA-1 and is not recommended for OpenPGP (RFC 9580 §9.5); it follows SHA-1's dates.
+        new("RIPEMD-160", s_2011, s_2031, true, "RFC 9580 §9.5; NIST SP 800-131A Rev. 2 §3 (160-bit digest)"),
     ];
 
     /// <summary>Smallest RSA modulus, in bits, accepted for new signatures and encryption. Default 2048 (NIST SP 800-131A Rev. 2 §3).</summary>
@@ -257,6 +262,13 @@ public sealed record CryptoPolicy
 
     /// <summary>Fewest PBKDF2 iterations accepted. Default 1,000 (RFC 8018 §4.2 lower bound), flagged below 10,000.</summary>
     public int MinPbkdf2Iterations { get; init; } = 1000;
+
+    /// <summary>
+    /// Shortest authentication tag, in octets, accepted from a message that carries its own tag length (CMS AuthEnvelopedData with AES-GCM or AES-CCM, whose
+    /// parameters let the sender pick 4 to 16). A short tag makes forgery cheap: four octets is one guess in 2^32, and the sender of an altered message chooses
+    /// the length. Default 12 (the least RFC 5084 §3.2 allows for GCM; Standard refuses the shorter CCM tags); 16 under <see cref="Strict"/>.
+    /// </summary>
+    public int MinAuthTagBytes { get; init; } = 12;
 
     /// <summary>When true, every Flagged verdict is returned as Rejected (the Strict behaviour).</summary>
     public bool FlagAsRejected { get; init; }
@@ -475,6 +487,15 @@ public sealed record CryptoPolicy
             $"{cipherName} does not protect the content's integrity; use AuthEnvelopedData or sign the message.", "RFC 5652 §6.3; RFC 8551 §2.7"));
     }
 
+    /// <summary>Asks about the authentication-tag length a message declares for its AEAD (RFC 5084 §3.2, §3.3); a tag under <see cref="MinAuthTagBytes"/> is rejected.</summary>
+    /// <param name="cipherName">The cipher in readable form (<c>AES-128-CCM</c>).</param>
+    /// <param name="tagBytes">The tag length in octets.</param>
+    /// <param name="use">The use, normally <see cref="CryptoUse.Decrypt"/>.</param>
+    public PolicyDecision CheckAuthTag(string cipherName, int tagBytes, CryptoUse use) =>
+        tagBytes < MinAuthTagBytes
+            ? new(PolicyVerdict.Rejected, use, cipherName, "cipher.aead.tag.min", $"An authentication tag of {tagBytes} octets is under the minimum of {MinAuthTagBytes}.", "RFC 5084 §3.2; NIST SP 800-38C §6.1")
+            : PolicyDecision.Ok(use, cipherName);
+
     /// <summary>Asks about a password-based derivation's cost parameter.</summary>
     /// <param name="kdf">The function.</param>
     /// <param name="cost">The function's cost as listed on <see cref="KdfAlgorithm"/>.</param>
@@ -507,6 +528,8 @@ public sealed record CryptoPolicy
     private static string Canonical(string? name) => (name ?? string.Empty).ToUpperInvariant().Replace("_", "-", StringComparison.Ordinal) switch
     {
         "SHA1" or "SHA-1" => "SHA-1",
+        "SHA224" or "SHA-224" => "SHA-224",
+        "RIPEMD160" or "RIPEMD-160" => "RIPEMD-160",
         "SHA256" or "SHA-256" => "SHA-256",
         "SHA384" or "SHA-384" => "SHA-384",
         "SHA512" or "SHA-512" => "SHA-512",

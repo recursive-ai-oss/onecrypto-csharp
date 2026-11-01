@@ -24,6 +24,9 @@ internal static class PgpAlgorithms
     {
         PgpHashAlgorithm.Md5 => HashAlgorithmName.MD5,
         PgpHashAlgorithm.Sha1 => HashAlgorithmName.SHA1,
+        // Computed by PgpHash (verification and key reading only); these names serve policy checks and the RSA DigestInfo.
+        PgpHashAlgorithm.Sha224 => new HashAlgorithmName("SHA224"),
+        PgpHashAlgorithm.Ripemd160 => new HashAlgorithmName("RIPEMD160"),
         PgpHashAlgorithm.Sha256 => HashAlgorithmName.SHA256,
         PgpHashAlgorithm.Sha384 => HashAlgorithmName.SHA384,
         PgpHashAlgorithm.Sha512 => HashAlgorithmName.SHA512,
@@ -35,7 +38,8 @@ internal static class PgpAlgorithms
     internal static int HashSize(PgpHashAlgorithm hash) => hash switch
     {
         PgpHashAlgorithm.Md5 => 16,
-        PgpHashAlgorithm.Sha1 => 20,
+        PgpHashAlgorithm.Sha1 or PgpHashAlgorithm.Ripemd160 => 20,
+        PgpHashAlgorithm.Sha224 => 28,
         PgpHashAlgorithm.Sha256 or PgpHashAlgorithm.Sha3256 => 32,
         PgpHashAlgorithm.Sha384 => 48,
         PgpHashAlgorithm.Sha512 or PgpHashAlgorithm.Sha3512 => 64,
@@ -249,7 +253,6 @@ internal static class PgpAlgorithms
             return key;
         }
 
-        HashAlgorithmName name = HashName(s2k.Hash);
         int digest = HashSize(s2k.Hash);
         byte[] output = new byte[length];
         int instances = (length + digest - 1) / digest;
@@ -257,8 +260,8 @@ internal static class PgpAlgorithms
         long total = s2k.Type == S2kType.IteratedSalted ? Math.Max(s2k.IterationCount, salt.Length + password.Length) : salt.Length + password.Length;
         for (int i = 0; i < instances; i++)
         {
-            using var h = IncrementalHash.CreateHash(name);
-            h.AppendData(new byte[i]);
+            using var h = new PgpHash(s2k.Hash);
+            h.Append(new byte[i]);
             long left = total;
             byte[] unit = new byte[salt.Length + password.Length];
             salt.CopyTo(unit, 0);
@@ -266,11 +269,11 @@ internal static class PgpAlgorithms
             while (left > 0)
             {
                 int n = (int)Math.Min(left, unit.Length);
-                h.AppendData(unit.AsSpan(0, n));
+                h.Append(unit.AsSpan(0, n));
                 left -= n;
             }
 
-            byte[] d = h.GetHashAndReset();
+            byte[] d = h.Finish();
             int take = Math.Min(digest, length - i * digest);
             d.AsSpan(0, take).CopyTo(output.AsSpan(i * digest));
             CryptographicOperations.ZeroMemory(unit);

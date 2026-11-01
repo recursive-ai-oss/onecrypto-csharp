@@ -21,6 +21,8 @@
 | `update-key` | implemented; re-issues the self-signatures, drops weak preferences, adds an encryption subkey unless `--signing-only`, merges `--merge-certs`; the primary key is never changed; `--revoke-deprecated-keys` has no effect because no replacement key is ever made; a revoked primary key is `PRIMARY_KEY_BAD` (103) |
 | `onecrypto sopv` | the sopv subset: `version`, `verify`, `inline-verify` and `validate-userid`; every other subcommand answers 69 |
 
+`encrypt` chooses the container from the recipients' keys (see [openpgp.md](openpgp.md#messages)): SEIPD v2 for keys that read it, LibrePGP OCB Encrypted Data for version 5 keys and keys announcing it, SEIPD v1 otherwise; `--profile=rfc4880` forces SEIPD v1. `decrypt` also reads GnuPG 2.5's Kyber keys (X25519 and X448) and bzip2-compressed messages.
+
 An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL without them) exits 13 (`UNSUPPORTED_ASYMMETRIC_ALGO`). The subcommands are covered by in-process tests (`tests/OneCrypto.OpenPgp.Tests/SopTests.cs`) and the two-way scripts in `tools/oracles/` (`gpg-messages.sh`, `rnp-messages.sh`, `sop-matrix.sh`).
 
 ## The scoreboard

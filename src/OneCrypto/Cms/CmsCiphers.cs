@@ -119,15 +119,21 @@ internal static class CmsCiphers
         return aes.EncryptCbc(plaintext, iv, PaddingMode.PKCS7);
     }
 
-    /// <summary>CBC decryption; false when the padding is wrong (which also happens, by chance, with a wrong key).</summary>
+    /// <summary>
+    /// CBC decryption; false when the padding is wrong (which also happens, by chance, with a wrong key). The platform decrypts without padding and the
+    /// PKCS #7 check is ours (<see cref="Pkcs7Padding"/>): the platform raises an exception on bad padding only, and that path would take measurably longer
+    /// than the good one (RFC 3218 §2.3).
+    /// </summary>
     public static bool TryDecryptCbc(ContentCipher c, ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> ciphertext, out byte[] plaintext)
     {
         plaintext = [];
-        if (ciphertext.Length == 0 || ciphertext.Length % c.BlockBytes != 0)
+        int block = c.BlockBytes;
+        if (ciphertext.Length == 0 || ciphertext.Length % block != 0)
         {
             return false;
         }
 
+        byte[] buf = new byte[ciphertext.Length];
         try
         {
             if (c.Kind == CipherKind.TripleDesCbc)
@@ -137,18 +143,75 @@ internal static class CmsCiphers
                 using TripleDES des = TripleDES.Create();
 #pragma warning restore CA5350
                 des.Key = key.ToArray();
-                plaintext = des.DecryptCbc(ciphertext, iv, PaddingMode.PKCS7);
-                return true;
+                des.DecryptCbc(ciphertext, iv, buf, PaddingMode.None);
             }
-
-            using Aes aes = Platform.CreateAes();
-            aes.Key = key.ToArray();
-            plaintext = aes.DecryptCbc(ciphertext, iv, PaddingMode.PKCS7);
-            return true;
+            else
+            {
+                using Aes aes = Platform.CreateAes();
+                aes.Key = key.ToArray();
+                aes.DecryptCbc(ciphertext, iv, buf, PaddingMode.None);
+            }
         }
         catch (CryptographicException)
         {
+            CryptographicOperations.ZeroMemory(buf);
             return false;
+        }
+
+        int length = Pkcs7Padding.UnpaddedLength(buf, block);
+        if (length < 0)
+        {
+            CryptographicOperations.ZeroMemory(buf);
+            return false;
+        }
+
+        plaintext = buf.AsSpan(0, length).ToArray();
+        CryptographicOperations.ZeroMemory(buf);
+        return true;
+    }
+
+    /// <summary>
+    /// The platform's CBC decryptor for streaming, with no padding (the caller unpads through <see cref="Pkcs7UnpadSink"/>). Triple DES works here as it
+    /// does in <see cref="TryDecryptCbc"/>, behind the same legacy gate.
+    /// </summary>
+    public static CbcStreamDecryptor CreateCbcStreamDecryptor(ContentCipher c, byte[] key, byte[] iv)
+    {
+        SymmetricAlgorithm algorithm;
+        if (c.Kind == CipherKind.TripleDesCbc)
+        {
+#pragma warning disable CA5350 // Triple DES is read-only here: it exists to open old messages and is gated by an option.
+            Platform.RequireLegacyCipher("Triple DES");
+            algorithm = TripleDES.Create();
+#pragma warning restore CA5350
+        }
+        else
+        {
+            algorithm = Platform.CreateAes();
+        }
+
+        try
+        {
+            algorithm.Padding = PaddingMode.None;
+            return new CbcStreamDecryptor(algorithm, algorithm.CreateDecryptor(key, iv), c.BlockBytes);
+        }
+        catch
+        {
+            algorithm.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>A platform CBC decryptor and the algorithm object that owns it.</summary>
+    internal sealed class CbcStreamDecryptor(SymmetricAlgorithm algorithm, ICryptoTransform transform, int block) : IDisposable
+    {
+        public ICryptoTransform Transform { get; } = transform;
+
+        public int Block { get; } = block;
+
+        public void Dispose()
+        {
+            Transform.Dispose();
+            algorithm.Dispose();
         }
     }
 

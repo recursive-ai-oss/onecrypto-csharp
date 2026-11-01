@@ -1,0 +1,54 @@
+ - ┌ 406E1EF250C15A2DAB90CAF4BDBCFC9605C967B7
+   └ Test u-rsa2048 <u-rsa2048@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 6E37EFF353420A3D9962FE7CC252D6453A1AEEEF
+   └ Test p-rsa2048 <p-rsa2048@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 1425E79C911ABD89AD0D97AE117E1DCF81E0A778
+   └ Test u-nistp256 <u-nistp256@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 8CFA93141E4A21E4D7C3ED01D545585BA0C0B005
+   └ Test p-nistp256 <p-nistp256@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 5D81153C9CF954BD4E67D7185CD3F810A12068A5
+   └ Test u-nistp384 <u-nistp384@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 1B050C35021419419B1E3D8DABFAD62C81E7C132
+   └ Test p-nistp384 <p-nistp384@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 79A3F96B6BE96F6EBD2216A31205E32479D103B0
+   └ Test u-brainpoolP256r1 <u-brainpoolP256r1@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 5FFF919516644DD712B941B84680481AAC6D73CB
+   └ Test p-brainpoolP256r1 <p-brainpoolP256r1@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 014A05594D61A69411133FF39CCB0F41F356517B
+   └ Test u-ed25519 <u-ed25519@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 721A146C264C67C879943B2FE7CA63EFB697E36F
+   └ Test p-ed25519 <p-ed25519@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 24211F170A74F94A48E44A6109056A03836617CC
+   └ Test revoked <revoked@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ 4879B059DDFC4A32600AFA38ABDB9A1087F7BAF9
+   └ Test expired <expired@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+ - ┌ AE9326C6368CF1CB067B4520657D73449F5F8560
+   └ Second Name <second@onecrypto.invalid> (UNAUTHENTICATED)
+   - imported
+
+
+Imported 13 new certificates, updated 0 certificates, 0 certificates unchanged, 0 errors.

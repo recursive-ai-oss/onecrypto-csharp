@@ -364,6 +364,24 @@ public sealed class PgpKey
         return result;
     }
 
+    /// <summary>The newest valid self-signature's legacy Preferred AEAD Algorithms (subpacket 34); empty when the key lists none.</summary>
+    internal ReadOnlyMemory<byte> PreferredAeadModes(DateTimeOffset at)
+    {
+        ReadOnlyMemory<byte> result = default;
+        long newest = -1;
+        foreach (SignaturePacket s in Certificate.Primary.Bindings().Concat(Bindings()))
+        {
+            long t = s.CreationTime ?? 0;
+            if (t <= at.ToUnixTimeSeconds() && t >= newest && s.PreferredAeadAlgorithms is { } p)
+            {
+                result = p;
+                newest = t;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>The newest valid self-signature's preferred AEAD ciphersuites (RFC 9580 §5.2.3.15), as pairs of cipher and AEAD identifiers.</summary>
     internal ReadOnlyMemory<byte> PreferredAeadSuites(DateTimeOffset at)
     {

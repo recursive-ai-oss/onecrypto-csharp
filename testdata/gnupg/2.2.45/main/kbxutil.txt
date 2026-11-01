@@ -1,0 +1,490 @@
+BEGIN-RECORD: 0
+Length: 32
+Type:   Header
+Version: 1
+Flags:   0002 (openpgp)
+created-at: 1793524522
+last-maint: 1793524522
+END-RECORD
+BEGIN-RECORD: 1
+Length: 1431
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 1285
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: A12EBC9CB245ECF8181F626446CD76B17802E755
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 46CD76B17802E755
+Key-Flags[0]: 0000
+Key-Fpr[1]: 5A2326A1C0A3B65BAACD6AD4456061909B0B164C
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 456061909B0B164C
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 414
+Uid-Len[0]: 44
+Uid[0]: "Test u-rsa2048 <u-rsa2048@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524522
+Reserved-Space: 0
+Checksum: 81f8400152f1a6cdc3d4e0fce474a60326efcb62 [valid]
+END-RECORD
+BEGIN-RECORD: 2
+Length: 1431
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 1285
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: BE0FF83973A0905D4EB6D69D2EC64F4C1189E45E
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 2EC64F4C1189E45E
+Key-Flags[0]: 0000
+Key-Fpr[1]: BB6DA20073B7D8CA11B8BDE2F4C9285A288C0A9C
+Key-Kid-Off[1]: 60
+Key-Kid[1]: F4C9285A288C0A9C
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 414
+Uid-Len[0]: 44
+Uid[0]: "Test p-rsa2048 <p-rsa2048@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524523
+Reserved-Space: 0
+Checksum: 9c6ade5ac4a973c7e668be3ead93f62f087b411c [valid]
+END-RECORD
+BEGIN-RECORD: 3
+Length: 679
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 533
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: 5592C4D65A4EFF9879A46FFE42A32BA5A7D52580
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 42A32BA5A7D52580
+Key-Flags[0]: 0000
+Key-Fpr[1]: 2E580AD10403465D3C6C6E1702E82C3B984169EC
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 02E82C3B984169EC
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 226
+Uid-Len[0]: 46
+Uid[0]: "Test u-nistp256 <u-nistp256@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524523
+Reserved-Space: 0
+Checksum: 53cbee6594fc51497bbc3332e280fdde22c4eb71 [valid]
+END-RECORD
+BEGIN-RECORD: 4
+Length: 679
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 533
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: FC9638389D2DF2EBB7A77B93EED21782B61A3606
+Key-Kid-Off[0]: 32
+Key-Kid[0]: EED21782B61A3606
+Key-Flags[0]: 0000
+Key-Fpr[1]: EF7CA15A1FFDBEB54D25F14A858622C2A939AEE5
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 858622C2A939AEE5
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 226
+Uid-Len[0]: 46
+Uid[0]: "Test p-nistp256 <p-nistp256@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524524
+Reserved-Space: 0
+Checksum: 5ad134011fc4420ef23ad41a3f3473cc6cd46ac4 [valid]
+END-RECORD
+BEGIN-RECORD: 5
+Length: 801
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 655
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: BBEA0192B86D3D89ABDD2B2CBD467358D6A39464
+Key-Kid-Off[0]: 32
+Key-Kid[0]: BD467358D6A39464
+Key-Flags[0]: 0000
+Key-Fpr[1]: 41AF322848E738B5E560E8589B44181B2D6BCD4C
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 9B44181B2D6BCD4C
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 255
+Uid-Len[0]: 46
+Uid[0]: "Test u-nistp384 <u-nistp384@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524524
+Reserved-Space: 0
+Checksum: 6019801ad5e73116329f28877352ca6b3f1fbf3d [valid]
+END-RECORD
+BEGIN-RECORD: 6
+Length: 801
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 655
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: 7438DFA639D492B1E359D4EEF5EB870E251D87F4
+Key-Kid-Off[0]: 32
+Key-Kid[0]: F5EB870E251D87F4
+Key-Flags[0]: 0000
+Key-Fpr[1]: DE70EE32735401FFF0B09A4CD9A29AC4E9D3C726
+Key-Kid-Off[1]: 60
+Key-Kid[1]: D9A29AC4E9D3C726
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 255
+Uid-Len[0]: 46
+Uid[0]: "Test p-nistp384 <p-nistp384@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524524
+Reserved-Space: 0
+Checksum: eafd3d0f268fce03d4bfe478567e3b4f4d2acdf7 [valid]
+END-RECORD
+BEGIN-RECORD: 7
+Length: 695
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 549
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: CB1210180F2B538C96F4F266709E08B57B6DD483
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 709E08B57B6DD483
+Key-Flags[0]: 0000
+Key-Fpr[1]: 199C9CDC9046B22798622D4CFC33164F1466943A
+Key-Kid-Off[1]: 60
+Key-Kid[1]: FC33164F1466943A
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 227
+Uid-Len[0]: 60
+Uid[0]: "Test u-brainpoolP256r1 <u-brainpoolP256r1@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524525
+Reserved-Space: 0
+Checksum: 23402a53239c17052be282f83858c0db533b3328 [valid]
+END-RECORD
+BEGIN-RECORD: 8
+Length: 695
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 549
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: 3ACC727AA1C2F47E5E9088DFFAA1F85371A98856
+Key-Kid-Off[0]: 32
+Key-Kid[0]: FAA1F85371A98856
+Key-Flags[0]: 0000
+Key-Fpr[1]: 420A9412BF53B9A2A37059D289C0F936BD20F7BB
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 89C0F936BD20F7BB
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 227
+Uid-Len[0]: 60
+Uid[0]: "Test p-brainpoolP256r1 <p-brainpoolP256r1@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524525
+Reserved-Space: 0
+Checksum: 8249bf1ca5a9d473aa074e028983bb07e01cbd02 [valid]
+END-RECORD
+BEGIN-RECORD: 9
+Length: 616
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 470
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: EC6810A23433D92199847D3A663A3CC87C65E4A9
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 663A3CC87C65E4A9
+Key-Flags[0]: 0000
+Key-Fpr[1]: 8F8C607C2206D749AD4D46B3F76148CAC0B9914D
+Key-Kid-Off[1]: 60
+Key-Kid[1]: F76148CAC0B9914D
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 195
+Uid-Len[0]: 44
+Uid[0]: "Test u-ed25519 <u-ed25519@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524525
+Reserved-Space: 0
+Checksum: a9d394ec190866f8056d0e399eca2315a90e1319 [valid]
+END-RECORD
+BEGIN-RECORD: 10
+Length: 616
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 470
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: ECCFF80F9959029642F188AEF80A0278BE5C7081
+Key-Kid-Off[0]: 32
+Key-Kid[0]: F80A0278BE5C7081
+Key-Flags[0]: 0000
+Key-Fpr[1]: AFCFB8A567CEEAB8754CBA15D4BCD6B9959043A4
+Key-Kid-Off[1]: 60
+Key-Kid[1]: D4BCD6B9959043A4
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 195
+Uid-Len[0]: 44
+Uid[0]: "Test p-ed25519 <p-ed25519@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524526
+Reserved-Space: 0
+Checksum: 166d8834475c496bbd19ee08b68625f5dc594075 [valid]
+END-RECORD
+BEGIN-RECORD: 11
+Length: 612
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 466
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: 660CF41B8B09248E5162C58D7E18014F3FA5EADF
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 7E18014F3FA5EADF
+Key-Flags[0]: 0000
+Key-Fpr[1]: 63A375F87C0E13BDA82ABF1D04F465380104D24D
+Key-Kid-Off[1]: 60
+Key-Kid[1]: 04F465380104D24D
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 195
+Uid-Len[0]: 40
+Uid[0]: "Test revoked <revoked@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524526
+Reserved-Space: 0
+Checksum: 2e8e3a15df8e5f9d53d635ebd866aff21023fcce [valid]
+END-RECORD
+BEGIN-RECORD: 12
+Length: 624
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 126
+Data-Length: 478
+Unhashed: 20
+Key-Count: 2
+Key-Info-Length: 28
+Key-Fpr[0]: AAB21F67BAAA1AB71E9F32691E018596C829979A
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 1E018596C829979A
+Key-Flags[0]: 0000
+Key-Fpr[1]: BB5FF0EA4D0FFC4692DCAD3AB3BB155F7338637D
+Key-Kid-Off[1]: 60
+Key-Kid[1]: B3BB155F7338637D
+Key-Flags[1]: 0000
+Serial-No: none
+Uid-Count: 1
+Uid-Info-Length: 12
+Uid-Off[0]: 195
+Uid-Len[0]: 40
+Uid[0]: "Test expired <expired@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1577836800
+Reserved-Space: 0
+Checksum: 734ac08125d0b5442746e69e1f290c2f13e79b95 [valid]
+END-RECORD
+BEGIN-RECORD: 13
+Length: 1216
+Type:   OpenPGP
+Version: 1
+Blob-Flags: 0000
+Data-Offset: 110
+Data-Length: 1086
+Unhashed: 20
+Key-Count: 1
+Key-Info-Length: 28
+Key-Fpr[0]: 5E6BF7EDA8B3223F31CB831A26BAC2EECF51F133
+Key-Kid-Off[0]: 32
+Key-Kid[0]: 26BAC2EECF51F133
+Key-Flags[0]: 0000
+Serial-No: none
+Uid-Count: 2
+Uid-Info-Length: 12
+Uid-Off[0]: 398
+Uid-Len[0]: 38
+Uid[0]: "Test twouid <twouid@onecrypto.invalid>"
+Uid-Flags[0]: 0000
+Uid-Validity[0]: 0
+Uid-Off[1]: 798
+Uid-Len[1]: 38
+Uid[1]: "Second Name <second@onecrypto.invalid>"
+Uid-Flags[1]: 0000
+Uid-Validity[1]: 0
+Sig-Count: 2
+Sig-Info-Length: 4
+Sig-Expire[0-1]: [not checked]
+Ownertrust: 0
+All-Validity: 0
+Recheck-After: 0
+Latest-Timestamp: 0
+Created-At: 1793524526
+Reserved-Space: 0
+Checksum: 23110bd6b6ed4aba4b56cd5e57aaafb06b2efd5f [valid]
+END-RECORD
