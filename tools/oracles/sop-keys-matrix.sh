@@ -28,7 +28,7 @@ UID1='Ours <ours@example.org>'
 o generate-key --profile=rfc4880 "Certifier <certifier@example.org>" > certifier.key; o extract-cert < certifier.key > certifier.cert
 x generate-key "Theirs <theirs@example.org>" > theirs.key 2>/dev/null; x extract-cert < theirs.key > theirs.cert 2>/dev/null
 
-profiles=$(o list-profiles generate-key | cut -d: -f1)
+profiles=${PROFILES:-$(o list-profiles generate-key | cut -d: -f1)}
 for prof in $profiles; do
   case $prof in default|compatibility|security|performance) continue;; esac # aliases of listed profiles
   for prot in none pw; do
