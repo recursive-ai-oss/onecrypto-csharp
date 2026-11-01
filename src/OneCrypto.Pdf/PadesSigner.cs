@@ -190,15 +190,16 @@ public static class PadesSigner
         {
             // RSA and ECDSA sign a digest of the signed attributes in the hash the caller picked; EdDSA and ML-DSA sign the attributes
             // themselves and bring their own digest algorithm (RFC 8419 §3.1, RFC 9882).
-            SignatureKind.Ecdsa => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = SignatureSpec.Ecdsa(options.Hash), DigestAlgorithm = HashOid(options.Hash) },
+            SignatureKind.Ecdsa => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = SignatureSpec.Ecdsa(options.Hash), DigestAlgorithm = HashOid(options.Hash), SigningCertificate = options.SigningCertificate },
             SignatureKind.RsaPkcs1 or SignatureKind.RsaPss => new CmsSignerSpec
             {
                 Certificate = certificate,
                 Key = key,
                 SignatureSpec = options.RsaPss ? SignatureSpec.RsaPss(options.Hash) : SignatureSpec.RsaPkcs1(options.Hash),
                 DigestAlgorithm = HashOid(options.Hash),
+                SigningCertificate = options.SigningCertificate,
             },
-            _ => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = probe },
+            _ => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = probe, SigningCertificate = options.SigningCertificate },
         };
     }
 
