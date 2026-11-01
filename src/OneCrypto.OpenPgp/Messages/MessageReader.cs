@@ -87,7 +87,7 @@ public static partial class PgpMessageReader
         var result = new PgpReadResult();
         for (int i = 0; i < sigs.Count; i++)
         {
-            byte[]? digest = hashers[i]?.Finish(sigs[i].Version, sigs[i].SignedHeader.Span);
+            byte[]? digest = hashers[i]?.FinishOrNull(sigs[i].Version, sigs[i].SignedHeader.Span);
             hashers[i]?.Dispose();
             result.SignatureList.Add(SignatureChecker.Check(sigs[i], digest, options.Certificates, policy, options.Now));
         }
@@ -573,7 +573,7 @@ internal sealed class MessageProcessor : IDisposable
             e.Matched = true;
             if (sig.Version != 6 || e.Op.Salt.Span.SequenceEqual(sig.Salt.Span))
             {
-                digest = e.Hasher.Finish(sig.Version, sig.SignedHeader.Span);
+                digest = e.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span);
             }
 
             break;
@@ -585,7 +585,7 @@ internal sealed class MessageProcessor : IDisposable
             {
                 if (ReferenceEquals(p.Sig, sig))
                 {
-                    digest = p.Hasher.Finish(sig.Version, sig.SignedHeader.Span);
+                    digest = p.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span);
                 }
             }
         }

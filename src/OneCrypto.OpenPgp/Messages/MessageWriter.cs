@@ -314,6 +314,20 @@ public static partial class PgpMessageWriter
         {
             (cipher, aead) = ChooseSuite(keys, o.Now);
         }
+        else if (keys.Count > 0)
+        {
+            // RFC 9580 §5.2.3.14: with SEIPD v1 the cipher is one every recipient that lists preferences accepts; AES-128 is mandatory to implement.
+            foreach (SymmetricAlgorithm c in new[] { SymmetricAlgorithm.Aes256, SymmetricAlgorithm.Aes192, SymmetricAlgorithm.Aes128 })
+            {
+                if (keys.All(k => k.PreferredSymmetric(o.Now) is { IsEmpty: true } || k.PreferredSymmetric(o.Now).Span.Contains((byte)c)))
+                {
+                    cipher = c;
+                    break;
+                }
+
+                cipher = SymmetricAlgorithm.Aes128;
+            }
+        }
 
         PolicyDecision pd = policy.CheckContentCipher("AES-" + (PgpAlgorithms.KeySize(cipher) * 8), CryptoUse.Encrypt);
         if (pd.Verdict == PolicyVerdict.Rejected)

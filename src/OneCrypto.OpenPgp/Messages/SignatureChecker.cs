@@ -10,10 +10,22 @@ internal sealed class SigHasher : IDisposable
     private readonly IncrementalHash _h;
     private readonly bool _text;
     private bool _lastWasCr;
+    private readonly bool _unsupported;
 
     internal SigHasher(PgpHashAlgorithm hash, ReadOnlySpan<byte> salt, bool text)
     {
-        _h = SignatureEngine.Start(hash, salt);
+        try
+        {
+            _h = SignatureEngine.Start(hash, salt);
+        }
+        catch (PgpException)
+        {
+            // A signature with a hash we do not know is skipped rather than failing the whole message (RFC 9580 §9.5: unknown algorithms are ignored);
+            // its digest is never produced, so the signature is reported as not matched.
+            _h = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            _unsupported = true;
+        }
+
         _text = text;
     }
 
@@ -57,7 +69,11 @@ internal sealed class SigHasher : IDisposable
         _h.AppendData(data[start..]);
     }
 
-    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader) => SignatureEngine.Finish(_h, version, signedHeader);
+    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader) =>
+        _unsupported ? throw new PgpException(PgpFailure.Unsupported, "The hash algorithm is not supported.") : SignatureEngine.Finish(_h, version, signedHeader);
+
+    /// <summary>The digest, or null when the hash algorithm is one we do not support.</summary>
+    internal byte[]? FinishOrNull(byte version, ReadOnlySpan<byte> signedHeader) => _unsupported ? null : SignatureEngine.Finish(_h, version, signedHeader);
 
     public void Dispose() => _h.Dispose();
 }

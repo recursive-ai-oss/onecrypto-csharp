@@ -221,7 +221,7 @@ internal static class Cleartext
 
                 Scratch.Return(buf);
 
-                digest = h.Finish(s.Version, s.SignedHeader.Span);
+                digest = h.FinishOrNull(s.Version, s.SignedHeader.Span);
             }
 
             result.SignatureList.Add(SignatureChecker.Check(s, digest, options.Certificates, policy, options.Now));

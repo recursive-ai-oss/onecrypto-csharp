@@ -338,6 +338,24 @@ public sealed class PgpKey
         return result;
     }
 
+    /// <summary>The newest valid self-signature's Preferred Symmetric Algorithms (RFC 9580 §5.2.3.14), most preferred first; empty when absent.</summary>
+    internal ReadOnlyMemory<byte> PreferredSymmetric(DateTimeOffset at)
+    {
+        ReadOnlyMemory<byte> result = default;
+        long newest = -1;
+        foreach (SignaturePacket s in Certificate.Primary.Bindings().Concat(Bindings()))
+        {
+            long t = s.CreationTime ?? 0;
+            if (t <= at.ToUnixTimeSeconds() && t >= newest && s.PreferredSymmetricAlgorithms is { } p)
+            {
+                result = p;
+                newest = t;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>The newest valid self-signature's preferred AEAD ciphersuites (RFC 9580 §5.2.3.15), as pairs of cipher and AEAD identifiers.</summary>
     internal ReadOnlyMemory<byte> PreferredAeadSuites(DateTimeOffset at)
     {
