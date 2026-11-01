@@ -140,6 +140,18 @@ public sealed record RevocationReport(
     RevocationReason? RevocationReason = null,
     string? Source = null)
 {
+    /// <summary>
+    /// Why revocation data was not used or how far it was trusted: stale, out of scope, unsigned by an authorised signer, refused by the algorithm
+    /// policy, an unchecked delegated responder. Empty when nothing needed saying.
+    /// </summary>
+    public ImmutableArray<string> Notes { get; init; } = [];
+
+    /// <summary>
+    /// The algorithm-policy decisions (flags and refusals, each with its rule id) about the signatures on the CRLs and OCSP responses considered
+    /// for this certificate, judged as PKI signatures at the revocation-data time.
+    /// </summary>
+    public ImmutableArray<Policy.PolicyDecision> PolicyDecisions { get; init; } = [];
+
     /// <summary>The finding for a certificate nobody asked about.</summary>
     public static RevocationReport NotCheckedReport { get; } = new(RevocationStatus.NotChecked, "revocation checking was not requested for this certificate", "RFC 5280 §6.3");
 }
