@@ -1,0 +1,49 @@
+{
+ "name": "c12-completes-needed-2",
+ "text": "--completes-needed 2: one full introducer is then only marginal",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "F8FF16FD649C3B31AEBCCA1106F23B71466669C6",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "413C6D13BE6AC8C3781CEC4F43A1D93E5F7032E9",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "14CC2F84414A62931A1A193C199F159502A421F7",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "0BC871CDECD02DCE7C8E932A95DD9DA1774E04B4",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "F8FF16FD649C3B31AEBCCA1106F23B71466669C6": "u",
+  "413C6D13BE6AC8C3781CEC4F43A1D93E5F7032E9": "f",
+  "14CC2F84414A62931A1A193C199F159502A421F7": "f"
+ },
+ "gpgArgs": [
+  "--completes-needed",
+  "2"
+ ],
+ "queries": [
+  {
+   "target": "0BC871CDECD02DCE7C8E932A95DD9DA1774E04B4",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

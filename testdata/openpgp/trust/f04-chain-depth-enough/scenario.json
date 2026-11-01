@@ -1,0 +1,50 @@
+{
+ "name": "f04-chain-depth-enough",
+ "text": "a -> b(depth 2) -> c(depth 1) -> t: depths allow it",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "CA471AF8D2E12720FA277E683DAD3013CAA42C69",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "52C86299A1B94C6E9E9F7408C04976852DD2D6CC",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "0AB816166462B2AD13306C4C87665D5EE7C422D6",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "9249D42022085730FA6DFEFAB7E3F1194115343D",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "CA471AF8D2E12720FA277E683DAD3013CAA42C69"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "9249D42022085730FA6DFEFAB7E3F1194115343D",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "0AB816166462B2AD13306C4C87665D5EE7C422D6",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

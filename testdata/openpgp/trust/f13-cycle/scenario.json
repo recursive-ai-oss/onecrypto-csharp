@@ -1,0 +1,44 @@
+{
+ "name": "f13-cycle",
+ "text": "a, b certify each other with unlimited depth; b certifies t",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "23D50616B3A7BDF1CF1374BD8B848F567E8BB9C5",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "CED502D9CD870EA133617DD7AB3AA31FD72E56B2",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "CBAA16EA3DE8CAF11778FA42C89C67B674EBC09C",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "23D50616B3A7BDF1CF1374BD8B848F567E8BB9C5"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "CBAA16EA3DE8CAF11778FA42C89C67B674EBC09C",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "23D50616B3A7BDF1CF1374BD8B848F567E8BB9C5",
+   "targetName": "a",
+   "userId": "A <a@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

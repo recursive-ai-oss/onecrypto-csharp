@@ -1,0 +1,27 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "6869947F8359E9046533C2E3F7B3EA130CDEBEA1",
+    "targetName": "t",
+    "userId": "T <t@in.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - 6869947F8359E9046533C2E3F7B3EA130CDEBEA1\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] T <t@in.example>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c 4ECEE8A1C218100A9F201D32A6B0481790CEACAC\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following certificate on 2025\u201102\u201101 (expiry: 2035\u201102\u201101) as a introducer (depth: 1)\n     \u2502\n     \u251c\u2500\u252c 5287ABC6F700792A19E665EA1F97DD0ACC6A505B\n     \u2502 \u2514 (B <b@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c 6869947F8359E9046533C2E3F7B3EA130CDEBEA1\n       \u2514 T <t@in.example>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c 6869947F8359E9046533C2E3F7B3EA130CDEBEA1\n     \u2502 \u2514 T <t@in.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example 6869947F8359E9046533C2E3F7B3EA130CDEBEA1, run:\n\n  $ sq inspect --cert=6869947F8359E9046533C2E3F7B3EA130CDEBEA1\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A",
+    "targetName": "u",
+    "userId": "U <u@out.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] U <u@out.example>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c 4ECEE8A1C218100A9F201D32A6B0481790CEACAC\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following certificate on 2025\u201102\u201101 (expiry: 2035\u201102\u201101) as a introducer (depth: 1)\n     \u2502\n     \u251c\u2500\u252c 5287ABC6F700792A19E665EA1F97DD0ACC6A505B\n     \u2502 \u2514 (B <b@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A\n       \u2514 U <u@out.example>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A\n     \u2502 \u2514 U <u@out.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A, run:\n\n  $ sq inspect --cert=BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

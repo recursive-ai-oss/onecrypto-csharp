@@ -1,0 +1,58 @@
+{
+ "name": "c33-marginal-valid-introducer",
+ "text": "b is valid only marginally (one marginal signer): can it introduce?",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "D525D07E9B43029577F142C1D6B47B6B2C64DAE8",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "A04C7DD98A9F6CDFFEC288F6D90AF528F9732AED",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "56E408CA922FEBB478FF552BC27365F900AD08F6",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "C1F447B25C2A6E3CF4E9ECD6CC94A9D6B866CAAB",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "D525D07E9B43029577F142C1D6B47B6B2C64DAE8": "m",
+  "A04C7DD98A9F6CDFFEC288F6D90AF528F9732AED": "f",
+  "56E408CA922FEBB478FF552BC27365F900AD08F6": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A04C7DD98A9F6CDFFEC288F6D90AF528F9732AED",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "56E408CA922FEBB478FF552BC27365F900AD08F6",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "C1F447B25C2A6E3CF4E9ECD6CC94A9D6B866CAAB",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

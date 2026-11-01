@@ -1,0 +1,51 @@
+{
+ "name": "c41-marginal-signer-tsig",
+ "text": "a signer with marginal owner trust gives a full trust signature",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "3E65D976345705B7E3EC475781F55F5C04838ABE",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "m": {
+   "fingerprint": "3FEBF9CCA777CE47084BFF24618791E789322DD9",
+   "userIds": [
+    "M <m@example.org>"
+   ]
+  },
+  "x": {
+   "fingerprint": "B61DC3EAD9B13949A8315A7CA21034E8CC493A29",
+   "userIds": [
+    "X <x@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "70055371BF60FB919AC5FD520B90F7F7FC0B0A6D",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "3E65D976345705B7E3EC475781F55F5C04838ABE": "u",
+  "3FEBF9CCA777CE47084BFF24618791E789322DD9": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "B61DC3EAD9B13949A8315A7CA21034E8CC493A29",
+   "targetName": "x",
+   "userId": "X <x@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "70055371BF60FB919AC5FD520B90F7F7FC0B0A6D",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

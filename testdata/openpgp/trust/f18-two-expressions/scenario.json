@@ -1,0 +1,38 @@
+{
+ "name": "f18-two-expressions",
+ "text": "two domains on one certification: the second matches",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "D42795DAF541700C88B2986696EBE47BB7779061",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "ca": {
+   "fingerprint": "104389965AFA1223525A40EAF7F3970227B3B624",
+   "userIds": [
+    "Ca <ca@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "D508C95681A537C1E9A40CD48B8420BD7CF6378E",
+   "userIds": [
+    "T <t@two.example>"
+   ]
+  }
+ },
+ "roots": [
+  "D42795DAF541700C88B2986696EBE47BB7779061"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "D508C95681A537C1E9A40CD48B8420BD7CF6378E",
+   "targetName": "t",
+   "userId": "T <t@two.example>",
+   "at": 1748736000
+  }
+ ]
+}

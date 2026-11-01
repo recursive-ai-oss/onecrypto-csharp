@@ -1,0 +1,50 @@
+{
+ "name": "c53c-raw-expression",
+ "text": "one raw expression on the trust signature: one\\.example>$",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "DA32B7A6055FC14979D39958380A6EFEE52A1263",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "AD94F9D49BA41739F4AF5BCF6242816DD8786881",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t1": {
+   "fingerprint": "18B2FFDC92F206DD064D84488E661AC6BF9CB043",
+   "userIds": [
+    "T1 <t1@one.example>"
+   ]
+  },
+  "t2": {
+   "fingerprint": "EC2540B1875287E707CE7CE13AF9CAE8007634C3",
+   "userIds": [
+    "T2 <t2@two.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "DA32B7A6055FC14979D39958380A6EFEE52A1263": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "18B2FFDC92F206DD064D84488E661AC6BF9CB043",
+   "targetName": "t1",
+   "userId": "T1 <t1@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "EC2540B1875287E707CE7CE13AF9CAE8007634C3",
+   "targetName": "t2",
+   "userId": "T2 <t2@two.example>",
+   "at": 1748736000
+  }
+ ]
+}

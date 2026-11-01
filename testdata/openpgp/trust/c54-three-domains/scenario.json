@@ -1,0 +1,38 @@
+{
+ "name": "c54-three-domains",
+ "text": "three domain expressions; only the third matches",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "7BBD7E84D717EECC5E750DFEFA83EF82962D21A0",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "490ACBC4AF7719A0BE7E2D8CC7BA48AF036A0A30",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "066D6BF0310B1DD158072DB9657CD45E7C6C4590",
+   "userIds": [
+    "T <t@three.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "7BBD7E84D717EECC5E750DFEFA83EF82962D21A0": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "066D6BF0310B1DD158072DB9657CD45E7C6C4590",
+   "targetName": "t",
+   "userId": "T <t@three.example>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,53 @@
+{
+ "name": "c35-marginal-count-mixed",
+ "text": "two marginals and one never",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "3FD4127C5766ECF243B256669860920BA5AD46BA",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "D33B22365EC70EFAF34C34288077B738E1A55D1B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "A19D6D0D16DE8C09728F4CAC51DD192AA45C6DFF",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "ECA5795FC4D99F4F7F2C2AB3A44F43BAD35D49D1",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "58A7D94471E8FCFC001E7598326BFA9688BFE6E7",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "3FD4127C5766ECF243B256669860920BA5AD46BA": "u",
+  "D33B22365EC70EFAF34C34288077B738E1A55D1B": "m",
+  "A19D6D0D16DE8C09728F4CAC51DD192AA45C6DFF": "m",
+  "ECA5795FC4D99F4F7F2C2AB3A44F43BAD35D49D1": "n"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "58A7D94471E8FCFC001E7598326BFA9688BFE6E7",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

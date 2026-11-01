@@ -1,0 +1,32 @@
+{
+ "name": "c27-future-certification",
+ "text": "the certification is dated after the reference time",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "E3040178784CB3F730E6DE89864149AC4E20C840",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "85EF74C0BB9F5A84CBF3F65CEAAE4FD5D706CA5B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "E3040178784CB3F730E6DE89864149AC4E20C840": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "85EF74C0BB9F5A84CBF3F65CEAAE4FD5D706CA5B",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

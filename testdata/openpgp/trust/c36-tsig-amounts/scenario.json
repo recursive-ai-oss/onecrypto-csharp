@@ -1,0 +1,128 @@
+{
+ "name": "c36-tsig-amounts",
+ "text": "trust signatures of amount 30, 59, 60, 90, 119 and 120: which ones lend trust",
+ "kind": "classic",
+ "keys": {
+  "i30": {
+   "fingerprint": "7A52D179586F3A3A0D16DAD8C190F2E0FAECBFB1",
+   "userIds": [
+    "I30 <i30@example.org>"
+   ]
+  },
+  "t30": {
+   "fingerprint": "1AE3FC104687E472613A2F0771777A72BD423917",
+   "userIds": [
+    "T30 <t30@example.org>"
+   ]
+  },
+  "i59": {
+   "fingerprint": "6561900ED818D6106C21DC1A377CB6AA3EE4B813",
+   "userIds": [
+    "I59 <i59@example.org>"
+   ]
+  },
+  "t59": {
+   "fingerprint": "8C96202E47E833771B0D9641B6EEAA20521F2222",
+   "userIds": [
+    "T59 <t59@example.org>"
+   ]
+  },
+  "i60": {
+   "fingerprint": "57E13D2B2F1B1FF0C027727E6298ADC4A084155B",
+   "userIds": [
+    "I60 <i60@example.org>"
+   ]
+  },
+  "t60": {
+   "fingerprint": "D356C97A8D593B0011221D51531AE9B51753C4CD",
+   "userIds": [
+    "T60 <t60@example.org>"
+   ]
+  },
+  "i90": {
+   "fingerprint": "D63CD5B7AB1A1C8829F6A68A52B8F739E4AA6271",
+   "userIds": [
+    "I90 <i90@example.org>"
+   ]
+  },
+  "t90": {
+   "fingerprint": "CFEED365363A9D1C64A69227A510BB0AEB05B546",
+   "userIds": [
+    "T90 <t90@example.org>"
+   ]
+  },
+  "i119": {
+   "fingerprint": "3AD3B03CE021F756FE079925E6D735F4788431E5",
+   "userIds": [
+    "I119 <i119@example.org>"
+   ]
+  },
+  "t119": {
+   "fingerprint": "7CAC199B9895980ACB1BE21A39C5DD4431D879F7",
+   "userIds": [
+    "T119 <t119@example.org>"
+   ]
+  },
+  "i120": {
+   "fingerprint": "D36FD74E2FFAAEEB1E9BA9C1315969590BE91E9D",
+   "userIds": [
+    "I120 <i120@example.org>"
+   ]
+  },
+  "t120": {
+   "fingerprint": "0A552CE6F6843AE51E84D929F159C7688AFB32B4",
+   "userIds": [
+    "T120 <t120@example.org>"
+   ]
+  },
+  "a": {
+   "fingerprint": "9C1F6385E41E0D7FA59C4A77CEB6B814EEB767E7",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "9C1F6385E41E0D7FA59C4A77CEB6B814EEB767E7": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "1AE3FC104687E472613A2F0771777A72BD423917",
+   "targetName": "t30",
+   "userId": "T30 <t30@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "8C96202E47E833771B0D9641B6EEAA20521F2222",
+   "targetName": "t59",
+   "userId": "T59 <t59@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "D356C97A8D593B0011221D51531AE9B51753C4CD",
+   "targetName": "t60",
+   "userId": "T60 <t60@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "CFEED365363A9D1C64A69227A510BB0AEB05B546",
+   "targetName": "t90",
+   "userId": "T90 <t90@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "7CAC199B9895980ACB1BE21A39C5DD4431D879F7",
+   "targetName": "t119",
+   "userId": "T119 <t119@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "0A552CE6F6843AE51E84D929F159C7688AFB32B4",
+   "targetName": "t120",
+   "userId": "T120 <t120@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

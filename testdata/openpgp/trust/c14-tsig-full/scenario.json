@@ -1,0 +1,44 @@
+{
+ "name": "c14-tsig-full",
+ "text": "a trust signature (level 1, amount 120) makes b a full introducer without owner trust",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "53F0BAB7A67602A08A2A974E01BDC3693E71F70F",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "A0886A968DFD82C19EFCDA4C285CA3334CFD2681",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "93473C98E4FC816886F61284BC0F92F150F716B2",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "53F0BAB7A67602A08A2A974E01BDC3693E71F70F": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A0886A968DFD82C19EFCDA4C285CA3334CFD2681",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "93473C98E4FC816886F61284BC0F92F150F716B2",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

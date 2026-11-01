@@ -1,0 +1,38 @@
+{
+ "name": "f21-revoked-certification",
+ "text": "the certification is revoked after it was made",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "6A63BDC0C3992BF7542FC1B36F031FBD89A26742",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "1C52471AD693B051CF640F9DB89B8C9935CF88D1",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "6A63BDC0C3992BF7542FC1B36F031FBD89A26742"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "1C52471AD693B051CF640F9DB89B8C9935CF88D1",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "1C52471AD693B051CF640F9DB89B8C9935CF88D1",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1739232000
+  }
+ ]
+}

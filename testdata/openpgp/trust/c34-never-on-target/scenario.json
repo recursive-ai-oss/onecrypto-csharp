@@ -1,0 +1,33 @@
+{
+ "name": "c34-never-on-target",
+ "text": "owner trust never on the target does not change its validity",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "A8B1B63F0D5CFC288EE6AA7E5EC754AF8D36A102",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "D49706083FC3FA327A667B7AAA7B0736EEF5EA2B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "A8B1B63F0D5CFC288EE6AA7E5EC754AF8D36A102": "u",
+  "D49706083FC3FA327A667B7AAA7B0736EEF5EA2B": "n"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "D49706083FC3FA327A667B7AAA7B0736EEF5EA2B",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

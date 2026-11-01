@@ -1,0 +1,38 @@
+{
+ "name": "f33-not-self-signed-uid",
+ "text": "a certifies a user ID that b never signed itself",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "1448DF3EE088BB465257DF94261FB917A41582DB",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "E2F108843C0803086F4811553AC1D2164CC14F57",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "1448DF3EE088BB465257DF94261FB917A41582DB"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "E2F108843C0803086F4811553AC1D2164CC14F57",
+   "targetName": "b",
+   "userId": "Extra <extra@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "E2F108843C0803086F4811553AC1D2164CC14F57",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

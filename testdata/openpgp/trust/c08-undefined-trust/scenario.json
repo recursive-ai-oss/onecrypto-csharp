@@ -1,0 +1,39 @@
+{
+ "name": "c08-undefined-trust",
+ "text": "an introducer with undefined owner trust does not count",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "DD999033514595AC0DB79B2A008AAAACB40D8257",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "730977CDFEE678F8E695A6CD2CC4B7423B4ACEBD",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "D0C3CCF9F53ABCEA11B5A8D6B53B29304FB62201",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "DD999033514595AC0DB79B2A008AAAACB40D8257": "u",
+  "730977CDFEE678F8E695A6CD2CC4B7423B4ACEBD": "q"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "D0C3CCF9F53ABCEA11B5A8D6B53B29304FB62201",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

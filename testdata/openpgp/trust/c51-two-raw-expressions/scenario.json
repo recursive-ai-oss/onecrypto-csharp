@@ -1,0 +1,50 @@
+{
+ "name": "c51-two-raw-expressions",
+ "text": "the same with two raw expressions",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "428C0FF873EF9B65DBA5998A05DF1E5BE79C692A",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "2A7D74BAB8D59F78C7294E0F524984441482A57A",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t1": {
+   "fingerprint": "D9B86F96CEDBF9D7C69B63BC6EEF94DCE0994807",
+   "userIds": [
+    "T1 <t1@one.example>"
+   ]
+  },
+  "t2": {
+   "fingerprint": "A8181DD6969DE826A3D4CE796BE7DCAA0EB2B791",
+   "userIds": [
+    "T2 <t2@two.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "428C0FF873EF9B65DBA5998A05DF1E5BE79C692A": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "D9B86F96CEDBF9D7C69B63BC6EEF94DCE0994807",
+   "targetName": "t1",
+   "userId": "T1 <t1@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "A8181DD6969DE826A3D4CE796BE7DCAA0EB2B791",
+   "targetName": "t2",
+   "userId": "T2 <t2@two.example>",
+   "at": 1748736000
+  }
+ ]
+}

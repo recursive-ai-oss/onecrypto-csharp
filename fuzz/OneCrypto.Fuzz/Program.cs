@@ -45,6 +45,7 @@ internal static class Program
         ["pgpkey"] = PgpKeyTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
         ["bzip2"] = Bzip2Target.Run,
+        ["trust"] = TrustTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -73,6 +74,7 @@ internal static class Program
         "pgpkey" => PgpKeyTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
         "bzip2" => Bzip2Target.Seeds(),
+        "trust" => TrustTarget.Seeds(),
         _ => [],
     };
 

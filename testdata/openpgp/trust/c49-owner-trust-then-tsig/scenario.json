@@ -1,0 +1,51 @@
+{
+ "name": "c49-owner-trust-then-tsig",
+ "text": "b has full owner trust and no trust signature on it; b's own level-1 trust signature on c",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "8C696E2AAD71BFF3C8E92A807328941534BDAB15",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "815FF6B27881330AAEA2277715C9A8ACCBEC3842",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "8EAADCD892AD7CB98A6069116B765064F66292A3",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "BDCD115F7DA0C65EE799A29B69B3B2BAD9AA7061",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "8C696E2AAD71BFF3C8E92A807328941534BDAB15": "u",
+  "815FF6B27881330AAEA2277715C9A8ACCBEC3842": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "8EAADCD892AD7CB98A6069116B765064F66292A3",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "BDCD115F7DA0C65EE799A29B69B3B2BAD9AA7061",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

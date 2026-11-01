@@ -1,0 +1,38 @@
+{
+ "name": "f41-issuer-root-revoked",
+ "text": "the root's own key is revoked",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "43CDDFE6787260BC57F11868AD55C0D9AF377E32",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "01B2C29DC7BE54DE1701CD0E994BC43899D84D96",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "43CDDFE6787260BC57F11868AD55C0D9AF377E32"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "01B2C29DC7BE54DE1701CD0E994BC43899D84D96",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "43CDDFE6787260BC57F11868AD55C0D9AF377E32",
+   "targetName": "a",
+   "userId": "A <a@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

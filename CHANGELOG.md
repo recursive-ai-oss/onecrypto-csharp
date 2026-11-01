@@ -23,6 +23,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `DistinguishedName.FromDer`, `TryFromDer`, `Parse(string)` and `TryFromString`: names that say whether the input is DER or RFC 4514 text. `Parse(bytes)` stays and still means DER.
 - `TimeStampVerifyOptions.RevocationModel` and `RevocationDataTime`: judge the authority's revocation data in the past-time model.
 - `docs/decryption-review.md`: an internal review of the CMS, PKCS#8/#12 and OpenPGP decryption paths with 13 findings (each with a test; all fixed, see its Status column) and the list of what was checked and found correct. Not an external audit.
+- OpenPGP trust in `RecursiveAI.OneCrypto.OpenPgp.Trust`: `TrustNetwork` (certification edges from certificates at a reference time, with the reason for every dropped signature), `WebOfTrust` (flow-based authentication: trust amounts and depths, regular-expression scopes, maximum flow, the paths used) and `ClassicTrust` (GnuPG's marginal/complete validity with trust signatures, depth and GnuPG's regular expressions, fed by the GnuPG home's owner trust), all bounded by `TrustLimits` with the typed `TrustLimitExceededException`. Checked against 162 generated scenarios answered by Sequoia `sq` and GnuPG. `onecrypto pgp authenticate` prints the verdicts. See `docs/openpgp-trust.md`.
 
 ### Fixed (decryption paths, from the internal review)
 

@@ -1,0 +1,50 @@
+{
+ "name": "f38-greedy-trap",
+ "text": "paths that need rerouting to reach the maximum flow",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "C541FF183BD10F8D5C7DAC5DE6C5B95E1DD45CB8",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "76E45F2BA6FE26E747832276914B56DB0D5DDE9A",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "DCA7ECE1553B2F156DE70532A379A05CF3031B1A",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "755F428C967F6E861F5EE130116F05D7751F88F2",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "7FD12D2D7B6F1685B6D0A4F472254F6E26DFA99D",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "C541FF183BD10F8D5C7DAC5DE6C5B95E1DD45CB8"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "7FD12D2D7B6F1685B6D0A4F472254F6E26DFA99D",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

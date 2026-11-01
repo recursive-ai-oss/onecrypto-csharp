@@ -1,0 +1,27 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "E2F108843C0803086F4811553AC1D2164CC14F57",
+    "targetName": "b",
+    "userId": "Extra <extra@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - E2F108843C0803086F4811553AC1D2164CC14F57\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] Extra <extra@example.org>\n\n     \u25ef\u2500\u252c 1448DF3EE088BB465257DF94261FB917A41582DB\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c E2F108843C0803086F4811553AC1D2164CC14F57\n       \u2514 Extra <extra@example.org>\n\n",
+   "stderr": "\nHint: To see more details about a certificate, for example E2F108843C0803086F4811553AC1D2164CC14F57, run:\n\n  $ sq inspect --cert=E2F108843C0803086F4811553AC1D2164CC14F57\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "E2F108843C0803086F4811553AC1D2164CC14F57",
+    "targetName": "b",
+    "userId": "B <b@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - E2F108843C0803086F4811553AC1D2164CC14F57\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [   0/120 ] B <b@example.org>\n\n     \u25ef\u2500\u252c E2F108843C0803086F4811553AC1D2164CC14F57\n     \u2502 \u2514 B <b@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example E2F108843C0803086F4811553AC1D2164CC14F57, run:\n\n  $ sq inspect --cert=E2F108843C0803086F4811553AC1D2164CC14F57\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

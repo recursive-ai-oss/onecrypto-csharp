@@ -1,0 +1,93 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "5BD9533C59409B83C2119CAEC073072DFA4835BF",
+    "targetName": "k1",
+    "userId": "K1 <k1@corp.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - 5BD9533C59409B83C2119CAEC073072DFA4835BF\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] K1 <k1@corp.example>\n\n     Path #1\u00a0of\u00a03, trust amount 120:\n     \u25ef\u2500\u252c 02D4ABECBFBF802A343ECF0F71D9D271DB8A5253\n     \u2502 \u2514 (K0 <k0@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201103 (expiry: 2035\u201102\u201103)\n     \u2502\n     \u2514\u2500\u252c 5BD9533C59409B83C2119CAEC073072DFA4835BF\n       \u2514 K1 <k1@corp.example>\n\n     Path #2\u00a0of\u00a03, trust amount 30:\n     \u25ef\u2500\u252c 02D4ABECBFBF802A343ECF0F71D9D271DB8A5253\n     \u2502 \u2514 (K0 <k0@example.org>)\n     \u2502\n     \u2502  certified the following certificate on 2025\u201102\u201103 (expiry: 2035\u201102\u201103) as a meta-introducer (depth: unconstrained)\n     \u2502\n     \u251c\u2500\u252c CF19E015A69BCC2F2ACFDB6036D78C5D63011539\n     \u2502 \u2514 (K8 <k8@example.org>)\n     \u2502\n     \u2502  partially certified (amount: 30\u00a0of\u00a0120) the following binding on 2025\u201102\u201106 (expiry: 2035\u201102\u201106)\n     \u2502\n     \u2514\u2500\u252c 5BD9533C59409B83C2119CAEC073072DFA4835BF\n       \u2514 K1 <k1@corp.example>\n\n     Path #3\u00a0of\u00a03, trust amount 0:\n     \u25ef\u2500\u252c 5BD9533C59409B83C2119CAEC073072DFA4835BF\n     \u2502 \u2514 K1 <k1@corp.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example 5BD9533C59409B83C2119CAEC073072DFA4835BF, run:\n\n  $ sq inspect --cert=5BD9533C59409B83C2119CAEC073072DFA4835BF\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "00DEC552EB5F3BC6B9CAA32CF5D1FBFEF81E6625",
+    "targetName": "k2",
+    "userId": "K2 <k2@example.org>",
+    "at": 1748736000
+   },
+   "exit": 1,
+   "stdout": "",
+   "stderr": "No valid bindings match --cert 00DEC552EB5F3BC6B9CAA32CF5D1FBFEF81E6625 --userid \"K2 <k2@example.org>\".\n  - Warning: 00DEC552EB5F3BC6B9CAA32CF5D1FBFEF81E6625 is not live: The primary key is not live, because Expired on 2025-03-02T00:00:00Z\nNo bindings are valid.\n1 binding found.\nSkipped 1 binding, which is unusable.\n\n  Error: No bindings match the query.\n"
+  },
+  {
+   "query": {
+    "target": "F4198A7A770E127D92AA7AFE18E4AE0C1363559D",
+    "targetName": "k3",
+    "userId": "K3 <k3@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - F4198A7A770E127D92AA7AFE18E4AE0C1363559D\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [   0/120 ] K3 <k3@example.org>\n\n     Path #1\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c 00DEC552EB5F3BC6B9CAA32CF5D1FBFEF81E6625\n     \u2502 \u2514 (K2 <k2@example.org>)\n     \u2502\n     \u2502  partially certified (amount: 30\u00a0of\u00a0120) the following certificate on 2025\u201102\u201103 (expiry: 2035\u201102\u201103) as a introducer (depth: 1)\n     \u2502\n     \u251c\u2500\u252c C1881BA1036995195A5A93E6049D53460A720E67\n     \u2502 \u2514 (K7 <k7@corp.example>)\n     \u2502\n     \u2502  partially certified (amount: 60\u00a0of\u00a0120) the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101) as a introducer (depth: 1)\n     \u2502\n     \u2514\u2500\u252c F4198A7A770E127D92AA7AFE18E4AE0C1363559D\n       \u2514 K3 <k3@example.org>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c F4198A7A770E127D92AA7AFE18E4AE0C1363559D\n     \u2502 \u2514 K3 <k3@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example F4198A7A770E127D92AA7AFE18E4AE0C1363559D, run:\n\n  $ sq inspect --cert=F4198A7A770E127D92AA7AFE18E4AE0C1363559D\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "7B3228F0AF6585A55E24AB330C7E3B2269DFA126",
+    "targetName": "k4",
+    "userId": "K4 <k4@corp.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - 7B3228F0AF6585A55E24AB330C7E3B2269DFA126\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] K4 <k4@corp.example>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c 02D4ABECBFBF802A343ECF0F71D9D271DB8A5253\n     \u2502 \u2514 (K0 <k0@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201103 (expiry: 2035\u201102\u201103)\n     \u2502\n     \u2514\u2500\u252c 7B3228F0AF6585A55E24AB330C7E3B2269DFA126\n       \u2514 K4 <k4@corp.example>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c 7B3228F0AF6585A55E24AB330C7E3B2269DFA126\n     \u2502 \u2514 K4 <k4@corp.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example 7B3228F0AF6585A55E24AB330C7E3B2269DFA126, run:\n\n  $ sq inspect --cert=7B3228F0AF6585A55E24AB330C7E3B2269DFA126\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "478AC9F5FC3F93BF23B8F69ADF5888376FBC6436",
+    "targetName": "k5",
+    "userId": "K5 <k5@example.org>",
+    "at": 1748736000
+   },
+   "exit": 1,
+   "stdout": "",
+   "stderr": "No valid bindings match --cert 478AC9F5FC3F93BF23B8F69ADF5888376FBC6436 --userid \"K5 <k5@example.org>\".\n  - Warning: 478AC9F5FC3F93BF23B8F69ADF5888376FBC6436 is revoked: Key material has been compromisedtest.\nNo bindings are valid.\n1 binding found.\nSkipped 1 binding, which is unusable.\n\n  Error: No bindings match the query.\n"
+  },
+  {
+   "query": {
+    "target": "7437ACFF6A7D69FCCB1FB9A44980F82A8FF9F41F",
+    "targetName": "k6",
+    "userId": "K6 <k6@example.org>",
+    "at": 1748736000
+   },
+   "exit": 1,
+   "stdout": "",
+   "stderr": "No valid bindings match --cert 7437ACFF6A7D69FCCB1FB9A44980F82A8FF9F41F --userid \"K6 <k6@example.org>\".\n  - Warning: 7437ACFF6A7D69FCCB1FB9A44980F82A8FF9F41F is revoked: Key is retired and no longer usedtest.\nNo bindings are valid.\n1 binding found.\nSkipped 1 binding, which is unusable.\n\n  Error: No bindings match the query.\n"
+  },
+  {
+   "query": {
+    "target": "C1881BA1036995195A5A93E6049D53460A720E67",
+    "targetName": "k7",
+    "userId": "K7 <k7@corp.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - C1881BA1036995195A5A93E6049D53460A720E67\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [   0/120 ] K7 <k7@corp.example>\n\n     Path #1\u00a0of\u00a03, trust amount 0:\n     \u25ef\u2500\u252c 00DEC552EB5F3BC6B9CAA32CF5D1FBFEF81E6625\n     \u2502 \u2514 (K2 <k2@example.org>)\n     \u2502\n     \u2502  partially certified (amount: 30\u00a0of\u00a0120) the following binding on 2025\u201102\u201103 (expiry: 2035\u201102\u201103) as a introducer (depth: 1)\n     \u2502\n     \u2514\u2500\u252c C1881BA1036995195A5A93E6049D53460A720E67\n       \u2514 K7 <k7@corp.example>\n\n     Path #2\u00a0of\u00a03, trust amount 0:\n     \u25ef\u2500\u252c F4198A7A770E127D92AA7AFE18E4AE0C1363559D\n     \u2502 \u2514 (K3 <k3@example.org>)\n     \u2502\n     \u2502  partially certified (amount: 60\u00a0of\u00a0120) the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101) as a introducer (depth: 1)\n     \u2502\n     \u2514\u2500\u252c C1881BA1036995195A5A93E6049D53460A720E67\n       \u2514 K7 <k7@corp.example>\n\n     Path #3\u00a0of\u00a03, trust amount 0:\n     \u25ef\u2500\u252c C1881BA1036995195A5A93E6049D53460A720E67\n     \u2502 \u2514 K7 <k7@corp.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example C1881BA1036995195A5A93E6049D53460A720E67, run:\n\n  $ sq inspect --cert=C1881BA1036995195A5A93E6049D53460A720E67\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "CF19E015A69BCC2F2ACFDB6036D78C5D63011539",
+    "targetName": "k8",
+    "userId": "K8 <k8@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - CF19E015A69BCC2F2ACFDB6036D78C5D63011539\n   - created 2025-01-01 00:00:00 UTC\n   - expired 2025-03-02T00:00:00Z\n\n   - [    \u2713    ] K8 <k8@example.org>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c 02D4ABECBFBF802A343ECF0F71D9D271DB8A5253\n     \u2502 \u2514 (K0 <k0@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201103 (expiry: 2035\u201102\u201103) as a meta-introducer (depth: unconstrained)\n     \u2502\n     \u2514\u2500\u252c CF19E015A69BCC2F2ACFDB6036D78C5D63011539\n       \u2514 K8 <k8@example.org>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c CF19E015A69BCC2F2ACFDB6036D78C5D63011539\n     \u2502 \u2514 K8 <k8@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example CF19E015A69BCC2F2ACFDB6036D78C5D63011539, run:\n\n  $ sq inspect --cert=CF19E015A69BCC2F2ACFDB6036D78C5D63011539\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+{
+ "name": "f06-depth-capped",
+ "text": "the draft's example: each certification asks for depth 2 but earlier ones cap it",
+ "kind": "flow",
+ "keys": {
+  "alice": {
+   "fingerprint": "F33B80D138F8D3B7D6F9779605EDB5391A45D028",
+   "userIds": [
+    "Alice <alice@example.org>"
+   ]
+  },
+  "bob": {
+   "fingerprint": "AEF4E702083F37413D42A17FE4FA62AAED207853",
+   "userIds": [
+    "Bob <bob@example.org>"
+   ]
+  },
+  "carol": {
+   "fingerprint": "911C32E610600CC41633D5CCA809E3F3AFACECAE",
+   "userIds": [
+    "Carol <carol@example.org>"
+   ]
+  },
+  "dave": {
+   "fingerprint": "17D38AB0767CE6DCEB359783537D7493156581D7",
+   "userIds": [
+    "Dave <dave@example.org>"
+   ]
+  },
+  "ed": {
+   "fingerprint": "96DEB4E1485291341458A7C6D886373D55FA1900",
+   "userIds": [
+    "Ed <ed@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "F33B80D138F8D3B7D6F9779605EDB5391A45D028"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "AEF4E702083F37413D42A17FE4FA62AAED207853",
+   "targetName": "bob",
+   "userId": "Bob <bob@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "911C32E610600CC41633D5CCA809E3F3AFACECAE",
+   "targetName": "carol",
+   "userId": "Carol <carol@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "17D38AB0767CE6DCEB359783537D7493156581D7",
+   "targetName": "dave",
+   "userId": "Dave <dave@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "96DEB4E1485291341458A7C6D886373D55FA1900",
+   "targetName": "ed",
+   "userId": "Ed <ed@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "name": "c03-one-marginal",
+ "text": "a (ultimate) signs b, b (marginal) signs t: one marginal is not enough",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "4A33D528EC69E9BC92AA2F1E615E065ECE390904",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "401CC2BC7F74183D0AB697CA1324F5EB5B79279B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "4F9938C6B9B3CEC42CD84B1D6694B2CA946EC2E5",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "4A33D528EC69E9BC92AA2F1E615E065ECE390904": "u",
+  "401CC2BC7F74183D0AB697CA1324F5EB5B79279B": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "4F9938C6B9B3CEC42CD84B1D6694B2CA946EC2E5",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}
