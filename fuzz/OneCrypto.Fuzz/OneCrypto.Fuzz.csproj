@@ -21,7 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The PDF target signs its starting files with the PKI of the PDF bridge's tests. -->
+    <Compile Include="../../tests/OneCrypto.Pdf.Tests/PadesKit.cs" Link="Support/PadesKit.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
     <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
   </ItemGroup>
 

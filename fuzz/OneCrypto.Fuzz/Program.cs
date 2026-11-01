@@ -36,6 +36,7 @@ internal static class Program
         ["tsa"] = IssuerTarget.RunTsa,
         ["ocspresp"] = IssuerTarget.RunOcsp,
         ["load"] = LoadTarget.Run,
+        ["pades"] = PadesTarget.Run,
         ["online"] = OnlineTarget.Run,
     };
 
@@ -56,6 +57,7 @@ internal static class Program
         "tsa" => IssuerTarget.SeedsTsa(),
         "ocspresp" => IssuerTarget.SeedsOcsp(),
         "load" => LoadTarget.Seeds(),
+        "pades" => PadesTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
         _ => [],
     };

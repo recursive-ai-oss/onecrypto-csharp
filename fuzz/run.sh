@@ -48,6 +48,7 @@ case "$target" in
   verify) maxlen=1024 ;;
   keys) maxlen=16384 ;;
   load) maxlen=65536 ;;
+  pades) maxlen=131072 ;;
   tsa|ocspresp) maxlen=4096 ;;
   online) maxlen=16384 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
@@ -55,7 +56,7 @@ esac
 
 proj=OneCrypto.Fuzz
 # Only the library assembly is instrumented; the harness itself needs no coverage.
-libs=(RecursiveAI.OneCrypto.dll RecursiveAI.OneCrypto.Online.dll)
+libs=(RecursiveAI.OneCrypto.dll RecursiveAI.OneCrypto.Pdf.dll RecursiveAI.OneCrypto.Online.dll)
 
 bin="$work/bin"
 rm -rf "$bin"

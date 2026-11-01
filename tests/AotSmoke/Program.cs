@@ -405,6 +405,12 @@ if (!OneCrypto.Smoke.ValidationSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.PdfSmoke.Run())
+{
+    Console.Error.WriteLine("PDF signing and verification gave a wrong result");
+    return 1;
+}
+
 if (!await OneCrypto.Smoke.OnlineSmoke.Run())
 {
     Console.Error.WriteLine("replayed fetch gave the wrong answer");
