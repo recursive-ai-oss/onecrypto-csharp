@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Pdf.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Tests deliberately call blocking and token-defaulted APIs of the library under test. -->
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The openssl wrapper of the core tests: the same black-box oracle, the same pinned build. -->
+    <Compile Include="../OneCrypto.Tests/Support/OpenSslTool.cs" Link="Support/OpenSslTool.cs" />
+    <Compile Include="../OneCrypto.Tests/Support/ToolRunner.cs" Link="Support/ToolRunner.cs" />
+    <!-- The verify path's fuzz body doubles as a deterministic mutation smoke test. -->
+    <Compile Include="../../fuzz/OneCrypto.Fuzz/PadesTarget.cs" Link="Fuzz/PadesTarget.cs" Condition="Exists('../../fuzz/OneCrypto.Fuzz/PadesTarget.cs')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
+  </ItemGroup>
+
+</Project>
