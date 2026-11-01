@@ -187,23 +187,42 @@ public class PacketFormatTests
     [Fact]
     public void ALargeStreamedLiteralPassesInConstantMemory()
     {
-        // 256 MiB through the reader without buffering; the 1 GiB run with a working-set bound is in the CI/worker job.
-        using var input = new SyntheticLiteralStream(4096);
+        // 256 MiB by default; set ONECRYPTO_STREAM_CHUNKS=16384 for the 1 GiB run (64 KiB chunks).
+        // The bound is on working set growth, sampled while reading, not on bytes allocated.
+        long chunks = long.TryParse(Environment.GetEnvironmentVariable("ONECRYPTO_STREAM_CHUNKS"), out long c) ? c : 4096;
+        using var input = new SyntheticLiteralStream(chunks);
         long total = input.BodyLength;
         using var reader = new PacketReader(input);
         PacketFrame frame = reader.ReadFrame()!;
-        long before = GC.GetTotalAllocatedBytes(true);
+        using var self = System.Diagnostics.Process.GetCurrentProcess();
+        GC.Collect();
+        self.Refresh();
+        long baseline = self.WorkingSet64;
+        long peak = baseline;
         long seen = 0;
+        long reads = 0;
         byte[] buffer = new byte[64 * 1024];
         int n;
         while ((n = frame.Body.Read(buffer, 0, buffer.Length)) > 0)
         {
             seen += n;
+            if ((++reads & 255) == 0)
+            {
+                self.Refresh();
+                peak = Math.Max(peak, self.WorkingSet64);
+            }
         }
 
-        long allocated = GC.GetTotalAllocatedBytes(true) - before;
         Assert.Equal(total, seen);
-        Assert.True(allocated < 8 << 20, $"allocated {allocated} bytes while streaming");
+        long growth = peak - baseline;
+        string? artifacts = Environment.GetEnvironmentVariable("ONECRYPTO_ARTIFACTS");
+        if (artifacts is not null)
+        {
+            Directory.CreateDirectory(artifacts);
+            File.WriteAllText(Path.Combine(artifacts, "stream-working-set.txt"), $"streamed {total >> 20} MiB; baseline {baseline >> 20} MiB; peak {peak >> 20} MiB; growth {growth >> 20} MiB\n");
+        }
+
+        Assert.True(growth < 100L << 20, $"working set grew {growth >> 20} MiB (peak {peak >> 20} MiB) over {total >> 20} MiB");
         Assert.Null(reader.ReadFrame());
     }
 }

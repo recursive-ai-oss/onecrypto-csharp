@@ -417,5 +417,11 @@ if (!await OneCrypto.Smoke.OnlineSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.OpenPgpSmoke.Run())
+{
+    Console.Error.WriteLine("the v6 certificate parsed wrongly");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

@@ -319,11 +319,11 @@ public sealed class SignaturePacket : Packet
         }
         else
         {
-            // Versions 4 and 6 (and LibrePGP 5): type, algorithms, then the two subpacket areas with a 2-octet (v4) or 4-octet (v5, v6) count.
+            // Versions 4 and 6 (and LibrePGP 5): type, algorithms, then the two subpacket areas with a 2-octet (v4, and LibrePGP v5 per its §5.2.3) or 4-octet (v6, RFC 9580 §5.2.3) count.
             SignatureTypeId = c.Byte("signature type");
             Algorithm = (PublicKeyAlgorithm)c.Byte("signature algorithm");
             Hash = (PgpHashAlgorithm)c.Byte("hash algorithm");
-            bool wide = Version >= 5;
+            bool wide = Version >= 6;
             ReadOnlyMemory<byte> hashedArea = AreaOf(ref c, wide, "hashed subpackets");
             SignedHeader = body[..c.Position];
             ReadOnlyMemory<byte> unhashedArea = AreaOf(ref c, wide, "unhashed subpackets");
