@@ -53,6 +53,16 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpMessageReader` (`Read`, `ReadSign
 - Compression: ZIP and ZLIB, with an expansion ceiling of 1 MiB plus 1032 times the compressed octets read, and `MaxNesting` (8) layers. BZip2 is reported as unsupported.
 - Not yet: LibrePGP Kyber (read as an unsupported algorithm), SLH-DSA, version 5 keys and signatures for message operations.
 
+**Certificates at a point in time** (`PgpKey.StateAt`)
+
+- A key is valid at time T when it exists, a binding signature in force at T covers it (newest first; a binding that has itself expired, or whose user ID was revoked since, is out; a signing subkey also needs an unexpired primary key binding signature), it has not expired and it is not revoked.
+- Revocations: "no reason", "compromised" and unknown reason codes are hard and invalidate the key at every time; "superseded", "retired" and "user ID no longer valid" count only from their creation. An expired revocation signature is ignored.
+- When a user ID is marked primary, the other user IDs do not decide flags or expiry. An empty Key Flags subpacket means the key may do nothing.
+- Issuer subpackets are hints: a signature is tried against every key the hints name, then against every key of its algorithm, and only a key that verifies it counts. A binding is judged by the primary key's verification, not by what it claims about its issuer. A critical subpacket or notation we do not understand voids a signature (RFC 9580 §5.2.3.7).
+- A secret key decrypts only when its flags allow encryption; keys that name a PKESK but are certify-, sign- or authenticate-only are skipped.
+
+**Message grammar** (RFC 9580 §10.3): session key packets must be followed by encrypted data, a one-pass header must be closed by its signature, and a signature after the literal data needs its one-pass header; anything else is `PgpFailure.MalformedMessage`. Unknown packet versions, session keys with unknown string-to-key types, and signatures with unknown hash algorithms are skipped, not fatal. The first partial chunk of a packet must hold at least 512 octets. Armor headers may be UTF-8.
+
 **Fail closed**
 
 - SEIPD v1 (no chunking) is decrypted into a spool (memory up to a few MiB, then a temporary file) and released only after the MDC matches. SEIPD v2 and OCB Encrypted Data release a chunk only after its tag verifies; a bad final tag or chunk count throws after earlier chunks were delivered, so a streaming caller that must not act on partial data uses the `...Async` forms, which write to the caller's stream only after the whole operation has succeeded.
@@ -61,7 +71,7 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpMessageReader` (`Read`, `ReadSign
 
 **Writing** (`PgpMessageWriter.Write`)
 
-- The format is chosen from the recipients: SEIPD v2 when every recipient key is version 6 or advertises the AEAD feature, otherwise SEIPD v1; AES-256 with OCB (or the recipients' AEAD preferences); a version 6 padding packet of 16 to 255 random octets in v2 messages. `ForceSeipd1` overrides.
+- The format is chosen from the recipients: SEIPD v2 when every recipient key is version 6 or advertises the AEAD feature, otherwise SEIPD v1; AES-256 with OCB (or the recipients' AEAD preferences; with SEIPD v1, the first of AES-256, AES-192, AES-128 that every recipient listing preferences accepts); ECDH recipients whose key names a key-wrap cipher other than AES or a KDF hash below SHA2-256 are refused; a version 6 padding packet of 16 to 255 random octets in v2 messages. `ForceSeipd1` overrides.
 - PKESK v3/v6 for RSA, ECDH, X25519, X448, ML-KEM composites; SKESK v4 (iterated-salted SHA-256) or v6 (Argon2id, 3 passes, 4 lanes, 64 MiB) for passwords. A password message is never written with a legacy cipher.
 - Signatures v4 and v6 through `ISigningKey`: default hash SHA-512 (the digest that matches the curve for ECDSA), salted for v6. Literal data keeps filename and date; text mode canonicalises line endings. Compression ZIP or ZLIB on request, none by default. Cleartext signing follows RFC 9580 §7 (dash-escaping, `Hash:` header).
 - Armor is written with the CRC-24 line: GnuPG 2.4 and 2.5 refuse armor with neither padding nor CRC (data lengths that are multiples of 3). Readers keep the CRC optional.
