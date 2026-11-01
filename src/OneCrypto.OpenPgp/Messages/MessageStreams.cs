@@ -643,9 +643,10 @@ internal sealed class SpoolStream : Stream
     }
 
     /// <summary>
-    /// Creates the spill file readable and writable by its owner only, from the moment it exists (mode 0600 on Unix, so there is no window in
-    /// which the process umask exposes it), exclusively opened (no other process can open it on Windows, where the per-user temporary directory
-    /// is also private by default) and deleted when closed. The spooled octets can be plaintext that has not yet passed its integrity check.
+    /// Creates the spill file readable and writable by its owner only, atomically with its creation (Unix: mode 0600 passed to the create call
+    /// together with exclusive-create, so no umask or shared temporary directory such as /tmp ever exposes it, not even for an instant;
+    /// Windows: opened with no sharing) and deleted when closed, on every exit path. The name is random and never reused. The spooled octets
+    /// can be plaintext that has not yet passed its integrity check.
     /// </summary>
     private static FileStream CreatePrivateFile(string path)
     {

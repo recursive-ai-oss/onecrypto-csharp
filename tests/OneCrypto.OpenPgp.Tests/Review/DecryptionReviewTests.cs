@@ -126,6 +126,7 @@ public class DecryptionReviewTests
             Assert.NotNull(sink.Mode);
             const UnixFileMode others = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
             Assert.Equal((UnixFileMode)0, sink.Mode!.Value & others);
+            Assert.Empty(Directory.GetFiles(dir)); // the spool file is gone once the read has finished
         }
         finally
         {
