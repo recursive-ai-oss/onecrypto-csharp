@@ -192,7 +192,8 @@ public sealed class CrlClient
 
             CrlFetchResult r = await FetchAsync(u, options, cancellationToken).ConfigureAwait(false);
             results.Add(r);
-            if (r.Crl is { IsDelta: false } crl && crl.Extensions.Get<FreshestCrl>() is { } f)
+            // A fetched CRL whose freshestCRL extension cannot be decoded just yields no delta locations.
+            if (r.Crl is { IsDelta: false } crl && crl.Extensions.TryGet(out FreshestCrl? f) && f is not null)
             {
                 deltas.AddRange(DistributionUris(f.Points));
             }

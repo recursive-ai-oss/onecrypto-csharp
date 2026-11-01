@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Verification and validation no longer raise `X509ParseException` when a received certificate, CRL or OCSP response carries an extension that cannot be decoded. `SignedData.Verify` and key-identifier matching treat such a certificate as not matching and say so in the `signer-certificate` check; the path validator skips an unusable CRL, delta CRL or CRL entry and reports the revocation as unknown; `SignedData` chain extraction and the CRL client's delta discovery ignore malformed data. `Certificate.TryGetExtension<T>` is the additive way to read an extension of a received certificate without throwing.
 - In the browser runtime, AES (PBES2 and PKCS#12 decryption, CMS and OpenSSH ciphers), triple DES and RC2, and RSA, ECDSA and ECDH key objects now fail with `AlgorithmNotSupportedException` naming the algorithm and platform, not the runtime's `PlatformNotSupportedException`.
 - `SshPublicKey.ToPublicKeyInfo` builds RSA and ECDSA keys from their numbers instead of through the platform, so it works where the platform has no RSA or ECDSA.
 

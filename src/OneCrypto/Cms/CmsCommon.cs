@@ -256,7 +256,8 @@ public sealed class CmsIdentifier
         ArgumentNullException.ThrowIfNull(certificate);
         if (Kind == CmsIdentifierKind.SubjectKeyIdentifier)
         {
-            return certificate.SubjectKeyIdentifier is { } s && s.KeyIdentifier.Span.SequenceEqual(SubjectKeyIdentifier.Span);
+            // A certificate whose subjectKeyIdentifier cannot be decoded names nobody: it never matches
+            return certificate.TryGetExtension(out RecursiveAI.OneCrypto.X509.SubjectKeyIdentifier? s) && s is not null && s.KeyIdentifier.Span.SequenceEqual(SubjectKeyIdentifier.Span);
         }
 
         if (!CmsRead.TrimZeros(SerialNumber.Span).SequenceEqual(CmsRead.TrimZeros(certificate.SerialNumber.Span)))
