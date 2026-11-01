@@ -23,7 +23,7 @@
     <Compile Include="../OneCrypto.Tests/Support/OpenSslTool.cs" Link="Support/OpenSslTool.cs" />
     <Compile Include="../OneCrypto.Tests/Support/ToolRunner.cs" Link="Support/ToolRunner.cs" />
     <!-- The verify path's fuzz body doubles as a deterministic mutation smoke test. -->
-    <Compile Include="../../fuzz/OneCrypto.Fuzz/PadesTarget.cs" Link="Fuzz/PadesTarget.cs" Condition="Exists('../../fuzz/OneCrypto.Fuzz/PadesTarget.cs')" />
+    <Compile Include="../../fuzz/OneCrypto.Fuzz/PadesTarget.cs" Link="Fuzz/PadesTarget.cs" />
   </ItemGroup>
 
   <ItemGroup>

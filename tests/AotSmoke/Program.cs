@@ -405,5 +405,11 @@ if (!OneCrypto.Smoke.ValidationSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.PdfSmoke.Run())
+{
+    Console.Error.WriteLine("PDF signing and verification gave a wrong result");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

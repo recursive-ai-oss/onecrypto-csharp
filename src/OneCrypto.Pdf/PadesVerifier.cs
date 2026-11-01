@@ -80,7 +80,17 @@ public static class PadesVerifier
 
     private static async ValueTask<PadesReport> Run(PdfDocument document, ReadOnlyMemory<byte> pdf, PadesVerifyOptions options, bool useSources, CancellationToken ct)
     {
-        IReadOnlyList<PdfSignature> signatures = document.GetSignatures();
+        IReadOnlyList<PdfSignature> signatures;
+        try
+        {
+            signatures = document.GetSignatures();
+        }
+        catch (PdfException e)
+        {
+            // OnePDF opened the file but cannot walk its form (for example, the catalog is gone): nothing can be verified.
+            return new PadesReport([], ["The signatures cannot be listed: " + e.Message], new DssSummary(false, 0, 0, 0, 0));
+        }
+
         DssStore dss = DssStore.Read(document);
         var warnings = new List<string>(dss.Warnings);
         var onePdfAnchors = new List<X509Certificate2>();

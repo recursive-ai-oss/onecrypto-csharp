@@ -17,6 +17,7 @@ One executable (`fuzz/OneCrypto.Fuzz`) holds one target per input surface. Sharp
 | `pkcs12` | a PFX | structure, MAC check (both kinds), decryption of every safe, every bag type |
 | `ssh` | a structure byte, then bytes or text | OpenSSH public keys (blob, authorized_keys line, RFC 4716 text), certificates with signature check, private key files with a bcrypt round cap |
 | `load` | a file as `Crypto.Load` takes it | the sniffing table and every container parser behind it (PEM, DER/BER, PKCS#8, PKCS#12, PKCS#7 bags, OpenSSH, X.509 objects), with a password callback that always answers |
+| `pades` | a signed PDF with its document security store and time-stamps, behind a header carrying the reference time and the trust anchor | OnePDF's parser, the signature layout checks, the store reader, the CMS and time-stamp verifiers and the path validator behind `PadesVerifier`; a result must never be `bridge-error` and never more lenient than OnePDF |
 | `verify` | a case byte, then a signature or a public key | the verify-only managed RSA (PKCS#1 v1.5, PSS) and ECDSA (P-256 and Brainpool, DER and fixed-width) verifiers, and their public-key validation |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.
