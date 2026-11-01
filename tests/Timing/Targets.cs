@@ -16,6 +16,7 @@ internal static class Targets
         .. LegacyCipherTargets.Targets(),
         .. KdfTargets.Targets(),
         .. SecretModTargets.Targets(),
+        .. GnuPGKeyFileTargets.Targets(),
         .. FallbackTargets.Targets(),
     ];
 }
