@@ -245,25 +245,32 @@ internal static class SessionKeys
             }
         }
 
-        ReadOnlySpan<byte> inner = m[..(len - (int)pad)];
         int head = v3 ? 1 : 0;
-        int keyLen = inner.Length - head - 2;
+        int keyLen = len - (int)pad - head - 2;
         bad |= (uint)keyLen >> 31; // too short for a key and a checksum
         keyLen &= ~(keyLen >> 31);
-        if (inner.Length < head + keyLen + 2)
+        // One pass over every octet after the algorithm octet, so the work is the same whatever the padding and checksum turned out to be:
+        // sum the key octets and pick up the two checksum octets by position, all with masks.
+        uint sum = 0;
+        uint stored = 0;
+        for (int j = head; j < len; j++)
         {
-            return null;
+            uint b = m[j];
+            int rel = j - head;
+            uint inKey = (uint)(rel - keyLen) >> 31; // 1 when rel < keyLen
+            sum += b & (0 - inKey);
+            stored |= (b << 8) & (0 - IsZero((uint)(rel ^ keyLen)));
+            stored |= b & (0 - IsZero((uint)(rel ^ (keyLen + 1))));
         }
 
-        ReadOnlySpan<byte> key = inner.Slice(head, keyLen);
-        bad |= (uint)(BinaryPrimitives.ReadUInt16BigEndian(inner[(head + keyLen)..]) ^ PgpAlgorithms.Checksum(key));
+        bad |= (sum ^ stored) & 0xFFFF;
         bad |= IsZero((uint)keyLen);
         if (bad != 0)
         {
             return null;
         }
 
-        return new Recovered(v3 ? (SymmetricAlgorithm)m[0] : null, key.ToArray());
+        return new Recovered(v3 ? (SymmetricAlgorithm)m[0] : null, m.Slice(head, keyLen).ToArray());
     }
 
     /// <summary>1 when the value is zero, else 0, without a branch.</summary>

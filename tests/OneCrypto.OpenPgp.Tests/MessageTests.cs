@@ -361,4 +361,57 @@ public class MessageTests
         await Assert.ThrowsAsync<PgpException>(() => PgpMessageReader.ReadAsync(new MemoryStream(bad), sink, new PgpReadOptions { Now = Now, SecretKeys = [secret] }));
         Assert.Equal(0, sink.Length);
     }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void UnwrappedSessionKeysAreValidatedWholly(bool padded, bool v3)
+    {
+        byte[] key = new byte[32];
+        new Random(9).NextBytes(key);
+        byte[] Build()
+        {
+            ushort sum = 0;
+            foreach (byte b in key)
+            {
+                sum += b;
+            }
+
+            var l = new List<byte>();
+            if (v3)
+            {
+                l.Add(9);
+            }
+
+            l.AddRange(key);
+            l.Add((byte)(sum >> 8));
+            l.Add((byte)sum);
+            if (padded)
+            {
+                int pad = 8 - (l.Count % 8);
+                l.AddRange(Enumerable.Repeat((byte)pad, pad));
+            }
+
+            return [.. l];
+        }
+
+        byte[] good = Build();
+        SessionKeys.Recovered? ok = SessionKeys.FromChecksummed(good, v3, padded);
+        Assert.NotNull(ok);
+        Assert.Equal(key, ok!.Value.Key);
+        Assert.Equal(v3 ? SymmetricAlgorithm.Aes256 : null, ok.Value.Cipher);
+
+        // every single-octet corruption is refused: key, checksum, padding, or the padding count
+        for (int i = v3 ? 1 : 0; i < good.Length; i++)
+        {
+            byte[] bad = (byte[])good.Clone();
+            bad[i] ^= 1;
+            Assert.Null(SessionKeys.FromChecksummed(bad, v3, padded));
+        }
+
+        Assert.Null(SessionKeys.FromChecksummed(good.AsSpan(0, good.Length - 1), v3, padded));
+        Assert.Null(SessionKeys.FromChecksummed(new byte[padded ? 8 : 0], v3, padded));
+    }
 }
