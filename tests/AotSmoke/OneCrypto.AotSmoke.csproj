@@ -30,6 +30,7 @@
     <Compile Include="../OneCrypto.Pdf.Tests/PadesKit.cs" Link="Support/PadesKit.cs" />
     <Compile Include="../Common/OnlineSmoke.cs" Link="OnlineSmoke.cs" />
     <Compile Include="../Common/OpenPgpSmoke.cs" Link="OpenPgpSmoke.cs" />
+    <Compile Include="../Common/GnuPGSmoke.cs" Link="GnuPGSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>

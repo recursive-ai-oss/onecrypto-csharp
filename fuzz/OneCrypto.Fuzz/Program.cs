@@ -42,6 +42,7 @@ internal static class Program
         ["online"] = OnlineTarget.Run,
         ["pgppacket"] = PgpPacketTarget.Run,
         ["pgpmessage"] = PgpMessageTarget.Run,
+        ["gnupghome"] = GnuPGHomeTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -67,6 +68,7 @@ internal static class Program
         "online" => OnlineTarget.Seeds(),
         "pgppacket" => PgpPacketTarget.Seeds(),
         "pgpmessage" => PgpMessageTarget.Seeds(),
+        "gnupghome" => GnuPGHomeTarget.Seeds(),
         _ => [],
     };
 
