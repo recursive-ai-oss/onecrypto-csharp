@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- In the browser runtime, AES (PBES2 and PKCS#12 decryption, CMS and OpenSSH ciphers), triple DES and RC2, and RSA, ECDSA and ECDH key objects now fail with `AlgorithmNotSupportedException` naming the algorithm and platform, not the runtime's `PlatformNotSupportedException`.
+- `SshPublicKey.ToPublicKeyInfo` builds RSA and ECDSA keys from their numbers instead of through the platform, so it works where the platform has no RSA or ECDSA.
+
+### Added
+
+- The browser-wasm suite runs in a pinned headless Chromium and is compared case by case with Node and a native run ([docs/browser.md](docs/browser.md)).
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).

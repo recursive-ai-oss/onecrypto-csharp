@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using RecursiveAI.OneCrypto.Internal;
 
 namespace RecursiveAI.OneCrypto.Pkcs;
 
@@ -12,6 +13,7 @@ internal static class LegacyCrypto
 {
     public static void TripleDesCbcDecrypt(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> data, Span<byte> destination)
     {
+        Platform.RequireLegacyCipher("Triple DES");
         using TripleDES t = TripleDES.Create();
         t.SetKey(key);
         t.DecryptCbc(data, iv, destination, PaddingMode.None);
@@ -19,6 +21,7 @@ internal static class LegacyCrypto
 
     public static void Rc2CbcDecrypt(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> data, Span<byte> destination)
     {
+        Platform.RequireLegacyCipher("RC2");
         using RC2 rc2 = RC2.Create();
         rc2.KeySize = key.Length * 8;
         rc2.EffectiveKeySize = key.Length * 8;
