@@ -380,7 +380,21 @@ internal static class PacketFactory
             case PacketTag.PublicKeyEncryptedSessionKey:
                 return first is 3 or 6 ? new PublicKeyEncryptedSessionKeyPacket(body, header, encoded, limits) : new UnrecognizedPacket(tagId, body, header, encoded);
             case PacketTag.SymmetricKeyEncryptedSessionKey:
-                return first is 4 or 5 or 6 ? new SymmetricKeyEncryptedSessionKeyPacket(body, header, encoded) : new UnrecognizedPacket(tagId, body, header, encoded);
+                if (first is not (4 or 5 or 6))
+                {
+                    return new UnrecognizedPacket(tagId, body, header, encoded);
+                }
+
+                try
+                {
+                    return new SymmetricKeyEncryptedSessionKeyPacket(body, header, encoded);
+                }
+                catch (OpenPgpParseException e) when (e.Error == OpenPgpError.InvalidField && first != 6)
+                {
+                    // RFC 9580 §5.3.1: without a length field, a string-to-key type we do not know hides where the packet's fields end, so the
+                    // packet is kept as it was read and ignored when looking for a session key.
+                    return new UnrecognizedPacket(tagId, body, header, encoded);
+                }
             case PacketTag.OnePassSignature:
                 return first is 3 or 6 ? new OnePassSignaturePacket(body, header, encoded) : new UnrecognizedPacket(tagId, body, header, encoded);
             case PacketTag.CompressedData:

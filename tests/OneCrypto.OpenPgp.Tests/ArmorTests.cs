@@ -5,6 +5,16 @@ namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
 public class ArmorTests
 {
+    [Fact]
+    public void ArmorHeadersMayHoldUtf8Text()
+    {
+        // RFC 9580 §6.2: header values are UTF-8; a Comment naming someone with accents is common in real keys.
+        string text = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: Ricarda Álvarez\n\nAAEC\n-----END PGP PUBLIC KEY BLOCK-----\n";
+        ArmorBlock block = Armor.Decode(Encoding.UTF8.GetBytes(text));
+        Assert.Equal([0, 1, 2], block.Data);
+        Assert.Equal("Ricarda Álvarez", Assert.Single(block.Headers).Value);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -118,5 +128,20 @@ public class ArmorTests
         r.CopyTo(outMs);
         Assert.Equal(data, outMs.ToArray());
         Assert.True(r.HasChecksum);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(48)]
+    [InlineData(300)]
+    public void DefaultArmorHasTheCrcEvenWhenTheLengthIsAMultipleOfThree(int length)
+    {
+        // GnuPG 2.4/2.5 reject armor with neither padding nor a CRC line, which is what a length divisible by 3 gives.
+        byte[] data = Enumerable.Range(0, length).Select(i => (byte)(i * 11 + 1)).ToArray();
+        string text = Armor.Encode(ArmorKind.Message, data);
+        Assert.DoesNotContain("=\n", text.Replace("\r", ""), StringComparison.Ordinal);
+        string[] lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Matches("^=[A-Za-z0-9+/]{4}$", lines[^2]);
+        Assert.True(Armor.Decode(Encoding.ASCII.GetBytes(text)).HasChecksum);
     }
 }

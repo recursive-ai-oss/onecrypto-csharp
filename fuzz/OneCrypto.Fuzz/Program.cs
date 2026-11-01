@@ -41,6 +41,7 @@ internal static class Program
         ["placeholder"] = PlaceholderTarget.Run,
         ["online"] = OnlineTarget.Run,
         ["pgppacket"] = PgpPacketTarget.Run,
+        ["pgpmessage"] = PgpMessageTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -65,6 +66,7 @@ internal static class Program
         "placeholder" => PlaceholderTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
         "pgppacket" => PgpPacketTarget.Seeds(),
+        "pgpmessage" => PgpMessageTarget.Seeds(),
         _ => [],
     };
 

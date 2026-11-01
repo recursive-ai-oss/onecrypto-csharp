@@ -7,17 +7,18 @@
 | Subcommand | State |
 |---|---|
 | `version` (`--backend`, `--extended`) | implemented; `--sopv` reports `UNSUPPORTED_OPTION` |
-| `list-profiles generate-key`, `list-profiles encrypt` | answers with no profile yet and exits 69 until those subcommands exist |
+| `list-profiles generate-key`, `list-profiles encrypt` | `encrypt` answers `rfc9580` and `rfc4880`; `generate-key` answers no profile and exits 69 until that subcommand exists |
 | `armor`, `dearmor` | implemented; labels are detected from the packets, input is read strictly, the operations are idempotent |
 | `extract-cert` | implemented: a secret key becomes its certificate (RFC 9580 Appendix A.4 gives A.3 byte for byte) |
 | `inline-detach` | implemented for binary and cleartext-signed messages |
-| everything else (`generate-key`, `sign`, `verify`, `encrypt`, `decrypt`, `inline-sign`, `inline-verify`, `change-key-password`, `revoke-key`, `update-key`, `merge-certs`, `certify-userid`, `validate-userid`) | exits 69 (`UNSUPPORTED_SUBCOMMAND`) |
+| `sign`, `verify`, `inline-sign`, `inline-verify`, `encrypt`, `decrypt` | implemented, with `--as`, `--no-armor`, `--with-password`, `--with-key-password`, `--session-key-out`, `--with-session-key`, `--verifications-out`, `--not-before`/`--not-after`, `--profile`; value options take `--name=value` or `--name value` |
+| `generate-key`, `change-key-password`, `revoke-key`, `update-key`, `merge-certs`, `certify-userid`, `validate-userid` | exit 69 (`UNSUPPORTED_SUBCOMMAND`) |
 
-These are covered by in-process tests (`tests/OneCrypto.OpenPgp.Tests/SopTests.cs`).
+An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL without them) exits 13 (`UNSUPPORTED_ASYMMETRIC_ALGO`). The subcommands are covered by in-process tests (`tests/OneCrypto.OpenPgp.Tests/SopTests.cs`) and the two-way scripts in `tools/oracles/` (`gpg-messages.sh`, `rnp-messages.sh`, `sop-matrix.sh`).
 
 ## The scoreboard
 
-The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every one of its tests has a producer and a consumer role that both go through sop, and nearly all of them need `generate-key`, `encrypt`, `sign` or `verify`. So none of the 251 tests exercises only the subcommands that exist today; our column is "unsupported" throughout, which is the expected state, and the drivers below show what a full column looks like.
+The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every test has a producer and a consumer role that both go through sop. Round-trip cases start with `generate-key`, which this tool does not provide yet, so they cannot use it as the producer; every other case runs with us as the consumer of what Sequoia, GopenPGP and the test data produced.
 
 Run it (on a machine with the oracles installed):
 
@@ -27,19 +28,36 @@ tools/oracles/gosop.sh; tools/oracles/sequoia.sh    # driver oracles (the Sequoi
 dotnet build -c Release src/OneCrypto.Cli
 tools/oracles/interop-scoreboard.sh <path to onecrypto.dll> <output dir>
 python3 tools/oracles/interop-summary.py <output dir>/results.json
+python3 tools/oracles/interop-vs-sqop.py <output dir>/results.json   # cells Sequoia passes and we fail
 ```
+
+`interop-show.py` and `interop-dump.py` show or extract one cell so the command can be repeated by hand.
 
 The scoreboard script writes `config.json` for the drivers it finds, leaves out those that do not answer `version`, lists them in `missing.txt`, and writes `results.json` (the HTML report needs the suite's own working directory: run the suite with `--json-in` there).
 
 ### Latest run (251 tests, 14 sections, one score per driver per case)
 
-| Driver | Failure | Neutral | Success | Unsupported |
+| Driver | Failure | IO | Neutral | Success |
 |---|---|---|---|---|
-| sqop 0.38.0 (Sequoia 2.4.1, nettle) | 72 | 531 | 1008 | 0 |
-| gosop 1.1.0 (GopenPGP 3.0.0) | 99 | 531 | 981 | 0 |
-| onecrypto (this tool) | 0 | 0 | 0 | 655 |
+| sqop 0.38.0 (Sequoia 2.4.1, nettle) | 72 | 0 | 537 | 1072 |
+| gosop 1.1.0 (GopenPGP 3.0.0) | 99 | 0 | 537 | 1045 |
+| onecrypto (this tool, x64, OpenSSL 3.0 platform without ML-KEM/ML-DSA) | 131 | 1 | 536 | 1013 |
 
-Left out: GnuPG (no sop driver ships with it), RNP (none packaged), OpenPGP.js (the published sop driver, `sop-openpgp-js` 0.1.1, bundles OpenPGP.js 4 and does not start on the pinned Node.js 26; a driver over OpenPGP.js 6 is not written yet). They are covered at the file level by the corpus below.
+The first run of the message subcommands scored 904 successes and 226 failures; the rest of the difference is fixes found by reading the failing cells (certificate evaluation, message grammar, unknown packets, armor, parser strictness).
+
+**Cells where Sequoia succeeds and we do not: 69, all explained.**
+
+| Cells | Test | Why |
+|---|---|---|
+| 60 | RSA key sizes (512 to 2047 bits, as primary key and subkey; sign, verify, encrypt, decrypt) | `CryptoPolicy.Standard` refuses RSA keys under 2048 bits for new data and for verification. Sequoia handles them under its own cut-offs. A caller who needs them passes a weaker policy. |
+| 5 | Signature over the shattered SHA-1 collision | `Standard` flags SHA-1 data signatures made before 2031 (SP 800-131A dates) and accepts them with the flag; Sequoia rejects them. A `Strict` policy rejects them. |
+| 4 | Encrypt-decrypt round trip with a v4 EdDSA/ECDH + ML-KEM-768+X25519 key | The platform of the run (OpenSSL 3.0) has no ML-KEM, so the message cannot be opened here: `AlgorithmNotSupportedException`, `sop` exit 13. Platforms with ML-KEM and ML-DSA run the post-quantum cells. |
+
+The post-quantum message and signature cells score as failures on a platform without ML-KEM/ML-DSA (exit 13) and pass where the platform has them (RFC 9980 Appendix A is checked by unit tests there). The one remaining IO score is a LibrePGP version 5 secret key protected with OCB; it used to crash and now reports the key as not openable (LibrePGP v5 AEAD key protection is not implemented).
+
+Cells where only GopenPGP succeeds, or where Sequoia and GopenPGP disagree about what the right answer is, are not listed: for example unknown packets before the literal data (Sequoia refuses, GopenPGP and the draft's text accept; we refuse), and signatures with the old signature-before-literal layout (GopenPGP accepts; Sequoia and we refuse).
+
+Left out of the scoreboard: GnuPG (no sop driver ships with it), RNP (none packaged), OpenPGP.js (the published sop driver, `sop-openpgp-js` 0.1.1, bundles OpenPGP.js 4 and does not start on the pinned Node.js 26; a driver over OpenPGP.js 6 is not written yet). They are covered by the two-way scripts and the corpus below.
 
 ## Corpus
 

@@ -8,13 +8,16 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="$(LibName).Tests" />
+    <InternalsVisibleTo Include="$(LibName).OpenPgp.Tests" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />
+    <InternalsVisibleTo Include="$(LibName).Timing" />
     <InternalsVisibleTo Include="$(LibName).AotSmoke" />
     <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="System.Linq" />
+    <Using Include="RecursiveAI.OneCrypto.OpenPgp.Packets.SymmetricAlgorithm" Alias="SymmetricAlgorithm" />
   </ItemGroup>
 
   <ItemGroup>
