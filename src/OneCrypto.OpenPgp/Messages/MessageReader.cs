@@ -637,7 +637,6 @@ internal sealed class MessageProcessor : IDisposable
                 throw new PgpException(PgpFailure.UnauthenticatedEncryption, "The message is encrypted without integrity protection and the options do not allow that.");
             }
 
-            throw new PgpException(PgpFailure.Unsupported, "Unauthenticated Symmetrically Encrypted Data is not supported yet.");
         }
 
         List<Candidate> candidates = Candidates(pkesks, skesks, f);
@@ -653,6 +652,11 @@ internal sealed class MessageProcessor : IDisposable
         }
 
         Stream body = f.Body;
+        if (f.Tag == PacketTag.SymmetricallyEncryptedData)
+        {
+            return OpenSed(body, candidates);
+        }
+
         int version = body.ReadByte();
         if (f.Tag == PacketTag.OcbEncryptedData)
         {
@@ -909,6 +913,29 @@ internal sealed class MessageProcessor : IDisposable
             _r.SessionKey = (byte[])c.Key.Clone();
             _r.SessionKeyCipher = cipher;
             return new AeadChunkReader(new PrefixStream(window, body), framing);
+        }
+
+        throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
+    }
+
+    /// <summary>Opens old Symmetrically Encrypted Data. The caller has opted in; the plaintext is not authenticated and the report says so.</summary>
+    private SedDecryptStream OpenSed(Stream body, List<Candidate> candidates)
+    {
+        byte[] head = ReadUpTo(body, 18);
+        foreach (Candidate c in candidates)
+        {
+            if (c.Cipher is not { } cipher || !Supported(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher))
+            {
+                continue;
+            }
+
+            SedDecryptStream? s = SedDecryptStream.TryOpen(head, body, cipher, c.Key);
+            if (s is not null)
+            {
+                _r.SessionKey = (byte[])c.Key.Clone();
+                _r.SessionKeyCipher = cipher;
+                return s;
+            }
         }
 
         throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");

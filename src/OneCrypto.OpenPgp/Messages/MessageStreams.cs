@@ -642,3 +642,139 @@ internal sealed class SpoolStream : Stream
         base.Dispose(disposing);
     }
 }
+
+/// <summary>
+/// Decrypts the body of a Symmetrically Encrypted Data packet (tag 9): CFB with a zero IV over a random prefix of one block and two repeated
+/// octets, after which the feedback register is reloaded from the ciphertext (the "resync" of RFC 4880 §13.9). There is no integrity
+/// protection, so the reader only builds this when the caller opted in.
+/// </summary>
+internal sealed class SedDecryptStream : Stream
+{
+    private readonly Stream _body;
+    private readonly SymmetricAlgorithm _cipher;
+    private readonly byte[] _key;
+    private readonly int _block;
+    private readonly byte[] _iv = new byte[16];
+    private readonly byte[] _carry = new byte[16];
+    private int _carryLen;
+    private readonly byte[] _ready = new byte[64 * 1024];
+    private int _readyPos;
+    private int _readyLen;
+    private bool _eof;
+
+    private SedDecryptStream(Stream body, SymmetricAlgorithm cipher, byte[] key)
+    {
+        _body = body;
+        _cipher = cipher;
+        _key = key;
+        _block = PgpAlgorithms.BlockSize(cipher);
+    }
+
+    /// <summary>
+    /// Checks the prefix in <paramref name="head"/> (the first octets of the body, at least a block and two) with <paramref name="cipher"/> and
+    /// <paramref name="key"/>; null when the two check octets do not repeat. <paramref name="rest"/> continues after the prefix block.
+    /// </summary>
+    internal static SedDecryptStream? TryOpen(byte[] head, Stream rest, SymmetricAlgorithm cipher, byte[] key)
+    {
+        int bs = PgpAlgorithms.BlockSize(cipher);
+        if (head.Length < bs + 2)
+        {
+            return null;
+        }
+
+        byte[] plain = head.AsSpan(0, bs + 2).ToArray();
+        PgpAlgorithms.CfbDecrypt(cipher, key, new byte[16], plain);
+        if (plain[bs - 2] != plain[bs] || plain[bs - 1] != plain[bs + 1])
+        {
+            return null;
+        }
+
+        var s = new SedDecryptStream(new PrefixStream(head.AsSpan(bs + 2).ToArray(), rest), cipher, (byte[])key.Clone());
+        // The register restarts from the ciphertext octets 2..bs+2 (RFC 4880 §13.9).
+        head.AsSpan(2, bs).CopyTo(s._iv);
+        return s;
+    }
+
+    public override bool CanRead => true;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => false;
+
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        if (buffer.IsEmpty)
+        {
+            return 0;
+        }
+
+        while (_readyPos == _readyLen)
+        {
+            if (_eof)
+            {
+                return 0;
+            }
+
+            Fill();
+        }
+
+        int take = Math.Min(buffer.Length, _readyLen - _readyPos);
+        _ready.AsSpan(_readyPos, take).CopyTo(buffer);
+        _readyPos += take;
+        return take;
+    }
+
+    private void Fill()
+    {
+        _carry.AsSpan(0, _carryLen).CopyTo(_ready);
+        int n = _body.Read(_ready, _carryLen, _ready.Length - _carryLen);
+        int total = _carryLen + n;
+        if (n == 0)
+        {
+            _eof = true;
+            PgpAlgorithms.CfbDecrypt(_cipher, _key, _iv, _ready.AsSpan(0, total));
+            _readyPos = 0;
+            _readyLen = total;
+            _carryLen = 0;
+            return;
+        }
+
+        int whole = total - (total % _block);
+        PgpAlgorithms.CfbDecrypt(_cipher, _key, _iv, _ready.AsSpan(0, whole));
+        _carryLen = total - whole;
+        _ready.AsSpan(whole, _carryLen).CopyTo(_carry);
+        _readyPos = 0;
+        _readyLen = whole;
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            CryptographicOperations.ZeroMemory(_key);
+            _body.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+}

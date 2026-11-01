@@ -44,6 +44,22 @@ public class MessageTests
     }
 
     [Theory]
+    [InlineData("sed-aes.gpg", "sed test\n")]
+    [InlineData("sed-cast5.gpg", "sed test cast\n")]
+    public void OldUnprotectedEncryptionNeedsAnExplicitOptIn(string file, string expected)
+    {
+        byte[] data = File.ReadAllBytes(TestFiles.OpenPgp("legacy", file));
+        using var none = new MemoryStream();
+        var e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(data), none, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] }));
+        Assert.Equal(PgpFailure.UnauthenticatedEncryption, e.Failure);
+        Assert.Equal(0, none.Length);
+
+        using var output = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(data), output, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")], AllowUnauthenticatedEncryption = true });
+        Assert.Equal(expected, Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+    [Theory]
     [InlineData("A_12_1.asc")]
     [InlineData("A_12_2.asc")]
     [InlineData("A_12_3.asc")]
