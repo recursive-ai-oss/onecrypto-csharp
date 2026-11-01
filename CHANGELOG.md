@@ -17,6 +17,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `DistinguishedName.FromDer`, `TryFromDer`, `Parse(string)` and `TryFromString`: names that say whether the input is DER or RFC 4514 text. `Parse(bytes)` stays and still means DER.
 - `TimeStampVerifyOptions.RevocationModel` and `RevocationDataTime`: judge the authority's revocation data in the past-time model.
 
+- OpenPGP key management in `RecursiveAI.OneCrypto.OpenPgp`: `PgpKeyGenerator` (version 6 and 4 keys: Ed25519/X25519, Ed448/X448, RSA, NIST curves, legacy Curve25519, the RFC 9980 composites where the platform has them; never version 5), `PgpKeyEditor` (user IDs, subkeys, expiry, flags, preferences, hard and soft revocations, revocation certificates, certifications at every level and trust signatures, merge, refresh, secret-key protection with AEAD and Argon2 for version 6 and iterated and salted CFB for version 4), `PgpUserIds.IsCertified`, `PgpPreparedSignature` (serialisable two-phase OpenPGP signing) and the happy-path `Pgp.GenerateKey`, `ChangePassword`, `Revoke` and `Certify`. `PgpCertificate.Export`, `ExportPublic(bool armor)` and `ToPublicCertificate`.
+- `onecrypto sop`: `generate-key`, `change-key-password`, `revoke-key`, `update-key`, `merge-certs`, `certify-userid` and `validate-userid`, `version --sopv` and `onecrypto sopv`.
+
 ### Changed
 
 - ASCII armor is now written with the CRC-24 line by default (`ArmorWriteOptions.Checksum`), because GnuPG 2.4 and 2.5 reject armor without it when the data length is a multiple of 3. Readers still treat the CRC as optional.

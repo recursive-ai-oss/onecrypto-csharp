@@ -6,13 +6,20 @@
 
 | Subcommand | State |
 |---|---|
-| `version` (`--backend`, `--extended`) | implemented; `--sopv` reports `UNSUPPORTED_OPTION` |
-| `list-profiles generate-key`, `list-profiles encrypt` | `encrypt` answers `rfc9580` and `rfc4880`; `generate-key` answers no profile and exits 69 until that subcommand exists |
+| `version` (`--backend`, `--extended`, `--sop-spec`, `--sopv`) | implemented; `--sopv` answers `1.2` |
+| `list-profiles generate-key`, `list-profiles encrypt` | `encrypt` answers `rfc9580` and `rfc4880`; `generate-key` lists `default`, `rfc9580`, `rfc9580-v4`, `rfc9580-ed448`, `rfc9580-rsa`, `rfc4880` (alias `compatibility`), `draft-koch-eddsa-for-openpgp-00`, `nist-p256`, `nist-p384`, `nist-p521`, `security`, `performance`, `pqc` and `pqc-high` |
 | `armor`, `dearmor` | implemented; labels are detected from the packets, input is read strictly, the operations are idempotent |
 | `extract-cert` | implemented: a secret key becomes its certificate (RFC 9580 Appendix A.4 gives A.3 byte for byte) |
 | `inline-detach` | implemented for binary and cleartext-signed messages |
 | `sign`, `verify`, `inline-sign`, `inline-verify`, `encrypt`, `decrypt` | implemented, with `--as`, `--no-armor`, `--with-password`, `--with-key-password`, `--session-key-out`, `--with-session-key`, `--verifications-out`, `--not-before`/`--not-after`, `--profile`; value options take `--name=value` or `--name value` |
-| `generate-key`, `change-key-password`, `revoke-key`, `update-key`, `merge-certs`, `certify-userid`, `validate-userid` | exit 69 (`UNSUPPORTED_SUBCOMMAND`) |
+| `generate-key` (`--profile`, `--signing-only`, `--with-key-password`, `--no-armor`) | implemented; version 4 and 6 keys only, never version 5 |
+| `change-key-password` | implemented; every secret key packet is unlocked with one of the `--old-key-password` values (`KEY_IS_PROTECTED` otherwise) and written again under `--new-key-password`, or unprotected |
+| `revoke-key` | implemented; the output is the public certificate with a hard key revocation (reason "no reason given") |
+| `certify-userid` | implemented; `--userid` (repeatable), `--no-require-self-sig`, `CERT_USERID_NO_MATCH` (107) and `KEY_CANNOT_CERTIFY` (109) as in the draft |
+| `validate-userid` | implemented; `--addr-spec-only`, `--validate-at`; `CERT_USERID_NO_MATCH` when a certificate on standard input is not certified by any authority |
+| `merge-certs` | implemented; also accepts the bare revocation signature that `gpg --gen-revoke` writes, applied to the certificate it revokes |
+| `update-key` | implemented; re-issues the self-signatures, drops weak preferences, adds an encryption subkey unless `--signing-only`, merges `--merge-certs`; the primary key is never changed; `--revoke-deprecated-keys` has no effect because no replacement key is ever made; a revoked primary key is `PRIMARY_KEY_BAD` (103) |
+| `onecrypto sopv` | the sopv subset: `version`, `verify`, `inline-verify` and `validate-userid`; every other subcommand answers 69 |
 
 An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL without them) exits 13 (`UNSUPPORTED_ASYMMETRIC_ALGO`). The subcommands are covered by in-process tests (`tests/OneCrypto.OpenPgp.Tests/SopTests.cs`) and the two-way scripts in `tools/oracles/` (`gpg-messages.sh`, `rnp-messages.sh`, `sop-matrix.sh`).
 
