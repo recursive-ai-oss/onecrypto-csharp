@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Security.Cryptography;
+using RecursiveAI.OneCrypto.Policy;
 using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.Validation;
@@ -11,21 +12,26 @@ internal sealed partial class Engine
 {
     private const RevocationReasons AllReasons = (RevocationReasons)0x1FE;
 
-    private readonly Dictionary<(Certificate Signer, TrustAnchor Anchor), string?> _signerCache = new();
+    // The algorithm-policy decisions about revocation data seen while checking one certificate, and the reasons data was not used. Both end up in the
+    // certificate's RevocationReport.
+    private readonly List<PolicyDecision> _revPolicy = [];
+    private readonly List<string> _revNotes = [];
 
     private sealed record Finding(RevocationStatus Status, string Reason, string Clause, string? Source, DateTimeOffset? Time = null, RevocationReason? RevReason = null);
 
     private RevocationReport CheckRevocation(CertView v, IssuerInfo issuer, Certificate[] path, TrustAnchor anchor, int index)
     {
+        _revPolicy.Clear();
         RevocationData? data = _o.Revocation;
         if (data is null || (data.Crls.Count == 0 && data.OcspResponses.Count == 0))
         {
             return new RevocationReport(RevocationStatus.Unknown, "no revocation data was supplied for this certificate", "RFC 5280 §6.3");
         }
 
-        var notes = new List<string>();
+        var notes = _revNotes;
+        notes.Clear();
         Finding? crl = CheckCrls(v, issuer, path, anchor, data, notes);
-        Finding? ocsp = CheckOcsp(v, issuer, path, data, notes);
+        Finding? ocsp = CheckOcsp(v, issuer, path, anchor, data, notes);
         Finding? pick = crl is { Status: RevocationStatus.Revoked } ? crl
             : ocsp is { Status: RevocationStatus.Revoked } ? ocsp
             : ocsp is { Status: RevocationStatus.Good } ? ocsp
@@ -33,11 +39,11 @@ internal sealed partial class Engine
             : null;
         if (pick is not null)
         {
-            return new RevocationReport(pick.Status, pick.Reason, pick.Clause, pick.Time, pick.RevReason, pick.Source);
+            return new RevocationReport(pick.Status, pick.Reason, pick.Clause, pick.Time, pick.RevReason, pick.Source) { Notes = [.. notes], PolicyDecisions = [.. _revPolicy] };
         }
 
         string why = notes.Count == 0 ? "no applicable CRL or OCSP response" : string.Join("; ", notes.Take(4));
-        return new RevocationReport(RevocationStatus.Unknown, why, "RFC 5280 §6.3.3; RFC 6960 §3.2");
+        return new RevocationReport(RevocationStatus.Unknown, why, "RFC 5280 §6.3.3; RFC 6960 §3.2") { Notes = [.. notes], PolicyDecisions = [.. _revPolicy] };
     }
 
     private static readonly HashSet<string> KnownCrlExtensions = new(StringComparer.Ordinal)
@@ -85,9 +91,26 @@ internal sealed partial class Engine
                 continue;
             }
 
-            if (!UsableCrl(crl, issuer, path, anchor, out PublicKeyInfo? signerKey, out string? bad) || signerKey is null)
+            if (!UsableCrl(crl, issuer, path, anchor, out PublicKeyInfo? signerKey, out string? bad, out bool stale) || signerKey is null)
             {
                 notes.Add($"a CRL from {crl.Issuer} is not usable: {bad}");
+                continue;
+            }
+
+            if (stale)
+            {
+                // RFC 5280 §6.3.3 (a) wants a current CRL, so a stale one cannot show a certificate is good. What it can still show is a revocation that
+                // nothing undoes: §5.3.1 makes every reason except certificateHold final, so a stale but authentic CRL that lists the certificate
+                // for another reason is as good as a current one for that purpose. A hold may have been lifted since, so it is not relied on.
+                Finding? old = StatusIn(v, crl, null, coverage);
+                if (old is { Status: RevocationStatus.Revoked } && old.RevReason != RevocationReason.CertificateHold)
+                {
+                    return old with { Reason = old.Reason + $"; the CRL is stale (nextUpdate {crl.NextUpdate:u}) but a revocation for this reason is permanent" };
+                }
+
+                notes.Add(old is { Status: RevocationStatus.Revoked }
+                    ? $"a stale CRL (nextUpdate {crl.NextUpdate:u}) from {crl.Issuer} lists the certificate on hold; the hold may since have been lifted, so it is not relied on"
+                    : $"a CRL from {crl.Issuer} is stale (nextUpdate {crl.NextUpdate:u}) and does not list the certificate");
                 continue;
             }
 
@@ -323,10 +346,11 @@ internal sealed partial class Engine
         return x.Value is not null && string.Equals(x.Value, y.Value, StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool UsableCrl(CertificateRevocationList crl, IssuerInfo issuer, Certificate[] path, TrustAnchor anchor, out PublicKeyInfo? signerKey, out string? why)
+    private bool UsableCrl(CertificateRevocationList crl, IssuerInfo issuer, Certificate[] path, TrustAnchor anchor, out PublicKeyInfo? signerKey, out string? why, out bool stale)
     {
         signerKey = null;
         why = null;
+        stale = false;
         foreach (Extension e in crl.Extensions)
         {
             if (e.Critical && !KnownCrlExtensions.Contains(e.Oid))
@@ -382,11 +406,8 @@ internal sealed partial class Engine
             return false;
         }
 
-        if (next < DataTime)
-        {
-            why = $"stale: nextUpdate {next:u} is before the time the data is judged at";
-            return false;
-        }
+        // A stale CRL is still authenticated below (only then may it be read at all); the caller decides what a stale CRL can show.
+        stale = next < DataTime;
 
         // Find the signer.
         bool direct = crl.Issuer.Matches(issuer.Name);
@@ -403,17 +424,24 @@ internal sealed partial class Engine
                 SignatureVerification sv = VerifyCrl(crl, issuer.Key);
                 if (sv.IsValid)
                 {
-                    signerKey = issuer.Key;
-                    return true;
-                }
+                    string? refused = PkiSignaturePolicy(crl.SignatureAlgorithm, issuer.Key, "CRL");
+                    if (refused is null)
+                    {
+                        signerKey = issuer.Key;
+                        return true;
+                    }
 
-                why = "signature does not verify with the issuing certificate's key: " + sv.Reason;
+                    why = refused;
+                }
+                else
+                {
+                    why = "signature does not verify with the issuing certificate's key: " + sv.Reason;
+                }
             }
         }
 
         // An indirect CRL or a separate CRL signer: its certificate must itself be valid (§6.3.3 (f)).
-        var candidates = new List<Certificate>();
-        candidates.AddRange(_pool.Select(p => p.Cert));
+        var candidates = new List<Certificate>(_st.PoolBySubject(crl.Issuer));
         candidates.AddRange(path);
         if (anchor.Certificate is not null)
         {
@@ -435,6 +463,20 @@ internal sealed partial class Engine
             if (cv.KeyUsage is { } ku2 && (ku2.Usages & KeyUsages.CrlSign) == 0)
             {
                 why = "the CRL signer's keyUsage lacks cRLSign";
+                continue;
+            }
+
+            if (PkiSignaturePolicy(crl.SignatureAlgorithm, c.PublicKey, "CRL") is { } refusedBySigner)
+            {
+                why = refusedBySigner;
+                continue;
+            }
+
+            // RFC 5280 §6.3.3 (f): the signer's certificate must itself be valid, and that includes its validity period. Checking it first spares a nested
+            // path search for the expired reissues of a signing key that a pool of old certificates holds.
+            if (RefSecond < c.NotBefore || RefSecond > c.NotAfter)
+            {
+                why = "the CRL signer's certificate is not valid at the reference time";
                 continue;
             }
 
@@ -480,12 +522,22 @@ internal sealed partial class Engine
     // Otherwise any other trusted root could certify a key for the CA's name and vouch for the CA's certificates.
     private string? ValidateSigner(Certificate signer, TrustAnchor anchor)
     {
-        if (_signerCache.TryGetValue((signer, anchor), out string? cached))
+        // One answer per signer, anchor and nesting depth for the whole validation: a pool holding many certificates for the signing key would otherwise
+        // be validated again from every nested level.
+        var key = (signer, anchor, _depth);
+        if (_st.SignerCache.TryGetValue(key, out string? cached))
         {
             return cached;
         }
 
-        _signerCache[(signer, anchor)] = "validation of this signer is in progress";
+        if (_st.SignerValidations >= _l.MaxSignerValidations)
+        {
+            _limit = true;
+            return $"the limit of {_l.MaxSignerValidations} CRL signer validations was reached";
+        }
+
+        _st.SignerValidations++;
+        _st.SignerCache[key] = "validation of this signer is in progress";
         var sub = new ValidationOptions
         {
             TrustAnchors = [anchor],
@@ -503,10 +555,38 @@ internal sealed partial class Engine
             RevocationModel = _o.RevocationModel,
             RevocationDataTime = _o.RevocationDataTime,
         };
-        ValidationReport rep = new Engine(sub, _depth + 1).Run(signer);
+        var engine = new Engine(sub, _depth + 1, _st);
+        ValidationReport rep = engine.Run(signer);
+        if (engine.LimitReached)
+        {
+            _limit = true;
+        }
+
         string? result = rep.IsValid ? null : rep.DecidingRule?.Reason ?? "no path to a trust anchor";
-        _signerCache[(signer, anchor)] = result;
+        _st.SignerCache[key] = result;
         return result;
+    }
+
+    // The algorithm policy for the signature on a CRL or OCSP response: the same question, with the same rule ids, as for a certificate's signature
+    // (a PKI signature, so SHA-1 is judged by the PKI cutoff). Findings go to the certificate's RevocationReport; a refusal returns the reason.
+    private string? PkiSignaturePolicy(AlgorithmIdentifier algorithm, PublicKeyInfo signerKey, string what)
+    {
+        Policy.PolicyReport pr = _o.Policy.CheckSignature(algorithm, signerKey, CryptoUse.VerifyPki, DataTime);
+        PolicyDecision? refused = null;
+        foreach (PolicyDecision d in pr.Findings)
+        {
+            if (!_revPolicy.Contains(d))
+            {
+                _revPolicy.Add(d);
+            }
+
+            if (d.Verdict == PolicyVerdict.Rejected)
+            {
+                refused ??= d;
+            }
+        }
+
+        return refused is { } r ? $"the {what} signature is refused by the {_o.Policy.Name} policy ({r.Rule}): {r.Reason}" : null;
     }
 
     private CertificateRevocationList? FindDelta(CertificateRevocationList baseCrl, RevocationData data, PublicKeyInfo signerKey, List<string> notes)
@@ -540,7 +620,8 @@ internal sealed partial class Engine
                 continue;
             }
 
-            if (d.Extensions.Any(e => e.Critical && !KnownCrlExtensions.Contains(e.Oid)) || CriticalEntryExtension(d) is not null || !VerifyCrl(d, signerKey).IsValid)
+            if (d.Extensions.Any(e => e.Critical && !KnownCrlExtensions.Contains(e.Oid)) || CriticalEntryExtension(d) is not null || !VerifyCrl(d, signerKey).IsValid
+                || PkiSignaturePolicy(d.SignatureAlgorithm, signerKey, "delta CRL") is not null)
             {
                 notes.Add("a delta CRL failed its checks");
                 continue;
@@ -563,7 +644,8 @@ internal sealed partial class Engine
         if (dentry is not null)
         {
             // §5.3.1: removeFromCRL in a delta CRL takes a certificate off the hold the base CRL put it on.
-            entry = dentry.Reason == RevocationReason.RemoveFromCrl ? null : dentry;
+            // RFC 5280 §5.3.1 defines removeFromCRL only for a certificate that was on hold, so a delta cannot lift any other revocation.
+            entry = dentry.Reason == RevocationReason.RemoveFromCrl ? (entry?.Reason == RevocationReason.CertificateHold ? null : entry) : dentry;
         }
 
         if (entry is null)
@@ -634,7 +716,7 @@ internal sealed partial class Engine
 
     // ---------------------------------------------------------------- OCSP (RFC 6960)
 
-    private Finding? CheckOcsp(CertView v, IssuerInfo issuer, Certificate[] path, RevocationData data, List<string> notes)
+    private Finding? CheckOcsp(CertView v, IssuerInfo issuer, Certificate[] path, TrustAnchor anchor, RevocationData data, List<string> notes)
     {
         Finding? good = null;
         int examined = 0;
@@ -653,7 +735,7 @@ internal sealed partial class Engine
                     continue;
                 }
 
-                PublicKeyInfo? key = AuthoriseResponder(resp, issuer, path, out string? why);
+                PublicKeyInfo? key = AuthoriseResponder(resp, issuer, path, anchor, data, out string? why);
                 if (key is null)
                 {
                     notes.Add("an OCSP response is not usable: " + why);
@@ -664,6 +746,12 @@ internal sealed partial class Engine
                 if (!sv.IsValid)
                 {
                     notes.Add("an OCSP response signature does not verify: " + sv.Reason);
+                    continue;
+                }
+
+                if (PkiSignaturePolicy(resp.SignatureAlgorithm, key, "OCSP response") is { } refused)
+                {
+                    notes.Add("an OCSP response is not usable: " + refused);
                     continue;
                 }
 
@@ -735,7 +823,7 @@ internal sealed partial class Engine
             && CryptographicOperations.HashData(h, issuer.Key.KeyBits.Span).AsSpan().SequenceEqual(id.IssuerKeyHash.Span);
     }
 
-    private PublicKeyInfo? AuthoriseResponder(OcspBasicResponse resp, IssuerInfo issuer, Certificate[] path, out string? why)
+    private PublicKeyInfo? AuthoriseResponder(OcspBasicResponse resp, IssuerInfo issuer, Certificate[] path, TrustAnchor anchor, RevocationData data, out string? why)
     {
         why = null;
         OcspResponderId rid = resp.ResponderId;
@@ -757,7 +845,7 @@ internal sealed partial class Engine
 
         // §4.2.2.2 (3): a delegated responder holds a certificate issued by the CA, with id-kp-OCSPSigning.
         var candidates = new List<Certificate>(resp.Certificates);
-        candidates.AddRange(_pool.Select(p => p.Cert));
+        candidates.AddRange(rid.Name is not null ? _st.PoolBySubject(rid.Name) : _st.PoolByKeyHash(rid.KeyHash.Span));
         foreach (Certificate c in candidates)
         {
             if (!rid.Matches(c))
@@ -768,6 +856,12 @@ internal sealed partial class Engine
             if (!VerifyCert(c, issuer.Key).IsValid)
             {
                 why = "the responder certificate was not issued by the certificate's issuer";
+                continue;
+            }
+
+            if (PkiSignaturePolicy(c.SignatureAlgorithm, issuer.Key, "responder certificate") is { } refusedCert)
+            {
+                why = refusedCert;
                 continue;
             }
 
@@ -788,6 +882,24 @@ internal sealed partial class Engine
             {
                 why = "the responder certificate's keyUsage does not allow signatures";
                 continue;
+            }
+
+            // RFC 6960 §4.2.2.2.1: without id-pkix-ocsp-nocheck the responder certificate's own status matters. Where the supplied CRLs speak to it, they decide;
+            // where nothing does, the RFC leaves trusting it to the client, which we do and say so in the report.
+            if (cv.Cert.Extensions.Find(KnownOids.OcspNoCheck) is null)
+            {
+                var own = new List<string>();
+                Finding? status = CheckCrls(cv, issuer, path, anchor, data, own);
+                if (status is { Status: RevocationStatus.Revoked })
+                {
+                    why = "the responder certificate is revoked: " + status.Reason;
+                    continue;
+                }
+
+                if (status is null)
+                {
+                    _revNotes.Add("the delegated OCSP responder certificate has no id-pkix-ocsp-nocheck and no supplied CRL gives its status; it is trusted as RFC 6960 §4.2.2.2.1 leaves to the client");
+                }
             }
 
             return c.PublicKey;

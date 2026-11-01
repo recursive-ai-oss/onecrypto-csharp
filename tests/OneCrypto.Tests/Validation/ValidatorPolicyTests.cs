@@ -53,6 +53,7 @@ public class ValidatorPolicyTests
         Certificate leaf = Issue("leaf", PublicKeyInfo.FromAsymmetricAlgorithm(leafKey), root.Certificate, X509Signer.FromECDsa(RootKey(root), HashAlgorithmName.SHA1), false);
 
         var y2010 = new DateTimeOffset(2010, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var y2016 = new DateTimeOffset(2016, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var y2020 = new DateTimeOffset(2020, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var y2032 = new DateTimeOffset(2032, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -61,21 +62,24 @@ public class ValidatorPolicyTests
         Assert.True(r.IsValid, r.ToString());
         Assert.DoesNotContain(r.SelectedPath!.Certificates.SelectMany(c => c.Results), x => x.PolicyRule is not null);
 
-        // From 2011 it is flagged: a warning, still valid, with the policy's rule id and its reason.
-        r = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Standard, y2020));
+        // From 2011 to the end of 2016 it is flagged: a warning, still valid, with the policy's rule id and its reason.
+        r = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Standard, y2016));
         Assert.True(r.IsValid, r.ToString());
-        RuleResult flagged = AlgorithmResult(r, "hash.sha-1.flagged-from");
+        RuleResult flagged = AlgorithmResult(r, "hash.sha-1.pki.flagged-from");
         Assert.Equal(RuleOutcome.Warning, flagged.Outcome);
         Assert.Contains("SHA-1", flagged.Reason, StringComparison.Ordinal);
 
-        // From 2031 it is rejected.
-        r = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Standard, y2032));
-        Assert.Equal(ValidationVerdict.Invalid, r.Verdict);
-        Assert.Equal(ValidationRule.Algorithm, r.DecidingRule!.Rule);
-        Assert.Equal("hash.sha-1.rejected-from", r.DecidingRule.PolicyRule);
+        // From 2017 a SHA-1 certificate signature is rejected (public CAs stopped issuing them in 2016); the same at any later date.
+        foreach (DateTimeOffset at in new[] { y2020, y2032 })
+        {
+            r = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Standard, at));
+            Assert.Equal(ValidationVerdict.Invalid, r.Verdict);
+            Assert.Equal(ValidationRule.Algorithm, r.DecidingRule!.Rule);
+            Assert.Equal("hash.sha-1.pki.rejected-from", r.DecidingRule.PolicyRule);
+        }
 
         // Strict refuses it at every date.
-        foreach (DateTimeOffset at in new[] { y2010, y2020, y2032 })
+        foreach (DateTimeOffset at in new[] { y2010, y2016, y2020, y2032 })
         {
             r = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Strict, at));
             Assert.Equal(ValidationVerdict.Invalid, r.Verdict);
@@ -123,23 +127,22 @@ public class ValidatorPolicyTests
     }
 
     [Fact]
-    public void ServerAuthenticationProfileAddsTheWebPkiCutoffs()
+    public void ServerAuthenticationProfileLeavesAlgorithmsToThePolicyAndKeepsItsKeySizeFloor()
     {
         using var root = RNode.Make("Root", null, true, notBefore: Born, notAfter: Dies);
         using ECDsa leafKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         Certificate leaf = Issue("leaf", PublicKeyInfo.FromAsymmetricAlgorithm(leafKey), root.Certificate, X509Signer.FromECDsa(RootKey(root), HashAlgorithmName.SHA1), false);
         var y2020 = new DateTimeOffset(2020, 6, 1, 0, 0, 0, TimeSpan.Zero);
 
-        // Without the profile, Standard only flags SHA-1 in 2020.
-        ValidationReport plain = PathValidator.Validate(leaf, Options(root, CryptoPolicy.Standard, y2020));
-        Assert.True(plain.IsValid, plain.ToString());
-
-        // With it, SHA-1 is refused from 2017 (Baseline Requirements), whatever the caller's policy says.
-        ValidationOptions o = Options(root, CryptoPolicy.Standard, y2020);
-        o = new ValidationOptions { TrustAnchors = o.TrustAnchors, ReferenceTime = y2020, WebPki = new WebPkiProfile { RequireServerAuth = false } };
-        ValidationReport r = PathValidator.Validate(leaf, o);
+        // Standard already refuses SHA-1 in a certificate from 2017, with or without the profile.
+        var profile = new WebPkiProfile { RequireServerAuth = false };
+        ValidationReport r = PathValidator.Validate(leaf, new ValidationOptions { TrustAnchors = [TrustAnchor.FromCertificate(root.Certificate)], ReferenceTime = y2020, WebPki = profile });
         Assert.False(r.IsValid);
-        Assert.Contains(r.SelectedPath!.Certificates.SelectMany(c => c.Results), x => x.Rule == ValidationRule.Algorithm && x.Outcome == RuleOutcome.Fail && x.PolicyRule == "hash.sha-1.rejected-from");
+        Assert.Contains(r.SelectedPath!.Certificates.SelectMany(c => c.Results), x => x.Rule == ValidationRule.Algorithm && x.Outcome == RuleOutcome.Fail && x.PolicyRule == "hash.sha-1.pki.rejected-from");
+
+        // The profile adds no algorithm policy of its own: a caller who chose Permissive keeps that choice.
+        r = PathValidator.Validate(leaf, new ValidationOptions { TrustAnchors = [TrustAnchor.FromCertificate(root.Certificate)], ReferenceTime = y2020, Policy = CryptoPolicy.Permissive, WebPki = profile });
+        Assert.DoesNotContain(r.SelectedPath!.Certificates.SelectMany(c => c.Results), x => x.Rule == ValidationRule.Algorithm && x.Outcome == RuleOutcome.Fail);
     }
 
     private static ECDsa RootKey(RNode root) => root.Key;
