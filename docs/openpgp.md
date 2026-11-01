@@ -111,3 +111,23 @@ Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib,
 **Two-phase signing** (`PgpPreparedSignature`). `PrepareDetached(publicKey, data, now)` fixes the signature header (creation time, issuer fingerprint, the version 6 salt) and hashes the data; `ToSign` and `Spec` say what any `ISigningKey`, token or remote service has to sign; `Complete(rawSignature)` verifies the result against the signer's public key and returns the signature packet, so a signature by the wrong key or over other data never leaves the call. `Encode`/`Decode`/`TryDecode` serialise the state as DER, version 1: `SEQUENCE { version INTEGER, purpose UTF8String "openpgp.signature", signerKey OCTET STRING (the public key packet), type INTEGER, hash INTEGER, signedHeader OCTET STRING, unhashed OCTET STRING, salt OCTET STRING, digest OCTET STRING }`. It holds the digest and the public key, never the data or a private key. The ML-DSA composites sign with two components and are not offered.
 
 **Checked against**: `KeyManagementTests` and `SopKeyTests` (every profile with and without a password through signing, encryption, revocation, certification and password changes; edits shown lossless on RFC 9580 Appendix A.4), the two-way scripts `tools/oracles/gpg-keys.sh`, `rnp-keys.sh` and `sop-keys-matrix.sh`, the interoperability suite ([sop.md](sop.md)), the `pgpkey` fuzz target and the `OpenPgpSecretKeyUnlock` timing target.
+
+**Interop results** (keys we generate, edit, revoke and certify, checked by other implementations; throwaway keys):
+
+| Oracle | Result |
+|---|---|
+| GnuPG 2.4.8 (`gpg-keys.sh`) | 121 pass, 0 fail, 8 n/a (version 6 keys and the native Ed25519 algorithms are not readable by GnuPG 2.4) |
+| GnuPG 2.5.24 | 113 pass, 10 n/a with the reasons below, 0 unexplained |
+| RNP 0.17 (`rnp-keys.sh`) | 93 pass, 0 fail, 4 n/a (version 6 profiles) |
+| sqop 0.38 / Sequoia 2.4.1 (`sop-keys-matrix.sh`, every non-post-quantum profile, with and without a password) | 294 pass, 0 fail, 2 unsupported |
+| gosop 1.1 / GopenPGP 3.0 (same profiles) | 229 pass, 0 fail, 79 unsupported (gosop has no `update-key`, `merge-certs` or `validate-userid`) |
+| OpenPGP.js 6.3 (our driver, same profiles) | 264 pass, 0 fail, 44 unsupported (same subcommands) |
+| Post-quantum profiles (`pqc`, `pqc-high`) on OpenSSL 3.5.9, same matrices | sqop 50 pass / 0 fail / 6 unsupported, gosop 48 / 0 / 20, OpenPGP.js 56 / 0 / 12 (cells the other side cannot run are unsupported; our own round trips run in all) |
+| Three-process two-phase signing, verified by our `verify`, sqop 0.38 and GnuPG 2.5.24 | 46 pass, 0 fail; GnuPG 2.4.8: 36 pass, 0 fail |
+
+Differences that are the oracle's, not ours:
+
+- GnuPG 2.5.24 does not import an unprotected ECDH subkey: `gpg -K` lists it as `ssb#` and decryption says "No secret key". Its own `--export-secret-keys` of a key without a passphrase behaves the same when imported into a new home. Protected keys work, and so does 2.4.8. The cells report n/a.
+- GnuPG 2.5.24 as built for the oracle cache asks the terminal for `--gen-revoke` even with `--command-fd`; the six cells that use its revocation certificate run with 2.4.8 (pass).
+- Sequoia's `sqop` is built on nettle, which has no ML-DSA or ML-KEM: it cannot generate or use `rfc9980` keys. The post-quantum profiles are checked against our own sign/verify/encrypt/decrypt round trip, and Sequoia's `sq` parses their certificates without complaint.
+- A third-party certification is hashed with the key framed by the version of the *signature* (version 4: `0x99` and a two-octet length; version 6: `0x9B` and a four-octet length), not by the version of the certified key (RFC 9580 §5.2.4). Certifications between keys of different versions failed in both directions against Sequoia until the framing followed the signature.
