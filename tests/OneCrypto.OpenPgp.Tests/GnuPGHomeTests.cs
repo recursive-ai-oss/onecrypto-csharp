@@ -9,7 +9,7 @@ internal static class GnuPGHomes
 {
     public static string Root { get; } = Path.Combine(TestFiles.TestData, "gnupg");
 
-    public static IEnumerable<string> Versions => Directory.GetDirectories(Root).Select(Path.GetFileName).Where(n => n is not null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal);
+    public static IEnumerable<string> Versions => Directory.GetDirectories(Root).Select(Path.GetFileName).Where(n => n is not null && char.IsAsciiDigit(n[0])).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal);
 
     public static IEnumerable<object[]> VersionData => Versions.Select(v => new object[] { v });
 

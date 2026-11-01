@@ -105,7 +105,18 @@ public sealed class GnuPGSecretKey : IDisposable
                 aes.DecryptCbc(encrypted, ivOrNonce, plain.Span, PaddingMode.None);
             }
 
-            List<(string Name, int Offset, int Length)> found = ParseSecretList(plain.ReadOnlySpan, file.Protection == GnuPGKeyProtection.Sha1AesCbc, out ReadOnlySpan<byte> sha1, names);
+            // The CBC mode has no tag: decrypting with a wrong key yields noise, which fails to parse. That is a wrong passphrase, not a damaged file.
+            List<(string Name, int Offset, int Length)> found;
+            ReadOnlySpan<byte> sha1;
+            try
+            {
+                found = ParseSecretList(plain.ReadOnlySpan, file.Protection == GnuPGKeyProtection.Sha1AesCbc, out sha1, names);
+            }
+            catch (GnuPGFormatException) when (file.Protection == GnuPGKeyProtection.Sha1AesCbc)
+            {
+                throw new GnuPGWrongPassphraseException();
+            }
+
             if (file.Protection == GnuPGKeyProtection.Sha1AesCbc)
             {
                 // The hash covers the whole key expression with the secret parameters inserted after the public ones, protected-at last.
@@ -544,8 +555,8 @@ public sealed class GnuPGSecretKey : IDisposable
         byte[] scalar = new byte[56];
         try
         {
+            // Unlike Curve25519, the X448 scalar is stored as the RFC 7748 octet string itself.
             Fixed(d, scalar);
-            Array.Reverse(scalar);
             X448PrivateKey k = X448PrivateKey.FromBytes(scalar);
             CheckPoint(k.PublicKey.ToArray(), Pub("q"), 56, prefixed: true, k);
             return k;

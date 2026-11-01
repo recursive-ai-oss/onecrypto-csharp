@@ -163,7 +163,7 @@ public sealed class GnuPGKeyFile
                 throw new GnuPGFormatException(GnuPGError.BadSyntax, 0, "no Key line");
             }
 
-            root = SexpReader.Parse(Encoding.UTF8.GetBytes(keyText), limits, out _);
+            root = SexpReader.Parse(Encoding.Latin1.GetBytes(keyText), limits, out _);
         }
 
         string? kind = root.Name;
@@ -306,7 +306,7 @@ public sealed class GnuPGKeyFile
 
     private static string? ReadHeaders(ReadOnlySpan<byte> data, List<KeyValuePair<string, string>> headers)
     {
-        string text = Encoding.UTF8.GetString(data);
+        string text = Encoding.Latin1.GetString(data);
         string[] lines = text.Split('\n');
         string? name = null;
         var value = new StringBuilder();
@@ -330,7 +330,7 @@ public sealed class GnuPGKeyFile
                 key = v;
             }
 
-            headers.Add(new KeyValuePair<string, string>(name, v));
+            headers.Add(new KeyValuePair<string, string>(name, string.Equals(name, "Key", StringComparison.OrdinalIgnoreCase) ? v : Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(v))));
             name = null;
             value.Clear();
         }
@@ -339,9 +339,12 @@ public sealed class GnuPGKeyFile
         {
             lineNo++;
             string line = raw.TrimEnd('\r');
-            if (line.Trim().Length == 0 || line.TrimStart().StartsWith('#'))
+            // Blank lines are skipped. A line that starts with '#' is a comment; one that starts with white space belongs to the value above it
+            // even when its first visible character is '#', because the S-expression's hex atoms are wrapped onto such lines (GnuPG's own files do
+            // this). The format document also calls an indented '#' line a comment; that cannot hold inside a value, so it is read as a continuation.
+            if (line.Trim().Length == 0 || line[0] == '#' || (name is null && line.TrimStart().StartsWith('#')))
             {
-                continue; // blank lines and comment lines
+                continue;
             }
 
             if (line[0] is ' ' or '\t')
