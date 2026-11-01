@@ -21,6 +21,19 @@ internal static class SignatureEngine
     /// The hash state for a signature: the v6 salt first (RFC 9580 §5.2.4). The caller then feeds the signed data and calls
     /// <see cref="Finish"/>.
     /// </summary>
+    // A modulus the platform refuses (for example one beyond its size limit) makes the key unusable here; that is a typed failure, not a crash.
+    internal static void ImportPublicRsa(RSA rsa, byte[] modulus, byte[] exponent)
+    {
+        try
+        {
+            rsa.ImportParameters(new RSAParameters { Modulus = modulus, Exponent = exponent });
+        }
+        catch (CryptographicException e)
+        {
+            throw new PgpException(PgpFailure.Unsupported, "The platform cannot use this RSA key.", e);
+        }
+    }
+
     internal static IncrementalHash Start(PgpHashAlgorithm hash, ReadOnlySpan<byte> salt)
     {
         var h = IncrementalHash.CreateHash(PgpAlgorithms.HashName(hash));
@@ -118,7 +131,7 @@ internal static class SignatureEngine
                 {
                     using var rsa = RSA.Create();
                     byte[] n = pub.Values[0].ToArray();
-                    rsa.ImportParameters(new RSAParameters { Modulus = n, Exponent = pub.Values[1].ToArray() });
+                    ImportPublicRsa(rsa, n, pub.Values[1].ToArray());
                     byte[] s = LeftPad(sv[0].Span, n.Length);
                     return rsa.VerifyHash(digest, s, PgpAlgorithms.HashName(sig.Hash), RSASignaturePadding.Pkcs1);
                 }

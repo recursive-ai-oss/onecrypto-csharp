@@ -27,6 +27,13 @@ internal sealed class SignatureBuilder : IDisposable
             throw new PgpException(PgpFailure.PolicyViolation, d.Reason);
         }
 
+        // A key under the policy's size for new signatures does not sign (the platform would fail on the smallest keys in any case).
+        if (kp.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && kp.Material.IsKnown
+            && PgpAlgorithms.BitLength(kp.Material.Values[0].Span) < policy.MinRsaBitsNew)
+        {
+            throw new PgpException(PgpFailure.PolicyViolation, "The RSA key is smaller than the policy allows for new signatures.");
+        }
+
         Version = kp.Version == 6 ? (byte)6 : (byte)4;
         if (kp.Version is not (4 or 6))
         {

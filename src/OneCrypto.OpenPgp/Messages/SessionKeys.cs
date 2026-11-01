@@ -305,7 +305,7 @@ internal static class SessionKeys
                 {
                     byte[] m = Checksummed(sessionKey, v3 ? cipher : null, pad: false);
                     using var rsa = RSA.Create();
-                    rsa.ImportParameters(new RSAParameters { Modulus = pm.Values[0].ToArray(), Exponent = pm.Values[1].ToArray() });
+                    SignatureEngine.ImportPublicRsa(rsa, pm.Values[0].ToArray(), pm.Values[1].ToArray());
                     byte[] c = rsa.Encrypt(m, RSAEncryptionPadding.Pkcs1);
                     CryptographicOperations.ZeroMemory(m);
                     body.AddRange(SignatureEngine.Mpi(c));

@@ -160,7 +160,7 @@ internal static class SignatureChecker
 
             if (k.Packet.Material.IsKnown && k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly)
             {
-                int bits = k.Packet.Material.Values[0].Length * 8;
+                int bits = PgpAlgorithms.BitLength(k.Packet.Material.Values[0].Span);
                 if (bits < policy.MinRsaBitsVerify)
                 {
                     reasons.Add($"The RSA key has {bits} bits; the policy requires {policy.MinRsaBitsVerify}.");

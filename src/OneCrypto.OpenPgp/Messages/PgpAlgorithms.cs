@@ -8,6 +8,18 @@ namespace RecursiveAI.OneCrypto.OpenPgp;
 /// <summary>Maps OpenPGP algorithm identifiers onto the platform's and the library's primitives.</summary>
 internal static class PgpAlgorithms
 {
+    /// <summary>The exact bit length of a big-endian integer (a key modulus), not the length of the octets that hold it.</summary>
+    internal static int BitLength(ReadOnlySpan<byte> bigEndian)
+    {
+        int i = 0;
+        while (i < bigEndian.Length && bigEndian[i] == 0)
+        {
+            i++;
+        }
+
+        return i == bigEndian.Length ? 0 : ((bigEndian.Length - i) * 8) - System.Numerics.BitOperations.LeadingZeroCount((uint)bigEndian[i]) + 24;
+    }
+
     internal static HashAlgorithmName HashName(PgpHashAlgorithm hash) => hash switch
     {
         PgpHashAlgorithm.Md5 => HashAlgorithmName.MD5,
