@@ -8,7 +8,7 @@ namespace OneCrypto.Benchmarks;
 
 // OpenPGP messages against the comparator, on the same version 4 test keys (testdata/openpgp/keys, made by GnuPG), the same data and the
 // same work: detached signatures with SHA-512, and password messages with AES-256, SHA-256 iterated-salted S2K and an integrity packet
-// (SEIPD v1, which is what the comparator writes). Both sides work from and to memory.
+// (SEIPD v1, which is what the comparator writes) with the comparator's default S2K count (coded 0x60, 65 KB per guess; ours is told the same). Both sides work from and to memory.
 
 internal static class PgpBenchKeys
 {
@@ -151,6 +151,7 @@ public class PgpVerifyRows
 [BenchmarkCategory("openpgp")]
 public class PgpPasswordEncryptRows
 {
+    private const byte S2kCode = 0x60;
     private static readonly byte[] Password = Encoding.UTF8.GetBytes("bench password");
     private byte[] _data = [];
 
@@ -169,7 +170,7 @@ public class PgpPasswordEncryptRows
     public int Ours()
     {
         using var output = new MemoryStream();
-        PgpMessageWriter.Write(new MemoryStream(_data, writable: false), output, new PgpWriteOptions { Now = PgpBenchKeys.Now, Passwords = [Password], ForceSeipd1 = true });
+        PgpMessageWriter.Write(new MemoryStream(_data, writable: false), output, new PgpWriteOptions { Now = PgpBenchKeys.Now, Passwords = [Password], ForceSeipd1 = true, S2kIterationCode = S2kCode });
         return (int)output.Length;
     }
 
@@ -194,6 +195,7 @@ public class PgpPasswordEncryptRows
 [BenchmarkCategory("openpgp")]
 public class PgpPasswordDecryptRows
 {
+    private const byte S2kCode = 0x60;
     private static readonly byte[] Password = Encoding.UTF8.GetBytes("bench password");
     private byte[] _message = [];
 
@@ -207,7 +209,7 @@ public class PgpPasswordDecryptRows
         byte[] data = new byte[Size];
         new Random(4).NextBytes(data);
         using var output = new MemoryStream();
-        PgpMessageWriter.Write(new MemoryStream(data), output, new PgpWriteOptions { Now = PgpBenchKeys.Now, Passwords = [Password], ForceSeipd1 = true });
+        PgpMessageWriter.Write(new MemoryStream(data), output, new PgpWriteOptions { Now = PgpBenchKeys.Now, Passwords = [Password], ForceSeipd1 = true, S2kIterationCode = S2kCode });
         _message = output.ToArray();
     }
 

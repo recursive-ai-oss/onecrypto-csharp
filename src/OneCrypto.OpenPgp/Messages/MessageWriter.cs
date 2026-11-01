@@ -242,6 +242,13 @@ public sealed class PgpWriteOptions
 
     /// <summary>True to force integrity protection with SEIPD v1 (MDC) instead of choosing from the recipients' features. Default false.</summary>
     public bool ForceSeipd1 { get; init; }
+
+    /// <summary>
+    /// The coded iteration count (RFC 9580 §3.7.1.3) of the iterated-salted string-to-key written for password messages with SEIPD v1.
+    /// 0xCA hashes about 6.8 MB per password guess; 0xFF is the maximum (65 MB). Default 0xCA. Messages
+    /// with SEIPD v2 use Argon2id instead.
+    /// </summary>
+    public byte S2kIterationCode { get; init; } = 0xCA;
 }
 
 /// <summary>Writes OpenPGP messages: signed (one-pass), encrypted, or both, streaming in constant memory.</summary>
@@ -325,7 +332,7 @@ public static partial class PgpMessageWriter
 
             foreach (byte[] pw in o.Passwords)
             {
-                Skesk(pw, sessionKey, cipher, aead, v2, policy).WriteTo(sink);
+                Skesk(pw, sessionKey, cipher, aead, v2, policy, o.S2kIterationCode).WriteTo(sink);
             }
 
             if (v2)
@@ -426,7 +433,7 @@ public static partial class PgpMessageWriter
         return (SymmetricAlgorithm.Aes128, AeadAlgorithm.Ocb);
     }
 
-    private static Packet Skesk(byte[] password, byte[] sessionKey, SymmetricAlgorithm cipher, AeadAlgorithm aead, bool v2, CryptoPolicy policy)
+    private static Packet Skesk(byte[] password, byte[] sessionKey, SymmetricAlgorithm cipher, AeadAlgorithm aead, bool v2, CryptoPolicy policy, byte iterationCode)
     {
         int keySize = PgpAlgorithms.KeySize(cipher);
         if (v2)
@@ -453,7 +460,7 @@ public static partial class PgpMessageWriter
         }
         else
         {
-            byte[] s2kBytes = [(byte)S2kType.IteratedSalted, (byte)PgpHashAlgorithm.Sha256, .. RandomNumberGenerator.GetBytes(8), 0xCA];
+            byte[] s2kBytes = [(byte)S2kType.IteratedSalted, (byte)PgpHashAlgorithm.Sha256, .. RandomNumberGenerator.GetBytes(8), iterationCode];
             S2kSpecifier s2k = S2kSpecifier.Parse(s2kBytes, out _);
             byte[] kdf = PgpAlgorithms.S2k(s2k, password, keySize, policy.KdfLimits);
             byte[] enc = [(byte)cipher, .. sessionKey];
