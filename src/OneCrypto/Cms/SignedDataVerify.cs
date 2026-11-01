@@ -341,10 +341,39 @@ public sealed partial class SignedData
         var reports = new List<SignerReport>();
         foreach (SignerInfo si in Signers)
         {
-            reports.Add(VerifySigner(si, source, EncapsulatedContentType, pool, options, chain, 0));
+            try
+            {
+                reports.Add(VerifySigner(si, source, EncapsulatedContentType, pool, options, chain, 0));
+            }
+            catch (X509ParseException e)
+            {
+                // Backstop: embedded certificates decode lazily, so a malformed field some check reads for the first time surfaces here.
+                // Verification reports it for that signer rather than raising from inside the loop.
+                reports.Add(new SignerReport(si, null, [new CmsCheck("signer-certificate", CmsCheckStatus.Failed, "A certificate field could not be decoded: " + e.Message, "RFC 5652 §5.3")], [], null));
+            }
         }
 
         return new SignedDataReport(checks, reports);
+    }
+
+    /// <summary>When the identifier is a key identifier, names the pool certificates whose subjectKeyIdentifier could not be decoded, so the failure says why a certificate that may have been meant was skipped.</summary>
+    private static string UnusableCertificateNote(SignerInfo si, List<Certificate> pool)
+    {
+        if (si.Identifier.Kind != CmsIdentifierKind.SubjectKeyIdentifier)
+        {
+            return string.Empty;
+        }
+
+        int bad = 0;
+        foreach (Certificate c in pool)
+        {
+            if (!c.TryGetExtension(out SubjectKeyIdentifier? _))
+            {
+                bad++;
+            }
+        }
+
+        return bad == 0 ? string.Empty : $" {bad} certificate(s) have a subjectKeyIdentifier extension that cannot be decoded and were not considered.";
     }
 
     private static SignerReport VerifySigner(SignerInfo si, ContentSource source, string contentType, List<Certificate> pool, SignedDataVerifyOptions options, ValidationOptions? chain, int depth)
@@ -364,7 +393,7 @@ public sealed partial class SignedData
         }
 
         checks.Add(cert is null
-            ? new CmsCheck("signer-certificate", CmsCheckStatus.Failed, "No certificate matching the signer identifier is in the message or the supplied certificates.", "RFC 5652 §5.3")
+            ? new CmsCheck("signer-certificate", CmsCheckStatus.Failed, "No certificate matching the signer identifier is in the message or the supplied certificates." + UnusableCertificateNote(si, pool), "RFC 5652 §5.3")
             : new CmsCheck("signer-certificate", CmsCheckStatus.Passed, string.Empty, "RFC 5652 §5.3"));
 
         string digestOid = si.DigestAlgorithm.Oid;
