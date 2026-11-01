@@ -430,12 +430,22 @@ internal sealed class AeadChunkReader : Stream
     private bool _done;
 
     internal AeadChunkReader(Stream cipherBody, AeadFraming framing)
+        : this(cipherBody, framing, new byte[framing.ChunkSize + 16 + 16], new byte[framing.ChunkSize])
+    {
+    }
+
+    /// <summary>
+    /// A reader over buffers the caller owns, so that trying several candidate keys against the first chunk allocates the chunk-sized buffers
+    /// once. <paramref name="carry"/> needs <c>ChunkSize + 32</c> octets and <paramref name="plain"/> <c>ChunkSize</c>; disposing the reader
+    /// clears <paramref name="plain"/>.
+    /// </summary>
+    internal AeadChunkReader(Stream cipherBody, AeadFraming framing, byte[] carry, byte[] plain)
     {
         _in = cipherBody;
         _f = framing;
         _aead = new PgpAlgorithms.Aead(framing.Aead, framing.Key);
-        _carry = new byte[framing.ChunkSize + 16 + 16];
-        _plain = new byte[framing.ChunkSize];
+        _carry = carry;
+        _plain = plain;
     }
 
     public override bool CanRead => true;
@@ -612,14 +622,47 @@ internal sealed class SpoolStream : Stream
         if (_path is null && _s.Length + buffer.Length > Threshold)
         {
             _path = Path.Combine(Path.GetTempPath(), "onecrypto-" + Guid.NewGuid().ToString("N") + ".tmp");
-            var file = new FileStream(_path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose);
-            _s.Position = 0;
-            _s.CopyTo(file);
+            FileStream file = CreatePrivateFile(_path);
+            try
+            {
+                _s.Position = 0;
+                _s.CopyTo(file);
+            }
+            catch
+            {
+                // Whatever went wrong, the plaintext already in the file goes with it (the file is delete-on-close).
+                file.Dispose();
+                throw;
+            }
+
             _s.Dispose();
             _s = file;
         }
 
         _s.Write(buffer);
+    }
+
+    /// <summary>
+    /// Creates the spill file readable and writable by its owner only, from the moment it exists (mode 0600 on Unix, so there is no window in
+    /// which the process umask exposes it), exclusively opened (no other process can open it on Windows, where the per-user temporary directory
+    /// is also private by default) and deleted when closed. The spooled octets can be plaintext that has not yet passed its integrity check.
+    /// </summary>
+    private static FileStream CreatePrivateFile(string path)
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.ReadWrite,
+            Share = FileShare.None,
+            BufferSize = 1 << 16,
+            Options = FileOptions.DeleteOnClose,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        return new FileStream(path, options);
     }
 
     public override int Read(byte[] buffer, int offset, int count) => _s.Read(buffer, offset, count);
