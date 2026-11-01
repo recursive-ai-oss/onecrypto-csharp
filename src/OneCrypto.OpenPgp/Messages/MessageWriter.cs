@@ -76,6 +76,9 @@ internal sealed class SignatureBuilder : IDisposable
 
     internal byte[] Salt { get; }
 
+    /// <summary>The literal packet fields a version 5 signature covers (draft-koch-librepgp §5.2.4): six zero octets for a detached signature unless set.</summary>
+    internal byte[] LiteralMeta { get; set; } = new byte[6];
+
     internal byte[] SignedHeader { get; }
 
     internal SigHasher Hasher { get; }
@@ -117,7 +120,7 @@ internal sealed class SignatureBuilder : IDisposable
     /// <summary>Finishes the hash, signs the digest through the key's <see cref="ISigningKey"/> and returns the signature packet.</summary>
     internal Packet Complete()
     {
-        byte[] digest = Hasher.Finish(Version, SignedHeader);
+        byte[] digest = Hasher.Finish(Version, SignedHeader, LiteralMeta);
         // The composite ML-DSA keys sign through their own path: they hold two component keys.
         ISigningKey signer = _key.Key.Algorithm is PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 ? null! : _key.SigningKey;
         HashAlgorithmName hn = PgpAlgorithms.HashName(_hash);
@@ -666,7 +669,10 @@ public static partial class PgpMessageWriter
             SignatureType sigType = o.Text ? SignatureType.Text : SignatureType.Binary;
             foreach (PgpSecretKey k in o.Signers)
             {
-                builders.Add(new SignatureBuilder(k, sigType, o.SignatureHash, o.Now, policy));
+                builders.Add(new SignatureBuilder(k, sigType, o.SignatureHash, o.Now, policy)
+                {
+                    LiteralMeta = SignatureEngine.LiteralMeta(o.Text ? (byte)'u' : (byte)'b', o.FileName, o.LiteralDate),
+                });
             }
 
             for (int i = 0; i < builders.Count; i++)
@@ -803,7 +809,7 @@ public static partial class PgpMessageWriter
         }
 
         CryptoPolicy policy = options.Policy ?? CryptoPolicy.Standard;
-        var builders = options.Signers.Select(k => new SignatureBuilder(k, SignatureType.Text, options.SignatureHash, options.Now, policy)).ToList();
+        var builders = options.Signers.Select(k => new SignatureBuilder(k, SignatureType.Text, options.SignatureHash, options.Now, policy) { LiteralMeta = [(byte)'t', 0, 0, 0, 0, 0] }).ToList();
         try
         {
             var sb = new System.Text.StringBuilder("-----BEGIN PGP SIGNED MESSAGE-----\n");

@@ -69,11 +69,11 @@ internal sealed class SigHasher : IDisposable
         _h.AppendData(data[start..]);
     }
 
-    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader) =>
-        _unsupported ? throw new PgpException(PgpFailure.Unsupported, "The hash algorithm is not supported.") : SignatureEngine.Finish(_h, version, signedHeader);
+    internal byte[] Finish(byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default) =>
+        _unsupported ? throw new PgpException(PgpFailure.Unsupported, "The hash algorithm is not supported.") : SignatureEngine.Finish(_h, version, signedHeader, literalMeta);
 
     /// <summary>The digest, or null when the hash algorithm is one we do not support.</summary>
-    internal byte[]? FinishOrNull(byte version, ReadOnlySpan<byte> signedHeader) => _unsupported ? null : SignatureEngine.Finish(_h, version, signedHeader);
+    internal byte[]? FinishOrNull(byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default) => _unsupported ? null : SignatureEngine.Finish(_h, version, signedHeader, literalMeta);
 
     public void Dispose() => _h.Dispose();
 }

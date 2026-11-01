@@ -221,7 +221,8 @@ internal static class Cleartext
 
                 Scratch.Return(buf);
 
-                digest = h.FinishOrNull(s.Version, s.SignedHeader.Span);
+                // A cleartext signature stands for a text literal packet with no name and no date (draft-koch-librepgp §5.2.4).
+                digest = h.FinishOrNull(s.Version, s.SignedHeader.Span, "t\0\0\0\0\0"u8);
             }
 
             result.SignatureList.Add(SignatureChecker.Check(s, digest, options.Certificates, policy, options.Now));

@@ -45,13 +45,26 @@ internal static class SignatureEngine
         return h;
     }
 
+    /// <summary>The literal-data fields a version 5 document signature covers: format, file name (length-prefixed) and date.</summary>
+    internal static byte[] LiteralMeta(byte format, ReadOnlySpan<byte> fileName, uint date)
+    {
+        byte[] r = new byte[6 + fileName.Length];
+        r[0] = format;
+        r[1] = (byte)fileName.Length;
+        fileName.CopyTo(r.AsSpan(2));
+        BinaryPrimitives.WriteUInt32BigEndian(r.AsSpan(2 + fileName.Length), date);
+        return r;
+    }
+
     /// <summary>Appends the signed header and the trailer (RFC 9580 §5.2.4) and returns the digest.</summary>
-    internal static byte[] Finish(IncrementalHash h, byte version, ReadOnlySpan<byte> signedHeader)
+    internal static byte[] Finish(IncrementalHash h, byte version, ReadOnlySpan<byte> signedHeader, ReadOnlySpan<byte> literalMeta = default)
     {
         h.AppendData(signedHeader);
         if (version == 5)
         {
-            // draft-koch-librepgp §5.2.4: the version 5 trailer counts the hashed header in eight octets.
+            // draft-koch-librepgp §5.2.4: a version 5 document signature also hashes the literal packet's format, file name and date before the trailer.
+            // The trailer's eight-octet count covers the signature header only (settled against GnuPG 2.4 and 2.5: counting these fields too does not verify).
+            h.AppendData(literalMeta);
             Span<byte> trailer = new byte[10];
             trailer[0] = version;
             trailer[1] = 0xFF;

@@ -113,7 +113,8 @@ public static partial class PgpMessageReader
         var result = new PgpReadResult();
         for (int i = 0; i < sigs.Count; i++)
         {
-            byte[]? digest = hashers[i]?.FinishOrNull(sigs[i].Version, sigs[i].SignedHeader.Span);
+            // draft-koch-librepgp §5.2.4: a detached version 5 signature covers six zero octets in place of a literal packet's fields.
+            byte[]? digest = hashers[i]?.FinishOrNull(sigs[i].Version, sigs[i].SignedHeader.Span, new byte[6]);
             hashers[i]?.Dispose();
             result.SignatureList.Add(SignatureChecker.Check(sigs[i], digest, options.Certificates, policy, options.Now));
         }
@@ -634,7 +635,7 @@ internal sealed class MessageProcessor : IDisposable
             e.Matched = true;
             if (sig.Version != 6 || e.Op.Salt.Span.SequenceEqual(sig.Salt.Span))
             {
-                digest = e.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span);
+                digest = e.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span, SignatureEngine.LiteralMeta(_r.LiteralFormat, _r.LiteralFileName, _r.LiteralDate));
             }
 
             break;
@@ -646,7 +647,7 @@ internal sealed class MessageProcessor : IDisposable
             {
                 if (ReferenceEquals(p.Sig, sig))
                 {
-                    digest = p.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span);
+                    digest = p.Hasher.FinishOrNull(sig.Version, sig.SignedHeader.Span, SignatureEngine.LiteralMeta(_r.LiteralFormat, _r.LiteralFileName, _r.LiteralDate));
                 }
             }
         }

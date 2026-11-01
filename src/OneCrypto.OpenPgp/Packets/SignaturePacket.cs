@@ -414,7 +414,8 @@ public sealed class SignaturePacket : Packet
             }
 
             SignatureSubpacket? s = HashedSubpackets.Find(SubpacketType.IssuerKeyId) ?? UnhashedSubpackets.Find(SubpacketType.IssuerKeyId);
-            return s is { Data.Length: 8 } ? s.Data : null;
+            // ReadOnlyMemory has an implicit conversion from a null array, so a bare null here would be an empty value, not an absent one.
+            return s is { Data.Length: 8 } ? (ReadOnlyMemory<byte>?)s.Data : null;
         }
     }
 
@@ -424,7 +425,7 @@ public sealed class SignaturePacket : Packet
         get
         {
             SignatureSubpacket? s = HashedSubpackets.Find(SubpacketType.IssuerFingerprint) ?? UnhashedSubpackets.Find(SubpacketType.IssuerFingerprint);
-            return s is { Data.Length: > 1 } ? s.Data : null;
+            return s is { Data.Length: > 1 } ? (ReadOnlyMemory<byte>?)s.Data : null;
         }
     }
 
