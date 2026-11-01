@@ -6,8 +6,9 @@ namespace OneCrypto.Timing;
 
 /// <summary>
 /// The glue after a public-key unwrap of a session key: padding and checksum validation (RFC 9580 §5.1.3, §11.5, §13).
-/// Key classes: the session key bytes are fixed against random, the message is always valid. Validity classes: a valid message
-/// against one whose padding and checksum are both wrong, same length, to show that failure takes the same time as success.
+/// Key classes: the session key bytes are fixed against random, the message is always valid. Failure classes: both messages are
+/// rejected, one for its padding and one for its checksum, so a caller cannot tell which check failed (RFC 9580 §13). A valid
+/// message is not compared with a rejected one: success returns the key and failure does not, which the caller sees anyway.
 /// </summary>
 internal static class OpenPgpTargets
 {
@@ -20,7 +21,7 @@ internal static class OpenPgpTargets
     [
         new Unwrap("checksum-unpadded-v6-key-bytes", padded: false, validity: false),
         new Unwrap("checksum-padded-ecdh-key-bytes", padded: true, validity: false),
-        new Unwrap("checksum-padded-ecdh-valid-vs-invalid", padded: true, validity: true),
+        new Unwrap("checksum-padded-ecdh-bad-padding-vs-bad-checksum", padded: true, validity: true),
     ];
 
     private sealed class Unwrap(string operation, bool padded, bool validity) : TimingTarget
@@ -43,11 +44,18 @@ internal static class OpenPgpTargets
             for (int i = 0; i < classes.Length; i++)
             {
                 bool fixedClass = classes[i] == TimingClass.Fixed;
-                byte[] key = validity ? _fixed : (fixedClass ? _fixed : RandomNumberGenerator.GetBytes(KeyLength));
+                byte[] key = validity || fixedClass ? _fixed : RandomNumberGenerator.GetBytes(KeyLength);
                 byte[] m = Build(key, _padded);
-                if (validity && !fixedClass)
+                if (validity)
                 {
-                    RandomNumberGenerator.Fill(m); // wrong padding and wrong checksum, same length
+                    if (fixedClass)
+                    {
+                        m[^1] ^= 0x5A; // wrong padding, right checksum
+                    }
+                    else
+                    {
+                        m[KeyLength] ^= 0x5A; // right padding, wrong checksum
+                    }
                 }
 
                 _messages[i] = m;
