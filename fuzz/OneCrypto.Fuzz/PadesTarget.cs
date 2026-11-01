@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Buffers.Binary;
 using OnePdf;
 using RecursiveAI.OneCrypto;
