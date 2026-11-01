@@ -18,6 +18,77 @@ public class SopTests
         return new Result(code, outStream.ToArray(), err.ToString());
     }
 
+    private static Result SopEnv(byte[] stdin, Dictionary<string, string> env, params string[] args)
+    {
+        using var inStream = new MemoryStream(stdin);
+        using var outStream = new MemoryStream();
+        var err = new StringWriter();
+        int code = SopApp.Run(args, new SopIo(inStream, outStream, err, n => env.GetValueOrDefault(n)));
+        return new Result(code, outStream.ToArray(), err.ToString());
+    }
+
+    private static string Scratch(string name, byte[] data)
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "sop-msg-" + Environment.ProcessId);
+        Directory.CreateDirectory(dir);
+        string path = Path.Combine(dir, name);
+        File.WriteAllBytes(path, data);
+        return path;
+    }
+
+    [Fact]
+    public void SignVerifyEncryptDecryptThroughSop()
+    {
+        string key = Scratch("alice.key", Vector("A_4.asc"));
+        byte[] cert = Sop(File.ReadAllBytes(key), "extract-cert").Out;
+        string certPath = Scratch("alice.cert", cert);
+        byte[] msg = "Hello, sop!\r\nsecond line\n"u8.ToArray();
+
+        Result sig = Sop(msg, "sign", "--as=text", key);
+        Assert.Equal(0, sig.Code);
+        string sigPath = Scratch("msg.sig", sig.Out);
+        Result v = Sop(msg, "verify", sigPath, certPath);
+        Assert.Equal(0, v.Code);
+        Assert.Contains("mode:text", Encoding.ASCII.GetString(v.Out), StringComparison.Ordinal);
+        Assert.Equal(3, Sop("Tampered"u8.ToArray(), "verify", sigPath, certPath).Code);
+        Assert.Equal(19, Sop(msg, "verify", sigPath).Code);
+
+        foreach (string mode in new[] { "binary", "text", "clearsigned" })
+        {
+            Result inl = Sop(msg, "inline-sign", "--as=" + mode, key);
+            Assert.Equal(0, inl.Code);
+            Result back = Sop(inl.Out, "inline-verify", certPath);
+            Assert.Equal(0, back.Code);
+            string expected = mode == "clearsigned" ? "Hello, sop!\nsecond line" : "Hello, sop!\r\nsecond line\n";
+            Assert.Equal(expected, Encoding.UTF8.GetString(back.Out));
+        }
+
+        Result enc = Sop(msg, "encrypt", "--sign-with=" + key, certPath);
+        Assert.Equal(0, enc.Code);
+        string vout = Path.Combine(Path.GetDirectoryName(key)!, "v-" + Guid.NewGuid().ToString("N"));
+        Result dec = Sop(enc.Out, "decrypt", "--verifications-out=" + vout, "--verify-with=" + certPath, key);
+        Assert.Equal(0, dec.Code);
+        Assert.Equal(msg, dec.Out);
+        Assert.Contains("mode:binary", File.ReadAllText(vout), StringComparison.Ordinal);
+
+        var env = new Dictionary<string, string> { ["PW"] = "hunter2\n" };
+        Result pw = SopEnv(msg, env, "encrypt", "--no-armor", "--with-password=@ENV:PW", "--profile=rfc4880");
+        Assert.Equal(0, pw.Code);
+        Assert.Equal(msg, SopEnv(pw.Out, env, "decrypt", "--with-password=@ENV:PW").Out);
+        Assert.Equal(29, SopEnv(pw.Out, new Dictionary<string, string> { ["PW"] = "nope" }, "decrypt", "--with-password=@ENV:PW").Code);
+    }
+
+    [Fact]
+    public void ValueOptionsAcceptTheValueAsTheNextArgument()
+    {
+        // Other implementations and the interoperability suite write `--with-password VALUE`; both forms must mean the same.
+        var env = new Dictionary<string, string> { ["PW"] = "secret" };
+        byte[] msg = "hello"u8.ToArray();
+        Result enc = SopEnv(msg, env, "encrypt", "--no-armor", "--with-password", "@ENV:PW", "--profile", "rfc4880");
+        Assert.Equal(0, enc.Code);
+        Assert.Equal(msg, SopEnv(enc.Out, env, "decrypt", "--with-password", "@ENV:PW").Out);
+    }
+
     private static byte[] Vector(string name) => File.ReadAllBytes(TestFiles.OpenPgp("rfc9580", name));
 
     private static string Label(byte[] armor) => Encoding.ASCII.GetString(armor).Split('\n')[0];
@@ -37,12 +108,17 @@ public class SopTests
     [Fact]
     public void UnimplementedAndUnknownSubcommandsExitWithUnsupportedSubcommand()
     {
-        foreach (string sub in new[] { "sign", "verify", "encrypt", "decrypt", "generate-key", "inline-verify", "inline-sign", "merge-certs", "nonsense" })
+        foreach (string sub in new[] { "generate-key", "merge-certs", "nonsense" })
         {
             Assert.Equal(69, Sop([], sub).Code);
         }
 
-        Assert.Equal(69, Sop([], "list-profiles", "encrypt").Code);
+        Assert.StartsWith("rfc9580:", Encoding.UTF8.GetString(Sop([], "list-profiles", "encrypt").Out), StringComparison.Ordinal);
+        foreach (string sub in new[] { "sign", "verify", "encrypt", "decrypt", "inline-verify", "inline-sign" })
+        {
+            Assert.Equal(19, Sop([], sub).Code);
+        }
+
         Assert.Equal(89, Sop([], "list-profiles", "armor").Code);
         Assert.Equal(19, Sop([], "list-profiles").Code);
     }

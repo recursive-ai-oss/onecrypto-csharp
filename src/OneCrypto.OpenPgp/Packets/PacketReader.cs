@@ -133,6 +133,12 @@ public sealed class PacketReader : IDisposable
             else
             {
                 // §4.2.1.4: 224 to 254 give a partial chunk of 2^(l0 & 0x1F) octets; more length fields follow it.
+                // The first partial chunk must hold at least 512 octets, so that a short body is not smeared over many tiny chunks.
+                if ((l0 & 0x1F) < 9)
+                {
+                    throw new OpenPgpParseException(OpenPgpError.InvalidField, offset, "first partial body length");
+                }
+
                 header = new PacketHeader(PacketHeaderFormat.New, tag, PacketLengthKind.NewPartial, 1L << (l0 & 0x1F), 2);
                 headerBytes = [(byte)first, (byte)l0];
             }
@@ -300,10 +306,12 @@ public sealed class PacketFrame
         destination.Write(_headerBytes);
         var bodyStream = new PacketBodyStream(_reader, this) { Tee = destination };
         _body = bodyStream;
-        byte[] buffer = new byte[64 * 1024];
+        byte[] buffer = Scratch.Rent();
         while (bodyStream.Read(buffer, 0, buffer.Length) > 0)
         {
         }
+
+        Scratch.Return(buffer);
     }
 
     internal void Finish()
@@ -316,10 +324,12 @@ public sealed class PacketFrame
         _consumed = true;
         _done = true;
         Stream body = _body ??= new PacketBodyStream(_reader, this);
-        byte[] buffer = new byte[64 * 1024];
+        byte[] buffer = Scratch.Rent();
         while (body.Read(buffer, 0, buffer.Length) > 0)
         {
         }
+
+        Scratch.Return(buffer);
     }
 
     private PacketBodyStream NewBody()

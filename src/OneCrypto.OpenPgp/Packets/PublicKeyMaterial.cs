@@ -50,6 +50,31 @@ public sealed class PublicKeyMaterial
     /// <exception cref="OpenPgpParseException">The material is malformed, or the algorithm is unknown and its length cannot be told.</exception>
     public static PublicKeyMaterial Parse(PublicKeyAlgorithm algorithm, ReadOnlyMemory<byte> data, bool exactLength, int maxMpiBits, out int length)
     {
+        // A curve we do not know may come with an encoding of its own. When the material is the whole of the data, anything that does not parse
+        // as the standard layout is kept as opaque bytes, so a certificate holding such a key still loads (RFC 9580 §5.5.5.6, §5.5.5.8).
+        if (exactLength && algorithm is PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ecdh)
+        {
+            try
+            {
+                PublicKeyMaterial m = ParseCore(algorithm, data, exactLength, maxMpiBits, out length);
+                if (length == data.Length)
+                {
+                    return m;
+                }
+            }
+            catch (OpenPgpParseException)
+            {
+            }
+
+            length = data.Length;
+            return new PublicKeyMaterial(algorithm, data, [], default, default, false);
+        }
+
+        return ParseCore(algorithm, data, exactLength, maxMpiBits, out length);
+    }
+
+    private static PublicKeyMaterial ParseCore(PublicKeyAlgorithm algorithm, ReadOnlyMemory<byte> data, bool exactLength, int maxMpiBits, out int length)
+    {
         var c = new PacketCursor(data);
         var values = new List<ReadOnlyMemory<byte>>(4);
         ReadOnlyMemory<byte> oid = default;

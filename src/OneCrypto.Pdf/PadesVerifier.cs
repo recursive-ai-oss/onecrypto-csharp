@@ -183,7 +183,7 @@ public static class PadesVerifier
     /// the core RFC 3161 verifier on a request built from that digest. A token without a nonce cannot be told from a replay, which the
     /// verifier reports as not applicable; the imprint is what binds it to this data.
     /// </summary>
-    private static (TimeStampReport? Report, IReadOnlyList<CmsCheck> Checks, bool Trusted) CheckToken(ReadOnlyMemory<byte> tokenBytes, Func<HashAlgorithmName, byte[]> digestOf, PadesVerifyOptions options, IReadOnlyList<Certificate> pool, RevocationData revocation)
+    private static (TimeStampReport? Report, IReadOnlyList<CmsCheck> Checks, bool Trusted) CheckToken(ReadOnlyMemory<byte> tokenBytes, Func<HashAlgorithmName, byte[]> digestOf, PadesVerifyOptions options, IReadOnlyList<Certificate> pool, RevocationData revocation, DateTimeOffset? revocationDataTime = null)
     {
         var checks = new List<CmsCheck>();
         if (!SignedData.TryParse(tokenBytes, out SignedData? token, null, allowTrailingZeros: true) || token is null || !token.HasEncapsulatedContent || token.EncapsulatedContentType != CmsOids.TstInfo)
@@ -227,6 +227,9 @@ public static class PadesVerifier
             Policy = options.Policy,
             TrustAnchors = options.TrustAnchors,
             Revocation = revocation,
+            // Data a later document time-stamp covers was collected after this token was made; it is judged at the time that time-stamp proves.
+            RevocationModel = revocationDataTime is null ? RevocationModel.Current : RevocationModel.PastTime,
+            RevocationDataTime = revocationDataTime,
         });
         CmsCheck? trust = report.Find("trust");
         bool trusted = options.TrustAnchors.Count > 0 && report.IsValid && trust is { Status: CmsCheckStatus.Passed or CmsCheckStatus.Warning };
@@ -428,7 +431,8 @@ public static class PadesVerifier
         {
             RevocationData rd = MergeRevocation(options, dss, vri, cms);
             ReadOnlyMemory<byte> signature = signer.Signature;
-            (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(attr.Values[0], hash => CryptographicOperations.HashData(hash, signature.Span), options, pool, rd);
+            (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(attr.Values[0], hash => CryptographicOperations.HashData(hash, signature.Span), options, pool, rd,
+                options.RevocationDataTime ?? CoveringTime(dss, vri, [.. stamps.Select(static t => t.Result)], options.ReferenceTime));
             sigStamp = new PadesTimestamp(false, null, report, tokenChecks, 0, 0, trusted);
             timestamps.Add(sigStamp);
         }
@@ -582,12 +586,8 @@ public static class PadesVerifier
         return (full, embedded);
     }
 
-    /// <summary>
-    /// The instant stored revocation data is judged fresh at. Data covered by a trusted document time-stamp existed when it was made, so
-    /// the earliest such time-stamp that covers every stored object is used; otherwise the newest issue time among the data (the
-    /// collection time is not proven, so each object is judged as of the latest one's issue).
-    /// </summary>
-    private static DateTimeOffset? DataTime(RevocationData data, DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
+    /// <summary>The time of the earliest trusted document time-stamp that covers every stored object, or null when none does or the store is empty.</summary>
+    private static DateTimeOffset? CoveringTime(DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
     {
         long newest = -1;
         foreach (StoredItem<Certificate> i in dss.Certificates.Concat(vri?.Certificates ?? []))
@@ -607,6 +607,21 @@ public static class PadesVerifier
             {
                 return cov;
             }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The instant stored revocation data is judged fresh at. Data covered by a trusted document time-stamp existed when it was made, so
+    /// the earliest such time-stamp that covers every stored object is used; otherwise the newest issue time among the data (the
+    /// collection time is not proven, so each object is judged as of the latest one's issue).
+    /// </summary>
+    private static DateTimeOffset? DataTime(RevocationData data, DssStore dss, DssStore? vri, List<PadesTimestamp> timestamps, DateTimeOffset reference)
+    {
+        if (CoveringTime(dss, vri, timestamps, reference) is { } covering)
+        {
+            return covering;
         }
 
         DateTimeOffset? best = null;

@@ -455,9 +455,16 @@ public sealed class CertificateAuthority
             throw new IssuanceException("crl-sign", "The CA certificate's key usage does not include cRLSign (RFC 5280 §4.2.1.3).", "RFC 5280 §4.2.1.3");
         }
 
-        if (o.ThisUpdate < ca.NotBefore || o.ThisUpdate > ca.NotAfter)
+        // The CRL is signed with the CA's key, which is only certified from the CA certificate's notBefore to its notAfter (RFC 5280 §5.1.2.4: thisUpdate is
+        // the issue date of the list), so a list cannot be dated outside that window. Backdating to cover an earlier certificate is not possible.
+        if (o.ThisUpdate < ca.NotBefore)
         {
-            throw new IssuanceException("issuer-validity", "The CA certificate is not valid at thisUpdate.", "RFC 5280 §5.1.2.4");
+            throw new IssuanceException("issuer-validity", $"thisUpdate {o.ThisUpdate:u} is before the CA certificate's notBefore {ca.NotBefore:u}. A CRL is signed with the CA's key and cannot be dated before the key's certificate is valid (RFC 5280 §5.1.2.4). Set ThisUpdate to the CA certificate's NotBefore or later.", "RFC 5280 §5.1.2.4");
+        }
+
+        if (o.ThisUpdate > ca.NotAfter)
+        {
+            throw new IssuanceException("issuer-validity", $"thisUpdate {o.ThisUpdate:u} is after the CA certificate's notAfter {ca.NotAfter:u}. The CA certificate has expired for signing new lists (RFC 5280 §5.1.2.4); renew the CA certificate or use an earlier ThisUpdate.", "RFC 5280 §5.1.2.4");
         }
 
         if (o.NextUpdate <= o.ThisUpdate)

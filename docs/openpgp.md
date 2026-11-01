@@ -1,6 +1,6 @@
 # OpenPGP packet layer
 
-`RecursiveAI.OneCrypto.OpenPgp` reads and writes the OpenPGP wire format: RFC 9580 (versions 4 and 6), RFC 9980 post-quantum key and PKESK formats, version 3 keys and signatures (read), and the LibrePGP version 5 packets (read). Message encryption, signing and verification are not in this layer; it only turns bytes into typed, immutable packets and back.
+`RecursiveAI.OneCrypto.OpenPgp` reads and writes the OpenPGP wire format: RFC 9580 (versions 4 and 6), RFC 9980 post-quantum key and PKESK formats, version 3 keys and signatures (read), and the LibrePGP version 5 packets (read). The packet layer only turns bytes into typed, immutable packets and back; messages (sign, verify, encrypt, decrypt) are built on it and described under [Messages](#messages).
 
 Namespace: `RecursiveAI.OneCrypto.OpenPgp.Packets`. Spec: RFC 9580 §4 (packet syntax), §5 (packet types), §6 (armor), §10 (transferable keys); draft-koch-librepgp §5 for version 5.
 
@@ -40,3 +40,44 @@ Violations raise `OpenPgpParseException` with an `OpenPgpError` code and the byt
 - A generated corpus: keys, certificates, signatures and messages from GnuPG 2.4 and 2.5, Sequoia `sq` 1.5 (v4, v6, post-quantum), RNP 0.17, OpenPGP.js 6.3 and GopenPGP 3 (through gosop). Every file parses and writes back identically; fingerprints equal `gpg --with-colons` and the other tools' listings. Counts are in [sop.md](sop.md#corpus).
 - A hand-built version 3 RSA key (MD5 fingerprint computed independently).
 - A fuzz target (`pgppacket`) over packets and armor.
+
+## Messages
+
+Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpMessageReader` (`Read`, `ReadSigned`, `VerifyDetached`, `VerifyCleartext`), `PgpMessageWriter` (`Write`, `SignDetached`, `SignCleartext`), each with an `...Async` twin, over `PgpCertificate` (a transferable key with its binding, expiry, revocation and usage evaluated at a given time), `PgpKey` and `PgpSecretKey` (an unlocked secret key; S2K-protected keys are opened with CFB-254/255, AEAD-253 and Argon2). Every call takes the reference time (`Now`) and a `CryptoPolicy`; results are `PgpReadResult` with one `PgpSignatureResult` per signature (signer, fingerprint, creation time, hash, policy verdict and reasons).
+
+**Reading** (`PgpMessageReader.Read`)
+
+- Signatures v3, v4 and v6 (binary, text, standalone, detached, one-pass, cleartext) over RSA, DSA, ECDSA (NIST and Brainpool), EdDSA (legacy and Ed25519/Ed448), and the RFC 9980 ML-DSA+Ed25519 / ML-DSA+Ed448 composites (both parts must verify; version 6 and a 256-bit digest or larger only). Bytes are hashed as received.
+- Public-key encrypted session keys v3 and v6: RSA, ECDH (NIST, Brainpool, legacy Curve25519), X25519, X448, ML-KEM-768+X25519 and ML-KEM-1024+X448. Passwords: SKESK v4 (CFB), v5 (LibrePGP, OCB) and v6 (AEAD, Argon2 or iterated S2K). A session key can be supplied directly.
+- Encrypted data: SEIPD v2 (EAX, OCB, GCM; chunked), SEIPD v1 with MDC, LibrePGP OCB Encrypted Data, and old Symmetrically Encrypted Data only with `AllowUnauthenticatedEncryption` (default refused with `PgpFailure.UnauthenticatedEncryption`). Ciphers: AES, Camellia, Twofish and the decrypt-only IDEA, TripleDES, CAST5 and Blowfish.
+- Compression: ZIP and ZLIB, with an expansion ceiling of 1 MiB plus 1032 times the compressed octets read, and `MaxNesting` (8) layers. BZip2 is reported as unsupported.
+- Not yet: LibrePGP Kyber (read as an unsupported algorithm), SLH-DSA, version 5 keys and signatures for message operations.
+
+**Certificates at a point in time** (`PgpKey.StateAt`)
+
+- A key is valid at time T when it exists, a binding signature in force at T covers it (newest first; a binding that has itself expired, or whose user ID was revoked since, is out; a signing subkey also needs an unexpired primary key binding signature), it has not expired and it is not revoked.
+- Revocations: "no reason", "compromised" and unknown reason codes are hard and invalidate the key at every time; "superseded", "retired" and "user ID no longer valid" count only from their creation. An expired revocation signature is ignored.
+- When a user ID is marked primary, the other user IDs do not decide flags or expiry. An empty Key Flags subpacket means the key may do nothing.
+- Issuer subpackets are hints: a signature is tried against every key the hints name, then against every key of its algorithm, and only a key that verifies it counts. A binding is judged by the primary key's verification, not by what it claims about its issuer. A critical subpacket or notation we do not understand voids a signature (RFC 9580 §5.2.3.7).
+- A secret key decrypts only when its flags allow encryption; keys that name a PKESK but are certify-, sign- or authenticate-only are skipped.
+
+**Message grammar** (RFC 9580 §10.3): session key packets must be followed by encrypted data, a one-pass header must be closed by its signature, and a signature after the literal data needs its one-pass header; anything else is `PgpFailure.MalformedMessage`. Unknown packet versions, session keys with unknown string-to-key types, and signatures with unknown hash algorithms are skipped, not fatal. The first partial chunk of a packet must hold at least 512 octets. Armor headers may be UTF-8.
+
+**Fail closed**
+
+- SEIPD v1 (no chunking) is decrypted into a spool (memory up to a few MiB, then a temporary file) and released only after the MDC matches. SEIPD v2 and OCB Encrypted Data release a chunk only after its tag verifies; a bad final tag or chunk count throws after earlier chunks were delivered, so a streaming caller that must not act on partial data uses the `...Async` forms, which write to the caller's stream only after the whole operation has succeeded.
+- Every decryption failure (wrong key, bad padding or checksum, bad unwrap) is the same `PgpFailure.CannotDecrypt`; `KeyIsProtected` appears only when a locked key that could open the message was seen and nothing else did. Session-key validation (padding, checksum) accumulates its verdict in a mask and tests it once (RFC 9580 §13); it has a timing test.
+- Unauthenticated old SED output is released as it decrypts, which is why it needs the opt-in.
+
+**Writing** (`PgpMessageWriter.Write`)
+
+- The format is chosen from the recipients: SEIPD v2 when every recipient key is version 6 or advertises the AEAD feature, otherwise SEIPD v1; AES-256 with OCB (or the recipients' AEAD preferences; with SEIPD v1, the first of AES-256, AES-192, AES-128 that every recipient listing preferences accepts); ECDH recipients whose key names a key-wrap cipher other than AES or a KDF hash below SHA2-256 are refused; a version 6 padding packet of 16 to 255 random octets in v2 messages. `ForceSeipd1` overrides.
+- PKESK v3/v6 for RSA, ECDH, X25519, X448, ML-KEM composites; SKESK v4 (iterated-salted SHA-256) or v6 (Argon2id, 3 passes, 4 lanes, 64 MiB) for passwords. A password message is never written with a legacy cipher.
+- Signatures v4 and v6 through `ISigningKey`: default hash SHA-512 (the digest that matches the curve for ECDSA), salted for v6. Literal data keeps filename and date; text mode canonicalises line endings. Compression ZIP or ZLIB on request, none by default. Cleartext signing follows RFC 9580 §7 (dash-escaping, `Hash:` header).
+- Armor is written with the CRC-24 line: GnuPG 2.4 and 2.5 refuse armor with neither padding nor CRC (data lengths that are multiples of 3). Readers keep the CRC optional.
+
+**Limits**: `OpenPgpLimits` for packets; the expansion ceiling above; S2K cost from untrusted input is bounded by `CryptoPolicy.KdfLimits` (Argon2 memory 2 GiB by default); password and key passwords are tried against every candidate in turn.
+
+**Async twins** spool their input (memory up to 4 MiB, then a temporary file) and run the synchronous pipeline: I/O does not block, memory is constant, the CPU work is not parallelised.
+
+**Checked against**: RFC 9580 Appendix A (inline, cleartext, detached, X25519/OCB, password EAX/OCB/GCM, Argon2 SKESK, locked key), RFC 9980 Appendix A.1–A.4 (v6 and v4 ML-KEM-768+X25519 with SEIPD v1 and v2, ML-DSA-65+Ed25519, ML-DSA-87+Ed448/ML-KEM-1024+X448 messages and detached signatures), GnuPG-written messages in every legacy cipher, old SED and LibrePGP OCBED (`testdata/openpgp/legacy`, regenerated by `tools/oracles/legacy-ciphers-fixtures.sh`), two-way runs with GnuPG 2.4.4, 2.4.8 and 2.5.24, Sequoia sqop 0.38, gosop 1.1 and OpenPGP.js 6.3 (`tools/oracles/sop-matrix.sh`, `tools/oracles/gpg-messages.sh`), and the interoperability suite ([sop.md](sop.md)).

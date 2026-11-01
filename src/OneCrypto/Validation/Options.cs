@@ -199,6 +199,14 @@ public sealed class ValidationOptions
     /// <summary>Also apply the policy-related extensions of an anchor certificate (policyConstraints, inhibitAnyPolicy); default false.</summary>
     public bool ApplyAnchorPolicyConstraints { get; init; }
 
+    /// <summary>
+    /// Also apply the structure checks of <see cref="StrictStructure"/> to the anchor certificate's own extensions (default false). An anchor is a name and a key
+    /// (RFC 5937 §2; RFC 5280 §6.1.1 (d) takes them as input), and the anchor certificate's extensions are not path-validated, so roots that publish
+    /// basicConstraints without the critical flag, or are version 1 certificates, anchor a path. Malformed or duplicated extensions on the anchor still fail.
+    /// Turn this on to hold anchors to the rules for CA certificates, for example when auditing a root store.
+    /// </summary>
+    public bool StrictAnchorStructure { get; init; }
+
     /// <summary>Require the anchor certificate to be valid at the reference time (default true).</summary>
     public bool CheckAnchorValidity { get; init; } = true;
 

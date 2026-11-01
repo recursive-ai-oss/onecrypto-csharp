@@ -41,6 +41,7 @@ internal static class Program
         ["placeholder"] = PlaceholderTarget.Run,
         ["online"] = OnlineTarget.Run,
         ["pgppacket"] = PgpPacketTarget.Run,
+        ["pgpmessage"] = PgpMessageTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
     };
 
@@ -66,6 +67,7 @@ internal static class Program
         "placeholder" => PlaceholderTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
         "pgppacket" => PgpPacketTarget.Seeds(),
+        "pgpmessage" => PgpMessageTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
         _ => [],
     };

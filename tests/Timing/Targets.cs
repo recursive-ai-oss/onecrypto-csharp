@@ -18,6 +18,7 @@ internal static class Targets
         .. SecretModTargets.Targets(),
         .. GnuPGKeyFileTargets.Targets(),
         .. FallbackTargets.Targets(),
+        .. OpenPgpTargets.Targets(),
     ];
 }
 

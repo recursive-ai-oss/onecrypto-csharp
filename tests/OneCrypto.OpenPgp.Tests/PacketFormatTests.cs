@@ -3,6 +3,7 @@ using RecursiveAI.OneCrypto.OpenPgp.Packets;
 
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
+[Collection("ProcessMemory")]
 public class PacketFormatTests
 {
     private static byte[] Cat(params byte[][] parts) => parts.SelectMany(p => p).ToArray();
@@ -26,8 +27,8 @@ public class PacketFormatTests
         { "new two-octet, non-minimal", Cat([0xC0 | 10, 192, 0], new byte[192]) },
         { "new five-octet for a short body", Cat([0xC0 | 10, 0xFF], U32(3), Marker) },
         { "new five-octet zero length", Cat([0xC0 | 13, 0xFF], U32(0)) },
-        { "new partial", Cat([0xC0 | 9, 0xE0 | 1], new byte[2], [3], new byte[3]) },
-        { "new partial, then a zero final chunk", Cat([0xC0 | 9, 0xE0 | 0], new byte[1], [0]) },
+        { "new partial", Cat([0xC0 | 9, 0xE0 | 9], new byte[512], [3], new byte[3]) },
+        { "new partial, then a zero final chunk", Cat([0xC0 | 9, 0xE0 | 9], new byte[512], [0]) },
         { "new tag above 15", Cat([0xC0 | 21, 4], new byte[4]) },
         { "reserved tag zero", Cat([0xC0, 2, 9, 9]) },
         { "unknown tag 40", Cat([0xC0 | 40, 2, 9, 9]) },
@@ -80,14 +81,24 @@ public class PacketFormatTests
     [Fact]
     public void APartialBodyIsJoinedAndKeepsItsFraming()
     {
-        byte[] input = Cat([0xC0 | 11, 0xE0 | 3], [(byte)'b', 0, 0, 0, 0, 1, 7, 7], [2], [1, 2]);
+        byte[] first = Cat([(byte)'b', 0, 0, 0, 0, 1], new byte[504], [7, 7]);
+        byte[] input = Cat([0xC0 | 11, 0xE0 | 9], first, [2], [1, 2]);
         Packet p = PacketParser.ParseAll(input)[0];
         Assert.True(p.OriginalHeader!.Value.IsPartial);
-        Assert.Equal([(byte)'b', 0, 0, 0, 0, 1, 7, 7, 1, 2], p.Body.ToArray());
+        Assert.Equal([.. first, 1, 2], p.Body.ToArray());
         var lit = Assert.IsType<LiteralDataPacket>(p);
         Assert.Equal((byte)'b', lit.Literal.Format);
         Assert.Equal(1u, lit.Literal.Date);
-        Assert.Equal([7, 7, 1, 2], lit.Data.ToArray());
+        Assert.Equal(512 - 6 + 2, lit.Data.Length);
+    }
+
+    [Fact]
+    public void AFirstPartialChunkUnder512OctetsIsRefused()
+    {
+        // RFC 9580 §4.2.1.4: the first partial chunk holds at least 512 octets.
+        byte[] input = Cat([0xC0 | 11, 0xE0 | 8], new byte[256], [0]);
+        var e = Assert.Throws<OpenPgpParseException>(() => PacketParser.ParseAll(input));
+        Assert.Equal(OpenPgpError.InvalidField, e.Error);
     }
 
     [Theory]

@@ -41,6 +41,27 @@ public sealed class PadesTimestamp
     /// <summary>The core report of the token: one check per rule with its RFC 3161 clause, and the authority's chain as of <c>genTime</c>. Null when the value did not parse as a time-stamp token (the reason is in <see cref="Checks"/>).</summary>
     public TimeStampReport? Report { get; }
 
+    /// <summary>The core report, for code that wants a non-null value.</summary>
+    /// <returns>The report.</returns>
+    /// <exception cref="PadesException">The value did not parse as a time-stamp token (<see cref="PadesException.Reason"/> is <see cref="PadesError.NotPresent"/>); <see cref="Checks"/> says why.</exception>
+    public TimeStampReport RequireReport() =>
+        Report ?? throw new PadesException(PadesError.NotPresent, "The time-stamp has no report: " + (Checks.FirstOrDefault(static c => c.Status is CmsCheckStatus.Failed or CmsCheckStatus.Unsupported)?.Reason ?? "the value did not parse as a time-stamp token."));
+
+    /// <summary>The time-stamp token (a CMS SignedData), for code that wants a non-null value.</summary>
+    /// <returns>The token.</returns>
+    /// <exception cref="PadesException">There is no readable token (<see cref="PadesError.NotPresent"/>).</exception>
+    public SignedData RequireToken() =>
+        Report?.Token ?? throw new PadesException(PadesError.NotPresent, "The time-stamp has no readable token.");
+
+    /// <summary>Gets the core report without a null check.</summary>
+    /// <param name="report">The report.</param>
+    /// <returns>False when the value did not parse as a time-stamp token.</returns>
+    public bool TryGetReport([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TimeStampReport? report)
+    {
+        report = Report;
+        return report is not null;
+    }
+
     /// <summary>One check per rule, with its reason and RFC 3161 clause (the core report's, or the single failure when there is no report).</summary>
     public IReadOnlyList<CmsCheck> Checks { get; }
 
