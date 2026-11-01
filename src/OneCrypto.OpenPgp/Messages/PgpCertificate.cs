@@ -421,6 +421,9 @@ public sealed class PgpCertificate
     /// <summary>True when the certificate carries secret key packets.</summary>
     public bool HasSecretKeyMaterial => Transferable.IsSecret;
 
+    /// <summary>This certificate without its secret key material (the same object when it has none).</summary>
+    public PgpCertificate ToPublicCertificate() => HasSecretKeyMaterial ? new PgpCertificate(Transferable.ToPublic()) : this;
+
     /// <summary>Wraps a parsed transferable key.</summary>
     public static PgpCertificate FromTransferable(TransferableKey key)
     {
@@ -486,10 +489,31 @@ public sealed class PgpCertificate
     }
 
     /// <summary>The public form of this certificate, written as binary packets.</summary>
-    public byte[] ExportPublic()
+    public byte[] ExportPublic() => ExportPublic(false);
+
+    /// <summary>The public form of this certificate, as binary packets or as an ASCII-armored <c>PGP PUBLIC KEY BLOCK</c> (RFC 9580 §6.2).</summary>
+    public byte[] ExportPublic(bool armor) => Write(Transferable.ToPublic(), armor, "PGP PUBLIC KEY BLOCK");
+
+    /// <summary>
+    /// The certificate as it is held: with its secret key packets when it has them (an ASCII-armored <c>PGP PRIVATE KEY BLOCK</c>), otherwise the public form.
+    /// Secret keys are written as they are, protected or not.
+    /// </summary>
+    public byte[] Export(bool armor = false) => Write(Transferable, armor, HasSecretKeyMaterial ? "PGP PRIVATE KEY BLOCK" : "PGP PUBLIC KEY BLOCK");
+
+    private static byte[] Write(TransferableKey key, bool armor, string label)
     {
         using var ms = new MemoryStream();
-        Transferable.ToPublic().WriteTo(ms);
+        if (armor)
+        {
+            using var a = new ArmorWriteStream(ms, label, leaveOpen: true);
+            key.WriteTo(a);
+            a.Complete();
+        }
+        else
+        {
+            key.WriteTo(ms);
+        }
+
         return ms.ToArray();
     }
 }

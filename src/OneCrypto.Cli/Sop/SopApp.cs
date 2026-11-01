@@ -19,10 +19,19 @@ internal static class SopApp
         "armor", "dearmor",
     ];
 
+    /// <summary>The version of the sopv subset (draft section 3) this tool provides in full.</summary>
+    public const string SopvVersion = "1.2";
+
+    // The subcommands sopv allows (draft section 3).
+    private static readonly HashSet<string> SopvSubcommands = ["version", "verify", "inline-verify", "validate-userid"];
+
     public static string ProductVersion { get; } = typeof(SopApp).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
 
     /// <summary>Runs one invocation (the arguments after <c>sop</c>) and returns the exit code.</summary>
-    public static int Run(string[] args, SopIo io)
+    public static int Run(string[] args, SopIo io) => Run(args, io, sopvOnly: false);
+
+    /// <summary>Runs one invocation; with <paramref name="sopvOnly"/> only the verification subset (draft section 3) is available, as when the tool is run as <c>sopv</c>.</summary>
+    public static int Run(string[] args, SopIo io, bool sopvOnly)
     {
         try
         {
@@ -30,6 +39,11 @@ internal static class SopApp
             if (o.Subcommand is null)
             {
                 throw new SopException(SopExit.UnsupportedSubcommand, "no subcommand given");
+            }
+
+            if (sopvOnly && !SopvSubcommands.Contains(o.Subcommand))
+            {
+                throw new SopException(SopExit.UnsupportedSubcommand, $"'{o.Subcommand}' is not part of sopv");
             }
 
             switch (o.Subcommand)
@@ -58,6 +72,20 @@ internal static class SopApp
                     return MessageCommands.RunEncrypt(o, io);
                 case "decrypt":
                     return MessageCommands.RunDecrypt(o, io);
+                case "generate-key":
+                    return KeyCommands.RunGenerateKey(o, io);
+                case "change-key-password":
+                    return KeyCommands.RunChangeKeyPassword(o, io);
+                case "revoke-key":
+                    return KeyCommands.RunRevokeKey(o, io);
+                case "update-key":
+                    return KeyCommands.RunUpdateKey(o, io);
+                case "merge-certs":
+                    return KeyCommands.RunMergeCerts(o, io);
+                case "certify-userid":
+                    return KeyCommands.RunCertifyUserId(o, io);
+                case "validate-userid":
+                    return KeyCommands.RunValidateUserId(o, io);
                 default:
                     throw new SopException(SopExit.UnsupportedSubcommand,
                         KnownSubcommands.Contains(o.Subcommand) ? $"'{o.Subcommand}' is not implemented yet" : $"unknown subcommand '{o.Subcommand}'");
@@ -109,8 +137,9 @@ internal static class SopApp
         o.NoPositionals();
         if (o.Flag("--sopv"))
         {
-            // Only verify and inline-verify make sopv; neither exists yet, so the subset is not provided.
-            throw new SopException(SopExit.UnsupportedOption, "the sopv subset is not provided yet");
+            // Draft section 3: version, verify and inline-verify make sopv 1.0; validate-userid came with 1.2. All four are provided.
+            io.Stdout.Write(System.Text.Encoding.UTF8.GetBytes(SopvVersion + "\n"));
+            return SopExit.Ok;
         }
 
         string text;
@@ -120,7 +149,7 @@ internal static class SopApp
         }
         else if (o.Flag("--sop-spec"))
         {
-            text = SpecName + "\nSubcommands: version, list-profiles, armor, dearmor, extract-cert, inline-detach, sign, verify, inline-sign, inline-verify, encrypt, decrypt. Key generation and management are not provided.";
+            text = SpecName + "\nSubcommands: all of them; update-key never generates a replacement key, so --revoke-deprecated-keys has no effect.";
         }
         else if (o.Flag("--extended"))
         {
@@ -156,10 +185,13 @@ internal static class SopApp
             return SopExit.Ok;
         }
 
-        // generate-key takes a profile and is not written yet.
-        throw sub == "generate-key"
-            ? new SopException(SopExit.UnsupportedSubcommand, $"'{sub}' is not implemented yet")
-            : new SopException(SopExit.UnsupportedProfile, $"'{sub}' does not take a profile");
+        if (sub == "generate-key")
+        {
+            io.Stdout.Write(System.Text.Encoding.UTF8.GetBytes(KeyCommands.ProfileList()));
+            return SopExit.Ok;
+        }
+
+        throw new SopException(SopExit.UnsupportedProfile, $"'{sub}' does not take a profile");
     }
 }
 
@@ -175,7 +207,7 @@ internal sealed class Options
     private readonly Dictionary<string, List<string?>> _multi = new(StringComparer.Ordinal);
 
     private static readonly HashSet<string> MultiOptions =
-        ["--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with"];
+        ["--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with", "--old-key-password", "--userid", "--merge-certs"];
 
     // Options that take a value. The draft writes them as --name=value; other implementations, and the interoperability suite, also give the
     // value as the next argument, so that form is read for these names only (a flag followed by a positional must stay a flag).
@@ -183,6 +215,7 @@ internal sealed class Options
     [
         "--as", "--for", "--micalg-out", "--not-after", "--not-before", "--profile", "--session-key-out", "--signatures-out", "--verifications-out",
         "--verify-not-after", "--verify-not-before", "--verify-out", "--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with",
+        "--old-key-password", "--new-key-password", "--userid", "--merge-certs", "--validate-at",
     ];
 
     private Options()

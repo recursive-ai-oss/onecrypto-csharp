@@ -419,6 +419,9 @@ public sealed class PgpSecretKey : IDisposable
         _signer = null;
     }
 
+    // The unlocked secret values as stored in the packet, without checksum or hash; key management re-protects them under another password.
+    internal ReadOnlySpan<byte> PlainSecret => _plain.AsSpan(0, _length);
+
     // Decryption of the session key lives in SessionKeys.cs and reads the parts through this method.
     internal List<byte[]> SecretParts() => Parts();
 }
