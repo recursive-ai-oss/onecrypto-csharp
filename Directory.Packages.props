@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Family library the PDF bridge builds on (a published version, never a project reference). -->
-    <PackageVersion Include="RecursiveAI.OnePdf" Version="1.16.0" />
+    <PackageVersion Include="RecursiveAI.OnePdf" Version="1.17.1" />
   </ItemGroup>
   <ItemGroup>
     <!-- Test, benchmark and fuzz projects only. The shipped packages reference nothing outside the shared framework. -->

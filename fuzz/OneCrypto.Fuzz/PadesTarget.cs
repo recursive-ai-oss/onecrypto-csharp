@@ -41,7 +41,7 @@ internal static class PadesTarget
 
         using (doc)
         {
-            PadesReport report = PadesVerifier.Verify(doc, pdf, new PadesVerifyOptions
+            PadesReport report = PadesVerifier.Verify(doc, new PadesVerifyOptions
             {
                 TrustAnchors = anchors,
                 ReferenceTime = reference,

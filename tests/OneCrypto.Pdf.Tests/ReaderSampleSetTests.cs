@@ -32,7 +32,7 @@ public class ReaderSampleSetTests
         {
             File.WriteAllBytes(Path.Combine(outDir!, file), pdf);
             using PdfDocument doc = PdfDocument.Open(pdf);
-            PadesReport report = doc.VerifyPades(pdf, kit.Verify(at.AddMinutes(5)));
+            PadesReport report = doc.VerifyPades(kit.Verify(at.AddMinutes(5)));
             string verdict = report.Signatures.Count == 0 ? "no signatures" : $"{(report.AllValid ? "valid" : "not valid")}; level {report.Signatures[0].Level}";
             manifest.AppendLine($"| {file} | {key} | {level} | {verdict} | {expected} |");
         }

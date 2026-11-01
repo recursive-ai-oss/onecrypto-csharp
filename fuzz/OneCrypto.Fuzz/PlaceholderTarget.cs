@@ -50,11 +50,6 @@ internal static class PlaceholderTarget
             {
                 return;
             }
-            catch (ArgumentOutOfRangeException) when (HasNoPages(doc))
-            {
-                // Documented argument check: field page 0 does not exist in a file with no pages. Reported to OnePDF as a typed-error gap.
-                return;
-            }
 
             byte[] file = ms.ToArray();
             if (file.Length < pdf.Length || !file.AsSpan(0, pdf.Length).SequenceEqual(pdf))
@@ -133,18 +128,6 @@ internal static class PlaceholderTarget
                     _ = reopened.GetSignatures();
                 }
             }
-        }
-    }
-
-    private static bool HasNoPages(PdfDocument doc)
-    {
-        try
-        {
-            return doc.Pages.Count == 0;
-        }
-        catch (PdfException)
-        {
-            return true;
         }
     }
 

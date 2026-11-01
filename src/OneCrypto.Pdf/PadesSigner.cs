@@ -159,6 +159,7 @@ public static class PadesSigner
             SignerName = basis.SignerName,
             SigningTime = basis.SigningTime ?? options.ReferenceTime ?? options.ValidationData?.ReferenceTime,
             Certify = basis.Certify,
+            AllowBreakingCertification = basis.AllowBreakingCertification,
             FieldLock = basis.FieldLock,
             Format = PdfSignatureFormat.PadesBaseline,
             SubFilter = "ETSI.CAdES.detached",

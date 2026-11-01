@@ -60,6 +60,9 @@ public enum PadesError
 
     /// <summary>The file cannot be augmented: it has no signature, or one cannot be read.</summary>
     UnsupportedFile,
+
+    /// <summary>The file changed on disk after the document was opened, so its original bytes are no longer available to verify.</summary>
+    SourceChanged,
 }
 
 /// <summary>Raised by the signing and augmentation calls when they cannot do what was asked. Verification never throws for bad input.</summary>
