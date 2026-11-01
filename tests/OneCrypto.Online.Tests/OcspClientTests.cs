@@ -10,7 +10,7 @@ public class OcspClientTests
 
     private static OcspClient Client(ITransport net) => new(new Fetcher(net, new FetchOptions { Cache = new MemoryFetchCache() }));
 
-    private static OcspQueryOptions Opts(Action<List<string>>? _ = null) => new() { ReferenceTime = World.Now };
+    private static OcspQueryOptions Opts() => new() { ReferenceTime = World.Now };
 
     [Fact]
     public async Task GoodRevokedAndUnknownAreReportedAsTheResponderSaidThem()
@@ -70,13 +70,10 @@ public class OcspClientTests
     [Fact]
     public async Task AGetThatTheResponderRefusesIsRepeatedAsAPost()
     {
-        FakeNetwork net = W.Network(new() { ["http://ocsp.test/"] = r => r.Method == "GET" ? Reply.Code(405) : World.ServeOcspFor(W.Responder, r) });
-        // The route key above matches only the bare URL; GETs carry a tail, so route by prefix instead.
-        var net2 = new FakeNetwork(r => r.Method == "GET" ? Reply.Code(405) : World.ServeOcspFor(W.Responder, r));
-        OcspQueryResult res = await Client(net2).QueryAsync(W.Good, W.Intermediate.Certificate, Opts());
+        var net = new FakeNetwork(r => r.Method == "GET" ? Reply.Code(405) : World.ServeOcspFor(W.Responder, r));
+        OcspQueryResult res = await Client(net).QueryAsync(W.Good, W.Intermediate.Certificate, Opts());
         Assert.Equal(OcspOutcome.Answered, res.Outcome);
-        Assert.Equal(["GET", "POST"], net2.Requests.Select(q => q.Method).ToArray());
-        _ = net;
+        Assert.Equal(["GET", "POST"], net.Requests.Select(q => q.Method).ToArray());
     }
 
     [Fact]

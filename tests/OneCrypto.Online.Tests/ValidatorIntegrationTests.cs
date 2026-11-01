@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Issuance;
 using RecursiveAI.OneCrypto.Online;
@@ -178,6 +177,5 @@ public class ValidatorIntegrationTests
         ValidationReport again = await PathValidator.ValidateAsync(W.Good, Options(cs: new OnlineCertificateSource(rf), rs: new OnlineRevocationSource(rf, new OnlineRevocationOptions { ReferenceTime = World.Now, Preference = RevocationPreference.Both })));
         Assert.True(again.IsValid, again.ToString());
         Assert.Equal(RevocationStatus.Good, again.RevocationSummary);
-        _ = SHA256.HashData([]);
     }
 }

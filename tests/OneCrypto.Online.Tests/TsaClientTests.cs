@@ -64,7 +64,6 @@ public class TsaClientTests
     [Fact]
     public async Task AnAnswerForOtherDataFailsTheImprintCheck()
     {
-        FakeNetwork inner = W.Network();
         var net = new FakeNetwork(req =>
         {
             // Answer a request for different data, keeping the nonce.
@@ -75,7 +74,6 @@ public class TsaClientTests
         TimestampResult r = await Client(net).StampAsync(Authority, Document, HashAlgorithmName.SHA256);
         Assert.Equal(TimestampOutcome.InvalidToken, r.Outcome);
         Assert.Contains("message-imprint", r.Reason, StringComparison.Ordinal);
-        _ = inner;
     }
 
     [Fact]

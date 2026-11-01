@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Security.Cryptography;
-using System.Text;
 using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Online;
@@ -109,7 +108,7 @@ public class PublicEndpointTests
             await File.WriteAllBytesAsync(Path.Combine(RecordDir!, "globalsign-chain.exchanges.json"), rec.Log.ToJson());
         }
 
-        Console.WriteLine($"live chain: {r.Verdict}, revocation {r.RevocationSummary}; " + string.Join("; ", attempts.Select(a => $"{a.Kind} {a.Uri} {(a.Succeeded ? "ok" : "FAILED")} {a.Detail}")));
+        TestContext.Current.SendDiagnosticMessage($"live chain: {r.Verdict}, revocation {r.RevocationSummary}; " + string.Join("; ", attempts.Select(a => $"{a.Kind} {a.Uri} {(a.Succeeded ? "ok" : "FAILED")} {a.Detail}")));
         Assert.True(r.IsValid, r + " " + string.Join("; ", attempts.Where(a => !a.Succeeded).Select(a => a.Detail)));
         Assert.Equal(RevocationStatus.Good, r.RevocationSummary);
     }
@@ -129,8 +128,7 @@ public class PublicEndpointTests
             await File.WriteAllBytesAsync(Path.Combine(RecordDir!, $"tsa-{name}.exchanges.json"), rec.Log.ToJson());
         }
 
-        Console.WriteLine($"live tsa {name}: {r.Outcome} {r.Reason} genTime {r.Report?.GenTime?.ToString("u", CultureInfo.InvariantCulture)} contentType {r.Fetch.ContentType}");
+        TestContext.Current.SendDiagnosticMessage($"live tsa {name}: {r.Outcome} {r.Reason} genTime {r.Report?.GenTime?.ToString("u", CultureInfo.InvariantCulture)} contentType {r.Fetch.ContentType}");
         Assert.True(r.IsGranted, r.Reason);
-        _ = Encoding.ASCII;
     }
 }

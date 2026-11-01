@@ -7,7 +7,7 @@ public class FetcherTests
 {
     private static readonly byte[] Data = Encoding.ASCII.GetBytes("hello");
 
-    private static Fetcher Make(ITransport t, Action<FetchOptions>? _ = null, FetchOptions? o = null) => new(t, o ?? new FetchOptions { Cache = null });
+    private static Fetcher Make(ITransport t) => new(t, new FetchOptions { Cache = null });
 
     private static FetchRequest Get(string url, UrlOrigin origin = UrlOrigin.Caller) => new() { Uri = new Uri(url), Origin = origin };
 
