@@ -8,6 +8,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `RecursiveAI.OneCrypto.OpenPgp`, new (not yet released): the OpenPGP packet layer. Every packet of RFC 9580 §5 plus the LibrePGP OCB packet, versions 3 to 6 of keys and signatures (LibrePGP version 5 read only), all signature subpackets with critical-bit handling, the RFC 9980 post-quantum key and PKESK formats, ASCII armor (CRC optional, checked when present), and `TransferableKey`. Reading is lossless (write-back is byte-identical) and bounded by `OpenPgpLimits`; a stream reader exposes packet bodies without buffering. See `docs/openpgp.md`.
 - `onecrypto sop`, new in the `onecrypto` tool: the Stateless OpenPGP CLI subcommands that need only the packet layer (`version`, `list-profiles`, `armor`, `dearmor`, `extract-cert`, `inline-detach`); the other subcommands exit 69 until their units land. `tools/oracles/` installs the oracles (GnuPG, Sequoia, RNP, OpenPGP.js, GopenPGP) and runs the OpenPGP interoperability test suite against `sop` as a scoreboard; see `docs/sop.md`.
+- `SignPadesArchive`, `SignPadesArchiveAsync` and `PadesSigner.SignArchive`/`SignArchiveAsync` (`.Pdf`): sign at B-T, then add the document security store and the archive time-stamp with revocation data collected after the signature time-stamp, in one call. `PadesTimestamp.RequireReport()`, `RequireToken()` and `TryGetReport`, `TimeStampReport.RequireToken()`/`TryGetToken`, `PdfSignature.OpenSignedDataOrThrow()`/`TryOpenSignedData` and `PadesError.NotPresent`: non-nullable accessors for straight-line code.
+- `TsaClient(fetcher, authority)` and `TsaClient.GetTimestampAsync` (`.Online`): a method with the shape of the bridge's `PadesTimestampFunction`, so `Timestamp = tsa.GetTimestampAsync` needs no hand-written HTTP.
+- `DigestNames` (OID ↔ `HashAlgorithmName` for SHA-1, SHA-2, SHA-3 and SHAKE256), `SignedData.HashAlgorithmFor`, `HashAlgorithmName` overloads of `SignedData.CreateDetachedFromDigest` and `PrepareDetachedFromDigest`, and `DigestMismatchException` (an `ArgumentException`) naming both algorithms when a digest does not fit.
+- `PrivateKey.SigningKeyFromCertificate` and `TrySigningKeyFromStore`: `ISigningKey`-typed twins of the operating-system key lookups, so `CmsSignerSpec.Key` needs no cast.
+- `DistinguishedName.FromDer`, `TryFromDer`, `Parse(string)` and `TryFromString`: names that say whether the input is DER or RFC 4514 text. `Parse(bytes)` stays and still means DER.
+- `TimeStampVerifyOptions.RevocationModel` and `RevocationDataTime`: judge the authority's revocation data in the past-time model.
+
+### Changed
+
+- Trust anchors (`ValidationOptions.StrictAnchorStructure`, new): a root whose basicConstraints is not marked critical anchors a path. An anchor is a name and a key (RFC 5937 §2), so its own extensions are no longer held to the CA-certificate rules; `ValidationOptions.StrictAnchorStructure` (default false) turns that check back on. Malformed or duplicated anchor extensions still fail.
+- The PAdES verifier judges the authority of a signature time-stamp in the past-time model when a trusted document time-stamp covers the stored revocation data, so a file whose data was collected after the signature time-stamp now reaches B-LTA instead of stopping at B-T.
+- `SignedData.CreateDetachedFromDigest` without a key raises an `InvalidOperationException` that points to `PrepareDetachedFromDigest`.
+- `CertificateAuthority.IssueCrl` still refuses a `ThisUpdate` outside the CA certificate's validity (RFC 5280 §5.1.2.4); the message now says what to do, and docs/issuance.md gives the reason.
 
 ## [0.2.0-preview.1] - 2026-11-01
 

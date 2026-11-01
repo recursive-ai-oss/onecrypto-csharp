@@ -30,6 +30,32 @@ public static class PdfDocumentExtensions
     public static ValueTask<PadesSignResult> SignPadesAsync(this PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain = null, PadesSignOptions? options = null, CancellationToken cancellationToken = default) =>
         PadesSigner.SignAsync(document, output, key, certificate, chain, options, cancellationToken);
 
+    /// <summary>Signs at B-LTA in one call by time-stamping first and collecting revocation data afterwards. See <see cref="PadesSigner.SignArchive"/>.</summary>
+    /// <param name="document">A document opened with <see cref="PdfOpenOptions.AllowEditing"/>.</param>
+    /// <param name="output">A writable stream.</param>
+    /// <param name="key">The signing key.</param>
+    /// <param name="certificate">The signer's certificate.</param>
+    /// <param name="chain">Certificates to embed besides the signer's.</param>
+    /// <param name="options">Choices for the signature and its time-stamp (a time-stamp function is required).</param>
+    /// <param name="afterTimestamp">What to collect after the time-stamp.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>What was written.</returns>
+    public static PadesSignResult SignPadesArchive(this PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain, PadesSignOptions options, PadesValidationData afterTimestamp, CancellationToken cancellationToken = default) =>
+        PadesSigner.SignArchive(document, output, key, certificate, chain, options, afterTimestamp, cancellationToken);
+
+    /// <summary>Asynchronous twin of <see cref="SignPadesArchive"/>.</summary>
+    /// <param name="document">A document opened with <see cref="PdfOpenOptions.AllowEditing"/>.</param>
+    /// <param name="output">A writable stream.</param>
+    /// <param name="key">The signing key.</param>
+    /// <param name="certificate">The signer's certificate.</param>
+    /// <param name="chain">Certificates to embed besides the signer's.</param>
+    /// <param name="options">Choices for the signature and its time-stamp (a time-stamp function is required).</param>
+    /// <param name="afterTimestamp">What to collect after the time-stamp.</param>
+    /// <param name="cancellationToken">Cancels the call and the lookups.</param>
+    /// <returns>What was written.</returns>
+    public static ValueTask<PadesSignResult> SignPadesArchiveAsync(this PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain, PadesSignOptions options, PadesValidationData afterTimestamp, CancellationToken cancellationToken = default) =>
+        PadesSigner.SignArchiveAsync(document, output, key, certificate, chain, options, afterTimestamp, cancellationToken);
+
     /// <summary>Verifies every signature and document time-stamp. See <see cref="PadesVerifier"/>.</summary>
     /// <param name="document">The document.</param>
     /// <param name="options">Trust anchors, reference time, policy.</param>

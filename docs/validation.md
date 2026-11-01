@@ -21,6 +21,7 @@ One function, `PathValidator.Validate(target, options)`, builds candidate paths 
 | `RequiredExtendedKeyUsage`, `RequiredKeyUsage` | What the target must permit; extended key usage is chained through every CA that has the extension. |
 | `InitialPolicySet`, `InitialExplicitPolicy`, `InitialPolicyMappingInhibit`, `InitialAnyPolicyInhibit` | §6.1.1 (c) to (h). |
 | `ApplyAnchorNameConstraints`, `ApplyAnchorPolicyConstraints`, `CheckAnchorValidity` | What of an anchor certificate beyond its name and key is used (defaults: name constraints and validity yes, policy extensions no). |
+| `StrictAnchorStructure` | Default false. An anchor is a name and a key (RFC 5937 §2; RFC 5280 §6.1.1 (d)) and its extensions are not path-validated, so a root whose basicConstraints is not marked critical, or a version 1 root with no extensions, anchors a path (public time-stamping roots are shaped like this). Extensions that do not decode or appear twice still fail. `true` holds the anchor to the CA-certificate rules of `StrictStructure` as well. |
 | `MaxIntermediates` | Hard cap on non-self-issued intermediates. |
 | `StrictStructure` | Default true. See Structure rules. |
 | `WebPki` | The server-authentication profile. |
@@ -49,7 +50,7 @@ Each result carries a rule, an outcome (`Pass`, `Warning`, `Fail`, `Indeterminat
 | ExtendedKeyUsage | the required purpose is allowed by every extKeyUsage in the chain, and by the target's own when the target is itself a trust anchor | §4.2.1.12 |
 | CriticalExtension | every critical extension is one the validator processes | §6.1.4 (o), §6.1.5 (f) |
 | Structure | see below | §4 |
-| TrustAnchor | the anchor certificate is valid at the reference time; with `StrictStructure` its form is checked too | RFC 5937 §3 |
+| TrustAnchor | the anchor certificate is valid at the reference time; with `StrictAnchorStructure` (off by default) its CA-certificate form is checked too | RFC 5937 §3 |
 | Revocation | see below | §6.3, RFC 6960 |
 | HostName, WebPkiProfile | profile only | RFC 9525, Baseline Requirements |
 
@@ -119,6 +120,7 @@ Pins: x509-limbo `1080e565`, NIST PKITS v1.0.1 (April 14, 2011; `PKITS_data.zip`
 
 Deviations (asserted by the test, which fails on any other difference):
 
+* The limbo runner sets `StrictAnchorStructure = true`: its `rfc5280::root-non-critical-basic-constraints`, `root-missing-basic-constraints`, `ski::root-missing-ski`, `ski::critical-ski`, `aki::critical-aki` and two `nc::` cases expect a root whose own extensions break the CA-certificate rules to be refused. By default (the option off) the validator accepts them, because a trust anchor is a name and a key and its extensions are not path-validated (RFC 5937 §2; RFC 5280 §6.1.1 (d)); real public roots, such as a time-stamping authority's, are published that way. The counts below are with the option on.
 * `rfc5280::aki::cross-signed-root-missing-aki` (expected failure, `pedantic-rfc5280`): a trust anchor is trusted for its name and key (RFC 5937 §2); its authorityKeyIdentifier is not demanded. Demanding it would reject `cve::cve-2024-0567`, where the trusted root is a cross-signed certificate without one and the expectation is success.
 * `webpki::san::public-suffix-multi-label-wildcard-san` and `…-private-namespace-wildcard-san` (`pedantic-public-suffix-wildcard`): deciding that `*.s3.amazonaws.com` covers a registry-controlled suffix needs the Public Suffix List, which the library does not carry. Wildcards directly under a single label (`*.com`) are refused.
 * `rfc9881::ml-dsa-*`: need a platform with ML-DSA (OpenSSL 3.5 or newer); on one without it the signature check reports `AlgorithmNotSupported` naming the platform and the testcase is skipped in the assertion.

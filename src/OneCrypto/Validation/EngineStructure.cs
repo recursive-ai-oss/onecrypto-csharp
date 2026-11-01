@@ -31,7 +31,8 @@ internal sealed partial class Engine
             return;
         }
 
-        if (!_o.StrictStructure)
+        // RFC 5937 §2: an anchor is a name and a key. Its own extensions are checked for form only, unless the caller asks for the CA rules too.
+        if (!_o.StrictStructure || (isAnchor && !_o.StrictAnchorStructure))
         {
             r.Pass(ValidationRule.Structure, "structure accepted", "RFC 5280 §4.1, §4.2");
             return;

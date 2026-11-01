@@ -107,6 +107,25 @@ public static class PrivateKey
     }
 
     /// <summary>
+    /// The signing key of a certificate the platform holds, typed so it can be assigned to <see cref="CmsSignerSpec.Key"/> or passed to a signing call without a cast.
+    /// Everything <see cref="FromCertificate"/> says about the key holds here too: it stays in the platform's handle and the returned key owns it.
+    /// </summary>
+    /// <returns>An <see cref="IRsaKey"/> (also an <see cref="ISigningKey"/>) for RSA, an <see cref="ISigningKey"/> for ECDSA certificates.</returns>
+    /// <exception cref="ArgumentException">The certificate has no private key, or its key type is not RSA or ECDSA.</exception>
+    /// <exception cref="CryptographicException">The platform refused access to the key.</exception>
+    public static ISigningKey SigningKeyFromCertificate(X509Certificate2 certificate) => (ISigningKey)FromCertificate(certificate);
+
+    /// <summary>
+    /// Like <see cref="TryFromStore"/>, typed as <see cref="ISigningKey"/>. Returns false when the store has no such certificate with a key.
+    /// </summary>
+    public static bool TrySigningKeyFromStore(Certificate certificate, out ISigningKey? key, StoreName storeName = StoreName.My, StoreLocation location = StoreLocation.CurrentUser)
+    {
+        bool found = TryFromStore(certificate, out IKey? any, storeName, location);
+        key = (ISigningKey?)any;
+        return found;
+    }
+
+    /// <summary>
     /// Finds the certificate in an operating-system store (by comparing its encoding) and returns its private key as <see cref="FromCertificate"/> does.
     /// Returns false when the store has no such certificate with a key. Reads only; never changes the store.
     /// </summary>

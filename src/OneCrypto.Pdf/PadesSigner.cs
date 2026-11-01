@@ -59,6 +59,74 @@ public static class PadesSigner
     public static ValueTask<PadesSignResult> SignAsync(PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain = null, PadesSignOptions? options = null, CancellationToken cancellationToken = default) =>
         SignCore(document, output, key, certificate, chain, options ?? new PadesSignOptions(), cancellationToken);
 
+    /// <summary>
+    /// Signs at B-T, then augments to B-LTA with validation data collected <b>after</b> the signature time-stamp, in one call. Use this instead of asking
+    /// <see cref="Sign"/> for <see cref="PadesLevel.LongTermArchive"/> when the revocation data does not exist yet at signing time.
+    /// </summary>
+    /// <remarks>
+    /// A one-step B-LTA signature collects its revocation data before the time-stamp exists, so the CRLs and OCSP responses it can carry were issued before
+    /// the signature was time-stamped and cannot show that the certificates were unrevoked at that moment (a "good" answer needs data issued at or after the
+    /// time it speaks for; EN 319 102-1 §5.6.2.1). The file then validates only as far as B-T and revocation stays unknown. The remedy is the order this
+    /// method follows: sign and time-stamp, ask the revocation sources afterwards (the sources in <paramref name="afterTimestamp"/> are called now, not
+    /// earlier), write the security store and then the document time-stamp.
+    /// </remarks>
+    /// <param name="document">The document, opened with <see cref="PdfOpenOptions.AllowEditing"/>.</param>
+    /// <param name="output">A writable stream; nothing is written unless every step succeeds.</param>
+    /// <param name="key">The signing key; its public key must be the certificate's.</param>
+    /// <param name="certificate">The signer's certificate.</param>
+    /// <param name="chain">Certificates to embed besides the signer's.</param>
+    /// <param name="options">Choices for the signature and its time-stamp. <see cref="PadesSignOptions.Timestamp"/> is required; <see cref="PadesSignOptions.Level"/> and <see cref="PadesSignOptions.ValidationData"/> are ignored.</param>
+    /// <param name="afterTimestamp">What to collect after the time-stamp: trust anchors, a <see cref="PadesValidationData.ReferenceTime"/> at or after the time-stamp, and the caller's revocation data or <see cref="PadesValidationData.RevocationSource"/>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>What was written, with level <see cref="PadesLevel.LongTermArchive"/>.</returns>
+    /// <exception cref="PadesException">The key, the time-stamp function or answer, a chain or the reserved space is unusable (see <see cref="PadesException.Reason"/>).</exception>
+    public static PadesSignResult SignArchive(PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain, PadesSignOptions options, PadesValidationData afterTimestamp, CancellationToken cancellationToken = default) =>
+        SignArchiveAsync(document, output, key, certificate, chain, options, afterTimestamp, cancellationToken).AsTask().GetAwaiter().GetResult();
+
+    /// <summary>Asynchronous twin of <see cref="SignArchive"/>; the revocation and certificate sources in <paramref name="afterTimestamp"/> are awaited.</summary>
+    /// <param name="document">The document, opened with <see cref="PdfOpenOptions.AllowEditing"/>.</param>
+    /// <param name="output">A writable stream; nothing is written unless every step succeeds.</param>
+    /// <param name="key">The signing key.</param>
+    /// <param name="certificate">The signer's certificate.</param>
+    /// <param name="chain">Certificates to embed besides the signer's.</param>
+    /// <param name="options">Choices for the signature and its time-stamp; a time-stamp function is required.</param>
+    /// <param name="afterTimestamp">What to collect after the time-stamp.</param>
+    /// <param name="cancellationToken">Cancels the call and the lookups.</param>
+    /// <returns>What was written.</returns>
+    public static async ValueTask<PadesSignResult> SignArchiveAsync(PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain, PadesSignOptions options, PadesValidationData afterTimestamp, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(afterTimestamp);
+        if (options.Timestamp is null)
+        {
+            throw new PadesException(PadesError.NoTimestampFunction, "A B-LTA signature needs a time-stamp function in the options.");
+        }
+
+        var toTimestamp = new PadesSignOptions
+        {
+            Level = PadesLevel.Timestamped,
+            Pdf = options.Pdf,
+            Hash = options.Hash,
+            RsaPss = options.RsaPss,
+            Timestamp = options.Timestamp,
+            TimestampHash = options.TimestampHash,
+            Policy = options.Policy,
+            ReferenceTime = options.ReferenceTime ?? afterTimestamp.ReferenceTime,
+        };
+        using var stamped = new MemoryStream();
+        PadesSignResult first = await SignCore(document, stamped, key, certificate, chain, toTimestamp, cancellationToken).ConfigureAwait(false);
+        byte[] archived = await PadesAugmenter.AugmentAsync(stamped.ToArray(), new PadesAugmentOptions
+        {
+            Level = PadesLevel.LongTermArchive,
+            Timestamp = options.Timestamp,
+            TimestampHash = options.TimestampHash,
+            ValidationData = afterTimestamp,
+        }, cancellationToken).ConfigureAwait(false);
+        await output.WriteAsync(archived, cancellationToken).ConfigureAwait(false);
+        return new PadesSignResult(first.FieldName, PadesLevel.LongTermArchive, first.Revisions + 2);
+    }
+
     private static async ValueTask<PadesSignResult> SignCore(PdfDocument document, Stream output, ISigningKey key, Certificate certificate, IEnumerable<Certificate>? chain, PadesSignOptions options, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(document);

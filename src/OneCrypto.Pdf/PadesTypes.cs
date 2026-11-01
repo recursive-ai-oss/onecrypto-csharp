@@ -63,6 +63,9 @@ public enum PadesError
 
     /// <summary>The file changed on disk after the document was opened, so its original bytes are no longer available to verify.</summary>
     SourceChanged,
+
+    /// <summary>A value a non-nullable accessor was asked for is not there (for example a signature whose signed bytes cannot be read, or a time-stamp with no readable token).</summary>
+    NotPresent,
 }
 
 /// <summary>Raised by the signing and augmentation calls when they cannot do what was asked. Verification never throws for bad input.</summary>

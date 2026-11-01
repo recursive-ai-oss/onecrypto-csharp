@@ -138,6 +138,7 @@ public static class PathValidator
         InitialPolicyMappingInhibit = o.InitialPolicyMappingInhibit,
         InitialAnyPolicyInhibit = o.InitialAnyPolicyInhibit,
         ApplyAnchorNameConstraints = o.ApplyAnchorNameConstraints,
+        StrictAnchorStructure = o.StrictAnchorStructure,
         ApplyAnchorPolicyConstraints = o.ApplyAnchorPolicyConstraints,
         CheckAnchorValidity = o.CheckAnchorValidity,
         MaxIntermediates = o.MaxIntermediates,
