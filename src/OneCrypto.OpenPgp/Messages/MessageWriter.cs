@@ -236,6 +236,9 @@ public sealed class PgpWriteOptions
 /// <summary>Writes OpenPGP messages: signed (one-pass), encrypted, or both, streaming in constant memory.</summary>
 public static class PgpMessageWriter
 {
+    // GnuPG 2.4 rejects armor whose data ends without padding and without a checksum line; RFC 9580 §6.1 makes the CRC optional, so we always write it.
+    private static readonly ArmorWriteOptions GnuPgCompatible = new() { Checksum = true };
+
     // 2^12 * 64 = 256 KiB chunks.
     private const byte ChunkOctet = 12;
 
@@ -250,7 +253,7 @@ public static class PgpMessageWriter
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(options);
         CryptoPolicy policy = options.Policy ?? CryptoPolicy.Standard;
-        ArmorWriteStream? armor = options.Armor ? new ArmorWriteStream(output, "PGP MESSAGE", leaveOpen: true) : null;
+        ArmorWriteStream? armor = options.Armor ? new ArmorWriteStream(output, "PGP MESSAGE", GnuPgCompatible, leaveOpen: true) : null;
         Stream sink = armor ?? output;
         try
         {
@@ -535,7 +538,7 @@ public static class PgpMessageWriter
                 }
             }
 
-            ArmorWriteStream? armor = options.Armor ? new ArmorWriteStream(output, "PGP SIGNATURE", leaveOpen: true) : null;
+            ArmorWriteStream? armor = options.Armor ? new ArmorWriteStream(output, "PGP SIGNATURE", GnuPgCompatible, leaveOpen: true) : null;
             Stream sink = armor ?? output;
             foreach (SignatureBuilder b in builders)
             {
@@ -582,7 +585,7 @@ public static class PgpMessageWriter
             sb.Append('\n');
             output.Write(System.Text.Encoding.ASCII.GetBytes(sb.ToString()));
             Cleartext.WriteBody(text, output, builders);
-            using var armor = new ArmorWriteStream(output, "PGP SIGNATURE", leaveOpen: true);
+            using var armor = new ArmorWriteStream(output, "PGP SIGNATURE", GnuPgCompatible, leaveOpen: true);
             foreach (SignatureBuilder b in builders)
             {
                 b.Complete().WriteTo(armor);
