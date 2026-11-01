@@ -774,7 +774,7 @@ internal sealed class MessageProcessor : IDisposable
                 }
 
                 byte[] buf = s.EncryptedSessionKey.ToArray();
-                PgpAlgorithms.CfbDecrypt(kdf, new byte[16], buf);
+                PgpAlgorithms.CfbDecrypt(s.Cipher, kdf, new byte[16], buf);
                 CryptographicOperations.ZeroMemory(kdf);
                 if (buf.Length < 2)
                 {
@@ -916,8 +916,10 @@ internal sealed class MessageProcessor : IDisposable
 
     private SpoolStream OpenSeipd1(Stream body, List<Candidate> candidates)
     {
+        // RFC 9580 §5.13.1: the random prefix is one block, followed by two repeated octets. Which cipher it is comes from the candidates,
+        // so read enough for the widest block.
         byte[] head = ReadUpTo(body, 18);
-        if (head.Length < 18)
+        if (head.Length < 10)
         {
             throw new PgpException(PgpFailure.CannotDecrypt, "The encrypted data could not be decrypted.");
         }
@@ -925,15 +927,16 @@ internal sealed class MessageProcessor : IDisposable
         Candidate? chosen = null;
         foreach (Candidate c in candidates)
         {
-            if (c.Cipher is not { } cipher || !IsAes(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher))
+            if (c.Cipher is not { } cipher || !Supported(cipher) || c.Key.Length != PgpAlgorithms.KeySize(cipher) || head.Length < PgpAlgorithms.BlockSize(cipher) + 2)
             {
                 continue;
             }
 
             // RFC 9580 §5.13.1: the two octets after the random block repeat its last two; a cheap filter among several candidate keys.
-            byte[] t = (byte[])head.Clone();
-            PgpAlgorithms.CfbDecrypt(c.Key, new byte[16], t);
-            if (t[14] == t[16] && t[15] == t[17])
+            int bsz = PgpAlgorithms.BlockSize(cipher);
+            byte[] t = head.AsSpan(0, bsz + 2).ToArray();
+            PgpAlgorithms.CfbDecrypt(cipher, c.Key, new byte[16], t);
+            if (t[bsz - 2] == t[bsz] && t[bsz - 1] == t[bsz + 1])
             {
                 chosen = c;
                 break;
@@ -947,6 +950,8 @@ internal sealed class MessageProcessor : IDisposable
         }
 
         var spool = new SpoolStream();
+        SymmetricAlgorithm chCipher = ch.Cipher!.Value;
+        int blk = PgpAlgorithms.BlockSize(chCipher);
         byte[] iv = new byte[16];
         using IncrementalHash sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
         // The 18 octets already read are part of the CFB stream, so they go back in front of the rest.
@@ -965,8 +970,8 @@ internal sealed class MessageProcessor : IDisposable
             }
 
             int total = carryLen + n;
-            int whole = total & ~15;
-            PgpAlgorithms.CfbDecrypt(ch.Key, iv, buf.AsSpan(0, whole));
+            int whole = total - (total % blk);
+            PgpAlgorithms.CfbDecrypt(chCipher, ch.Key, iv, buf.AsSpan(0, whole));
             Absorb(buf.AsSpan(0, whole), tail, ref tailLen, sha1, spool);
             carryLen = total - whole;
             buf.AsSpan(whole, carryLen).CopyTo(buf);
@@ -975,7 +980,7 @@ internal sealed class MessageProcessor : IDisposable
         if (carryLen > 0)
         {
             byte[] last = buf.AsSpan(0, carryLen).ToArray();
-            PgpAlgorithms.CfbDecrypt(ch.Key, iv, last);
+            PgpAlgorithms.CfbDecrypt(chCipher, ch.Key, iv, last);
             Absorb(last, tail, ref tailLen, sha1, spool);
         }
 
@@ -996,12 +1001,14 @@ internal sealed class MessageProcessor : IDisposable
         _r.SessionKey = (byte[])ch.Key.Clone();
         _r.SessionKeyCipher = ch.Cipher;
         _r.CheckedBeforeRelease = true;
-        // The first 18 plaintext octets are the random prefix and its check octets, not message content.
-        spool.Position = 18;
+        // The first block and two check octets are the random prefix, not message content.
+        spool.Position = blk + 2;
         return spool;
     }
 
-    private static bool IsAes(SymmetricAlgorithm c) => c is SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Aes256;
+    private static bool Supported(SymmetricAlgorithm c) => c is SymmetricAlgorithm.Idea or SymmetricAlgorithm.TripleDes or SymmetricAlgorithm.Cast5 or SymmetricAlgorithm.Blowfish
+        or SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Aes256 or SymmetricAlgorithm.Twofish
+        or SymmetricAlgorithm.Camellia128 or SymmetricAlgorithm.Camellia192 or SymmetricAlgorithm.Camellia256;
 
     // Hashes everything except the last 22 octets (the MDC packet) and spools the same octets.
     private static void Absorb(ReadOnlySpan<byte> data, byte[] tail, ref int tailLen, IncrementalHash sha1, Stream spool)

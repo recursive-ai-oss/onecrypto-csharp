@@ -127,7 +127,7 @@ public sealed class PgpSecretKey : IDisposable
             {
                 byte[] buf = data.ToArray();
                 byte[] iv = p.Iv.ToArray();
-                PgpAlgorithms.CfbDecrypt(kdf, iv, buf);
+                PgpAlgorithms.CfbDecrypt(p.Cipher, kdf, iv, buf);
                 if (p.Usage == 254)
                 {
                     if (buf.Length < 20)

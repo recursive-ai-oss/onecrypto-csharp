@@ -28,6 +28,22 @@ public class MessageTests
     }
 
     [Theory]
+    [InlineData("CAST5")]
+    [InlineData("3DES")]
+    [InlineData("BLOWFISH")]
+    [InlineData("IDEA")]
+    [InlineData("TWOFISH")]
+    [InlineData("CAMELLIA128")]
+    [InlineData("CAMELLIA256")]
+    public void LegacyCipherMessagesDecrypt(string name)
+    {
+        // SEIPD v1 messages written by GnuPG (tools/oracles/legacy-ciphers-fixtures.sh): legacy ciphers are decrypt-only.
+        using var output = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(File.ReadAllBytes(TestFiles.OpenPgp("legacy", "msg-" + name + ".gpg"))), output, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
+        Assert.Equal("legacy cipher test " + name + "\n", Encoding.UTF8.GetString(output.ToArray()));
+    }
+
+    [Theory]
     [InlineData("A_12_1.asc")]
     [InlineData("A_12_2.asc")]
     [InlineData("A_12_3.asc")]

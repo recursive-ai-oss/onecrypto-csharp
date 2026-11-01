@@ -30,14 +30,98 @@ internal static class PgpAlgorithms
         _ => throw new PgpException(PgpFailure.Unsupported, $"The hash algorithm {(byte)hash} is not supported."),
     };
 
-    /// <summary>Key size in bytes of a symmetric algorithm that is implemented here (the AES family); others are reported as unsupported.</summary>
+    /// <summary>Key size in bytes of a symmetric algorithm this library can decrypt with; others are reported as unsupported.</summary>
     internal static int KeySize(SymmetricAlgorithm cipher) => cipher switch
     {
-        SymmetricAlgorithm.Aes128 => 16,
-        SymmetricAlgorithm.Aes192 => 24,
-        SymmetricAlgorithm.Aes256 => 32,
+        SymmetricAlgorithm.Idea or SymmetricAlgorithm.Cast5 or SymmetricAlgorithm.Blowfish => 16,
+        SymmetricAlgorithm.TripleDes => 24,
+        SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Camellia128 => 16,
+        SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Camellia192 => 24,
+        SymmetricAlgorithm.Aes256 or SymmetricAlgorithm.Camellia256 or SymmetricAlgorithm.Twofish => 32,
         _ => throw new PgpException(PgpFailure.Unsupported, $"The symmetric algorithm {(byte)cipher} ({cipher}) is not supported."),
     };
+
+    /// <summary>Block size in bytes (RFC 9580 §9.3): 8 for IDEA, TripleDES, CAST5 and Blowfish, 16 for the rest.</summary>
+    internal static int BlockSize(SymmetricAlgorithm cipher) => cipher switch
+    {
+        SymmetricAlgorithm.Idea or SymmetricAlgorithm.TripleDes or SymmetricAlgorithm.Cast5 or SymmetricAlgorithm.Blowfish => 8,
+        _ => 16,
+    };
+
+    /// <summary>True for the ciphers that may only decrypt (legacy ciphers); the writer never chooses them.</summary>
+    internal static bool IsLegacy(SymmetricAlgorithm cipher) => cipher is not (SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Aes256);
+
+    /// <summary>
+    /// OpenPGP CFB decryption for any supported cipher, in place and continuing from <paramref name="iv"/> (which is updated after whole
+    /// blocks). Call with whole blocks except for the very last call.
+    /// </summary>
+    internal static void CfbDecrypt(SymmetricAlgorithm cipher, ReadOnlySpan<byte> key, Span<byte> iv, Span<byte> data)
+    {
+        if (cipher is SymmetricAlgorithm.Aes128 or SymmetricAlgorithm.Aes192 or SymmetricAlgorithm.Aes256)
+        {
+            CfbDecrypt(key, iv, data);
+            return;
+        }
+
+        int bs = BlockSize(cipher);
+        int whole = data.Length - (data.Length % bs); // public: depends on the length only
+        byte[] next = new byte[bs];
+        if (whole > 0)
+        {
+            data.Slice(whole - bs, bs).CopyTo(next);
+        }
+
+        switch (cipher)
+        {
+            case SymmetricAlgorithm.Idea:
+                using (var c = new Idea(key)) { c.DecryptCfb(data, iv[..bs], data); }
+                break;
+            case SymmetricAlgorithm.Cast5:
+                using (var c = new Cast5(key)) { c.DecryptCfb(data, iv[..bs], data); }
+                break;
+            case SymmetricAlgorithm.Blowfish:
+                using (var c = new Blowfish(key)) { c.DecryptCfb(data, iv[..bs], data); }
+                break;
+            case SymmetricAlgorithm.Twofish:
+                using (var c = new Twofish(key)) { c.DecryptCfb(data, iv[..bs], data); }
+                break;
+            case SymmetricAlgorithm.Camellia128 or SymmetricAlgorithm.Camellia192 or SymmetricAlgorithm.Camellia256:
+                using (var c = new Camellia(key)) { c.DecryptCfb(data, iv[..bs], data); }
+                break;
+            case SymmetricAlgorithm.TripleDes:
+#pragma warning disable CA5350 // Triple DES is read-only here: it exists to open old messages and keys.
+                using (var t = TripleDES.Create())
+#pragma warning restore CA5350
+                {
+                    t.Key = key.ToArray();
+                    if (whole > 0)
+                    {
+                        t.DecryptCfb(data[..whole], iv[..bs], data[..whole], PaddingMode.None, 64);
+                        next.CopyTo(iv);
+                    }
+
+                    if (whole < data.Length)
+                    {
+                        // A short last block uses the first bytes of the encrypted feedback register.
+                        Span<byte> ks = new byte[bs];
+                        t.EncryptEcb(iv[..bs], ks, PaddingMode.None);
+                        for (int i = whole; i < data.Length; i++)
+                        {
+                            data[i] ^= ks[i - whole];
+                        }
+                    }
+                }
+
+                return;
+            default:
+                throw new PgpException(PgpFailure.Unsupported, $"The symmetric algorithm {(byte)cipher} ({cipher}) is not supported.");
+        }
+
+        if (whole > 0)
+        {
+            next.CopyTo(iv);
+        }
+    }
 
     /// <summary>RFC 9580 §5.13: the nonce length of each AEAD mode.</summary>
     internal static int NonceSize(AeadAlgorithm aead) => aead switch
