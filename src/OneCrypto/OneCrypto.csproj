@@ -14,6 +14,8 @@
     <InternalsVisibleTo Include="$(LibName).Timing" />
     <InternalsVisibleTo Include="$(LibName).AotSmoke" />
     <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
+    <InternalsVisibleTo Include="$(LibName).BrowserSuite" />
+    <InternalsVisibleTo Include="$(LibName).BrowserSuiteNative" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />
     <InternalsVisibleTo Include="$(LibName).Timing" />
   </ItemGroup>

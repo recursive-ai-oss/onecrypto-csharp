@@ -327,7 +327,7 @@ public sealed class PrivateKeyInfo : IDisposable
     public RSA ToRsa()
     {
         Require(KeyAlgorithm.Rsa);
-        RSA rsa = RSA.Create();
+        RSA rsa = Platform.CreateRsa("RSA private key");
         try
         {
             rsa.ImportPkcs8PrivateKey(Encoded, out _);
@@ -344,7 +344,7 @@ public sealed class PrivateKeyInfo : IDisposable
     public ECDsa ToECDsa()
     {
         Require(KeyAlgorithm.EllipticCurve);
-        ECDsa k = ECDsa.Create();
+        ECDsa k = Platform.CreateEcdsa("EC private key");
         try
         {
             k.ImportPkcs8PrivateKey(Encoded, out _);
@@ -366,7 +366,7 @@ public sealed class PrivateKeyInfo : IDisposable
     public ECDiffieHellman ToECDiffieHellman()
     {
         Require(KeyAlgorithm.EllipticCurve);
-        ECDiffieHellman k = ECDiffieHellman.Create();
+        ECDiffieHellman k = Platform.CreateEcdh("EC private key");
         try
         {
             k.ImportPkcs8PrivateKey(Encoded, out _);

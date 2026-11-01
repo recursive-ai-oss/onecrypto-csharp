@@ -4,9 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- In the browser runtime, AES (PBES2 and PKCS#12 decryption, CMS and OpenSSH ciphers), triple DES and RC2, and RSA, ECDSA and ECDH key objects now fail with `AlgorithmNotSupportedException` naming the algorithm and platform, not the runtime's `PlatformNotSupportedException`.
+- `SshPublicKey.ToPublicKeyInfo` builds RSA and ECDSA keys from their numbers instead of through the platform, so it works where the platform has no RSA or ECDSA.
+
 ### Added
 
 - `RecursiveAI.OneCrypto.Online`, new: a guarded HTTP transport (only `http`/`https`; certificate-supplied URLs cannot reach loopback, private, link-local, carrier-grade NAT, multicast or IPv4-wrapping IPv6 addresses, checked on the address actually connected to; timeouts, size and redirect limits applied to every hop), an RFC 9111 cache that also honours CRL and OCSP `thisUpdate`/`nextUpdate` at the caller's reference time, record and replay transports for test fixtures, clients for RFC 3161 time-stamps, OCSP (POST and the RFC 5019 GET form), CRLs with delta CRLs, and `caIssuers` certificates, and `ICertificateSource`/`IRevocationSource` implementations so `PathValidator.ValidateAsync` can fetch what is missing. Nothing is fetched unless a call asks; offline revocation stays unknown. See `docs/online.md`.
+- The browser-wasm suite runs in a pinned headless Chromium and is compared case by case with Node and a native run ([docs/browser.md](docs/browser.md)).
 
 ### Changed
 

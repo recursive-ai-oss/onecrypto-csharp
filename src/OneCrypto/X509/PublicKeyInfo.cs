@@ -231,7 +231,7 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
             Asn1Reader s = r.ReadSequence();
             byte[] n = s.ReadUnsignedIntegerBytes().ToArray();
             byte[] e = s.ReadUnsignedIntegerBytes().ToArray();
-            var rsa = RSA.Create();
+            var rsa = Platform.CreateRsa("RSA public key object");
             rsa.ImportParameters(new RSAParameters { Modulus = Trim(n), Exponent = Trim(e) });
             return rsa;
         }
@@ -257,7 +257,7 @@ public sealed class PublicKeyInfo : IEquatable<PublicKeyInfo>
     /// <exception cref="AlgorithmNotSupportedException">The platform does not have the key's curve.</exception>
     public ECDsa ToECDsa()
     {
-        var ec = ECDsa.Create();
+        var ec = Platform.CreateEcdsa("EC public key object");
         try
         {
             ec.ImportSubjectPublicKeyInfo(Encoded.Span, out _);
