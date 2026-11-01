@@ -26,7 +26,7 @@ public class PadesRoundTripTests
     internal static PadesReport Verify(byte[] pdf, PadesVerifyOptions options)
     {
         using PdfDocument doc = PdfDocument.Open(pdf);
-        return doc.VerifyPades(pdf, options);
+        return doc.VerifyPades(options);
     }
 
     private static PdfSignatureVerifyOptions OnePdfTrusting(DateTimeOffset at) => new()

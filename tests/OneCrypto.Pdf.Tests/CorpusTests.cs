@@ -23,7 +23,7 @@ public class CorpusTests
             using (doc)
             {
                 files++;
-                PadesReport report = PadesVerifier.Verify(doc, data, new PadesVerifyOptions { ReferenceTime = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero) });
+                PadesReport report = PadesVerifier.Verify(doc, new PadesVerifyOptions { ReferenceTime = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero) });
                 PdfSignatureReport one = doc.VerifySignatures(new PdfSignatureVerifyOptions { ValidationTime = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero) });
                 Assert.Equal(one.Signatures.Count, report.Signatures.Count);
                 for (int i = 0; i < report.Signatures.Count; i++)

@@ -67,7 +67,7 @@ internal static class Shadow
         }
 
         var pool = o.ExtraCertificates.Select(Certificate.FromX509Certificate2).ToList();
-        PadesReport report = PadesVerifier.Verify(document, file, new PadesVerifyOptions
+        PadesReport report = PadesVerifier.Verify(document, new PadesVerifyOptions
         {
             TrustAnchors = anchors,
             Intermediates = pool,

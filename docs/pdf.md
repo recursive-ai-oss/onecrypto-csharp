@@ -1,6 +1,6 @@
 # PDF signatures: PAdES signing, augmentation and verification
 
-`RecursiveAI.OneCrypto.Pdf` builds on OnePDF's public API (`RecursiveAI.OnePdf` 1.16.0) and the core package. It adds PAdES baseline signing from B-B to B-LTA with OneCrypto keys, augmentation of existing signed files, and a verifier that judges each signature with OneCrypto's CMS verifier, RFC 3161 verifier and path validator. It depends on the core package and OnePDF only: no network code. Time-stamp authorities and revocation sources are functions and interfaces the caller passes in (the `.Online` package's clients plug in there).
+`RecursiveAI.OneCrypto.Pdf` builds on OnePDF's public API (`RecursiveAI.OnePdf` 1.17.1) and the core package. It adds PAdES baseline signing from B-B to B-LTA with OneCrypto keys, augmentation of existing signed files, and a verifier that judges each signature with OneCrypto's CMS verifier, RFC 3161 verifier and path validator. It depends on the core package and OnePDF only: no network code. Time-stamp authorities and revocation sources are functions and interfaces the caller passes in (the `.Online` package's clients plug in there).
 
 Normative references: ETSI EN 319 142-1 V1.1.1 (PAdES baseline), ISO 32000-1/-2 §12.8 (signatures, document time-stamps), RFC 5652, RFC 3161, RFC 5035/5816 (ESS signing certificate), RFC 5280 §6.
 
@@ -32,10 +32,10 @@ doc.SignPades(output, key, certificate, chain, new PadesSignOptions { Level = Pa
 ## Verification
 
 ```csharp
-PadesReport report = doc.VerifyPades(bytes, new PadesVerifyOptions { TrustAnchors = [...], ReferenceTime = now });
+PadesReport report = doc.VerifyPades(new PadesVerifyOptions { TrustAnchors = [...], ReferenceTime = now });
 ```
 
-`PadesVerifier.Verify(pdf, options)` opens the file itself. The extension and `Verify(document, pdf, …)` still take the bytes the document was opened from: the bridge reads the `/Contents` string, the store and the revision layout from the file itself, and OnePDF has no accessor for a whole document. The bytes a signature covers are read through `PdfSignature.OpenSignedData()`, so the digest is over exactly the ranges OnePDF's model describes. Bad input is reported: unreadable files, missing catalogs, malformed stores and tokens give warnings and failed checks, never exceptions (`bridge-error` is a failed check that means a bug; the fuzz target treats it as a finding).
+`PadesVerifier.Verify(pdf, options)` opens the file itself. The extension and `Verify(document, …)` take no bytes: they read the document's original bytes through `PdfDocument.OpenRead()` (the file as opened, never in-memory edits), because the bridge reads the `/Contents` string, the store and the revision layout from the file itself. If the file changed on disk after the document was opened, they throw `PadesException` with `PadesError.SourceChanged` (the inner exception is OnePDF's `PdfSourceChangedException`); open the file again. The bytes a signature covers are read through `PdfSignature.OpenSignedData()`, so the digest is over exactly the ranges OnePDF's model describes. Bad input is reported: unreadable files, missing catalogs, malformed stores and tokens give warnings and failed checks, never exceptions (`bridge-error` is a failed check that means a bug; the fuzz target treats it as a finding).
 
 Per signature, `PadesSignatureReport` holds OnePDF's own `PdfSignatureVerification` untouched (`OnePdf`), the bridge's `Checks` (rule, status, reason, clause), the core `SignedDataReport` (`Cms`), the path validator's `ValidationReport` (`Chain`), the time-stamps, `ProofOfExistence`, `ValidationTime`, the PAdES `Level` and `IsValid`.
 
@@ -79,7 +79,12 @@ hole.Fill(output, cms.Encoded.Span);
 
 `SignedData.PrepareDetachedFromDigest` is the two-step form of the same call. If the reserve is too small, `Fill` throws `PdfSigningException` (`ContentsTooSmall`) with the size needed and writes nothing; a wrong offset or an already-filled hole is `BadHole`.
 
-The seams OnePDF 1.16.0 added (`AddSignaturePlaceholder`, `PdfSignatureHole`, `PdfSignature.OpenSignedData()`, the catalog fall-back in `TryOpen`) closed the three gaps the first version of this bridge listed. One request remains: a whole-document byte accessor, so `Verify(document, …)` need not be given the bytes.
+The seams OnePDF 1.16.0 added (`AddSignaturePlaceholder`, `PdfSignatureHole`, `PdfSignature.OpenSignedData()`, the catalog fall-back in `TryOpen`) closed the first gaps, and 1.17 added `PdfDocument.OpenRead()`, which removed the last: verification no longer needs the bytes passed in.
+
+## Signing errors and certified documents
+
+OnePDF's typed signing errors pass through unchanged as `PdfSigningException` (read `Reason`); the bridge adds none of its own for them. A document with an empty page tree gives `PdfSigningError.NoPage` from signing and from the placeholder; a page index outside a document that has pages is an `ArgumentOutOfRangeException`. A document certified with DocMDP P=1 (`PdfCertificationLevel.NoChanges`) refuses another signature with `PdfSigningError.CertificationForbidsChanges` unless `PadesSignOptions.Pdf.AllowBreakingCertification` is set, and then any viewer reports the certification as broken. P=2 and P=3 take further signatures. Augmentation (signature and document time-stamps, the store) is allowed under P=1 (ISO 32000-2 Table 257), and a document time-stamp's own update does not break the certification.
+
 
 ## Tests
 

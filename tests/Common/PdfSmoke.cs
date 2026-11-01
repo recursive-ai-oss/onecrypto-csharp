@@ -31,7 +31,7 @@ internal static class PdfSmoke
         }
 
         using PdfDocument signed = PdfDocument.Open(pdf);
-        PadesReport report = signed.VerifyPades(pdf, kit.Verify(at.AddHours(1)));
+        PadesReport report = signed.VerifyPades(kit.Verify(at.AddHours(1)));
         return report.AllValid && report.Signatures.Count == 2 && report.Signatures[0].Level == PadesLevel.LongTermArchive && report.Signatures[0].OnePdf.IsValid;
     }
 }

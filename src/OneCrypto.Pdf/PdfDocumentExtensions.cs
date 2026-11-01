@@ -32,19 +32,17 @@ public static class PdfDocumentExtensions
 
     /// <summary>Verifies every signature and document time-stamp. See <see cref="PadesVerifier"/>.</summary>
     /// <param name="document">The document.</param>
-    /// <param name="pdf">The bytes the document was opened from (OnePDF's model does not expose them).</param>
     /// <param name="options">Trust anchors, reference time, policy.</param>
     /// <param name="cancellationToken">Checked between signatures.</param>
     /// <returns>The report.</returns>
-    public static PadesReport VerifyPades(this PdfDocument document, ReadOnlyMemory<byte> pdf, PadesVerifyOptions options, CancellationToken cancellationToken = default) =>
-        PadesVerifier.Verify(document, pdf, options, cancellationToken);
+    public static PadesReport VerifyPades(this PdfDocument document, PadesVerifyOptions options, CancellationToken cancellationToken = default) =>
+        PadesVerifier.Verify(document, options, cancellationToken);
 
     /// <summary>Asynchronous twin of <see cref="VerifyPades"/>; asks the options' sources for missing issuers and revocation data.</summary>
     /// <param name="document">The document.</param>
-    /// <param name="pdf">The bytes the document was opened from.</param>
     /// <param name="options">Trust anchors, reference time, policy and sources.</param>
     /// <param name="cancellationToken">Cancels the lookups.</param>
     /// <returns>The report.</returns>
-    public static ValueTask<PadesReport> VerifyPadesAsync(this PdfDocument document, ReadOnlyMemory<byte> pdf, PadesVerifyOptions options, CancellationToken cancellationToken = default) =>
-        PadesVerifier.VerifyAsync(document, pdf, options, cancellationToken);
+    public static ValueTask<PadesReport> VerifyPadesAsync(this PdfDocument document, PadesVerifyOptions options, CancellationToken cancellationToken = default) =>
+        PadesVerifier.VerifyAsync(document, options, cancellationToken);
 }

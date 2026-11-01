@@ -21,7 +21,7 @@ public class PlaceholderIntegrationTests
     private static PadesReport Report(byte[] pdf, string? password = null)
     {
         using PdfDocument doc = PdfDocument.Open(pdf, new PdfOpenOptions { Password = password });
-        return doc.VerifyPades(pdf, Kit.Verify(Kit.Now.AddHours(1)));
+        return doc.VerifyPades(Kit.Verify(Kit.Now.AddHours(1)));
     }
 
     private static string Why(PadesReport r) => r.Summary + " " + string.Join("; ", r.Signatures.SelectMany(static s => s.Checks).Where(static c => c.Status == CmsCheckStatus.Failed).Select(static c => c.Rule + ": " + c.Reason));
