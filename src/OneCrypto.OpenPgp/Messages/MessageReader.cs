@@ -54,7 +54,7 @@ public static partial class PgpMessageReader
                 {
                     sigs.Add(sp);
                 }
-                else if (pk is not (MarkerPacket or PaddingPacket))
+                else if (pk is not (MarkerPacket or PaddingPacket or UnrecognizedPacket))
                 {
                     throw new PgpException(PgpFailure.MalformedMessage, "A detached signature holds only signature packets.");
                 }
@@ -534,6 +534,12 @@ internal sealed class MessageProcessor : IDisposable
                 case PacketTag.Marker:
                     break;
                 default:
+                    // RFC 9580 §4.3: an unknown packet of a non-critical type (40 and up) is ignored once the literal data is complete.
+                    if (layerLiteral && f.Tag >= (PacketTag)40)
+                    {
+                        break;
+                    }
+
                     throw new PgpException(PgpFailure.MalformedMessage, $"Unexpected packet type {(byte)f.Tag} in a message.");
             }
         }
@@ -544,7 +550,7 @@ internal sealed class MessageProcessor : IDisposable
         }
 
         // RFC 9580 §10.3: every one-pass header is closed by a signature after the literal data, so a missing one is a truncated or malformed message.
-        if (ops.Any(e => !e.Matched))
+        if (ops.Any(e => !e.Matched && Enum.IsDefined(e.Op.Algorithm) && Enum.IsDefined(e.Op.Hash)))
         {
             throw new PgpException(PgpFailure.MalformedMessage, "A one-pass signature header has no matching signature packet; the message may be truncated.");
         }
@@ -737,8 +743,8 @@ internal sealed class MessageProcessor : IDisposable
                     }
 
                     // RFC 9580 §5.2.3.29: a key whose flags do not allow encryption is not a decryption key, even if a message names it.
-                    PgpKeyState state = key.StateAt(_o.Now);
-                    if ((state.IsValid || state.Usage != PgpKeyUsage.None) && (state.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0)
+                    PgpKeyState state = key.Evaluate(_o.Now, out bool noBinding);
+                    if (noBinding || ((state.IsValid || state.Usage != PgpKeyUsage.None) && (state.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0))
                     {
                         continue;
                     }

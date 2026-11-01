@@ -221,6 +221,13 @@ public sealed class PgpKey
     /// </summary>
     public PgpKeyState StateAt(DateTimeOffset at)
     {
+        return Evaluate(at, out _);
+    }
+
+    // noBinding is true when no binding signature is in force at the time, as opposed to a key that is bound but expired or revoked.
+    internal PgpKeyState Evaluate(DateTimeOffset at, out bool noBinding)
+    {
+        noBinding = false;
         DateTimeOffset created = DateTimeOffset.FromUnixTimeSeconds(Packet.CreationTime);
         if (at < created)
         {
@@ -257,6 +264,7 @@ public sealed class PgpKey
 
         if (eligible.Count == 0)
         {
+            noBinding = true;
             return new PgpKeyState(false, IsPrimary ? "No valid self-signature binds the primary key." : "No valid binding signature binds the subkey.", PgpKeyUsage.None, null);
         }
 
@@ -466,7 +474,9 @@ public sealed class PgpCertificate
         {
             PgpKeyState st = k.StateAt(at);
             bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448;
-            if (st.IsValid && algOk && (st.Usage & PgpKeyUsage.Sign) != 0 && (best is null || k.Packet.CreationTime > best.Packet.CreationTime))
+            // A stripped secret key keeps some components as public packets: only a component with secret material can sign (RFC 9580 §10.2).
+            bool canUse = !HasSecretKeyMaterial || k.Packet is SecretKeyPacket;
+            if (st.IsValid && algOk && canUse && (st.Usage & PgpKeyUsage.Sign) != 0 && (best is null || k.Packet.CreationTime > best.Packet.CreationTime))
             {
                 best = k;
             }
