@@ -131,6 +131,9 @@ public sealed class PgpReadOptions
     /// <summary>Session keys to try before any key or password.</summary>
     public IReadOnlyList<byte[]> SessionKeys { get; init; } = [];
 
+    /// <summary>Session keys that come with their symmetric algorithm (needed for SEIPD v1), tried first.</summary>
+    public IReadOnlyList<(SymmetricAlgorithm Cipher, byte[] Key)> SessionKeysWithCipher { get; init; } = [];
+
     /// <summary>The policy for hashes and key sizes. <see cref="CryptoPolicy.Standard"/> when null.</summary>
     public CryptoPolicy? Policy { get; init; }
 

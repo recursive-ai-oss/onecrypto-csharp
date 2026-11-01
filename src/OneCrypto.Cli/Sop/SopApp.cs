@@ -37,7 +37,7 @@ internal static class SopApp
                 case "version":
                     return Version(o, io);
                 case "list-profiles":
-                    return ListProfiles(o);
+                    return ListProfiles(o, io);
                 case "armor":
                     return PacketCommands.RunArmor(o, io);
                 case "dearmor":
@@ -46,6 +46,18 @@ internal static class SopApp
                     return PacketCommands.RunExtractCert(o, io);
                 case "inline-detach":
                     return InlineDetach.Run(o, io);
+                case "sign":
+                    return MessageCommands.RunSign(o, io);
+                case "verify":
+                    return MessageCommands.RunVerify(o, io);
+                case "inline-sign":
+                    return MessageCommands.RunInlineSign(o, io);
+                case "inline-verify":
+                    return MessageCommands.RunInlineVerify(o, io);
+                case "encrypt":
+                    return MessageCommands.RunEncrypt(o, io);
+                case "decrypt":
+                    return MessageCommands.RunDecrypt(o, io);
                 default:
                     throw new SopException(SopExit.UnsupportedSubcommand,
                         KnownSubcommands.Contains(o.Subcommand) ? $"'{o.Subcommand}' is not implemented yet" : $"unknown subcommand '{o.Subcommand}'");
@@ -55,6 +67,18 @@ internal static class SopApp
         {
             io.Stderr.WriteLine("onecrypto sop: " + e.Message);
             return e.ExitCode;
+        }
+        catch (RecursiveAI.OneCrypto.OpenPgp.PgpException e)
+        {
+            io.Stderr.WriteLine("onecrypto sop: " + e.Message);
+            return e.Failure switch
+            {
+                RecursiveAI.OneCrypto.OpenPgp.PgpFailure.KeyIsProtected => SopExit.KeyIsProtected,
+                RecursiveAI.OneCrypto.OpenPgp.PgpFailure.CannotDecrypt or RecursiveAI.OneCrypto.OpenPgp.PgpFailure.NoDecryptionKey => SopExit.CannotDecrypt,
+                RecursiveAI.OneCrypto.OpenPgp.PgpFailure.MalformedMessage or RecursiveAI.OneCrypto.OpenPgp.PgpFailure.LimitExceeded => SopExit.BadData,
+                RecursiveAI.OneCrypto.OpenPgp.PgpFailure.Unsupported => SopExit.UnsupportedAsymmetricAlgo,
+                _ => SopExit.UnspecifiedFailure,
+            };
         }
         catch (RecursiveAI.OneCrypto.OpenPgp.Packets.OpenPgpParseException e)
         {
@@ -106,7 +130,7 @@ internal static class SopApp
         return SopExit.Ok;
     }
 
-    private static int ListProfiles(Options o)
+    private static int ListProfiles(Options o, SopIo io)
     {
         o.RejectUnknown();
         if (o.Positionals.Count != 1)
@@ -120,8 +144,15 @@ internal static class SopApp
             throw new SopException(SopExit.UnsupportedSubcommand, $"unknown subcommand '{sub}'");
         }
 
-        // generate-key and encrypt are the subcommands that take a profile; they are not written yet.
-        throw sub is "generate-key" or "encrypt"
+        if (sub == "encrypt")
+        {
+            // §5.1: the first line names the default profile.
+            io.Stdout.Write(System.Text.Encoding.UTF8.GetBytes("rfc9580: choose the message format from the recipients' keys (SEIPD v2 with AEAD where they allow it)\nrfc4880: always use SEIPD v1 with an MDC, for recipients that predate RFC 9580\n"));
+            return SopExit.Ok;
+        }
+
+        // generate-key takes a profile and is not written yet.
+        throw sub == "generate-key"
             ? new SopException(SopExit.UnsupportedSubcommand, $"'{sub}' is not implemented yet")
             : new SopException(SopExit.UnsupportedProfile, $"'{sub}' does not take a profile");
     }
@@ -136,6 +167,10 @@ internal sealed class Options
     private readonly Dictionary<string, string?> _values = new(StringComparer.Ordinal);
     private readonly HashSet<string> _used = new(StringComparer.Ordinal);
     private readonly List<string> _positionals = [];
+    private readonly Dictionary<string, List<string?>> _multi = new(StringComparer.Ordinal);
+
+    private static readonly HashSet<string> MultiOptions =
+        ["--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with"];
 
     private Options()
     {
@@ -164,12 +199,25 @@ internal sealed class Options
                     continue;
                 }
 
+                string? val = eq < 0 ? null : a[(eq + 1)..];
+                if (MultiOptions.Contains(name))
+                {
+                    // Options the draft allows more than once keep every value, in order.
+                    if (!o._multi.TryGetValue(name, out List<string?>? many))
+                    {
+                        o._multi[name] = many = [];
+                    }
+
+                    many.Add(val);
+                    continue;
+                }
+
                 if (o._values.ContainsKey(name))
                 {
                     throw new SopException(SopExit.UnsupportedOption, "the option is repeated: " + name);
                 }
 
-                o._values[name] = eq < 0 ? null : a[(eq + 1)..];
+                o._values[name] = val;
             }
             else if (o.Subcommand is null)
             {
@@ -208,10 +256,22 @@ internal sealed class Options
         return v ?? throw new SopException(SopExit.MissingArg, name + " needs a value");
     }
 
+    /// <summary>All values of an option that may repeat (<c>--with-password</c> and the like), in order. Each needs a value.</summary>
+    public IReadOnlyList<string> Values(string name)
+    {
+        if (!_multi.TryGetValue(name, out List<string?>? many))
+        {
+            return [];
+        }
+
+        _used.Add(name);
+        return many.Select(v => v ?? throw new SopException(SopExit.MissingArg, name + " needs a value")).ToList();
+    }
+
     /// <summary>Fails with UNSUPPORTED_OPTION for an option nobody asked about, or one of those named here but not read yet.</summary>
     public void RejectUnknown(params string[] allowed)
     {
-        foreach (string name in _values.Keys)
+        foreach (string name in _values.Keys.Concat(_multi.Keys))
         {
             if (!_used.Contains(name) && Array.IndexOf(allowed, name) < 0)
             {

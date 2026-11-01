@@ -107,6 +107,17 @@ public static class PgpMessageReader
         return Cleartext.Verify(input, output, options);
     }
 
+    /// <summary>
+    /// Reads an inline-signed message in either form: the cleartext framework (RFC 9580 §7) or a signed message packet sequence, binary or armored.
+    /// </summary>
+    public static PgpReadResult ReadSigned(Stream input, Stream? output, PgpReadOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(options);
+        using Stream peek = PgpInput.Peek(input, 128, out byte[] head);
+        return LooksCleartext(head) ? VerifyCleartext(peek, output, options) : Read(peek, output, options);
+    }
+
     /// <summary>True when the input starts like a cleartext-signed message. The stream is consumed; pass a copy or a buffered stream.</summary>
     internal static bool LooksCleartext(ReadOnlySpan<byte> head)
     {
@@ -328,6 +339,7 @@ internal sealed class MessageProcessor : IDisposable
     private readonly OpenPgpLimits _limits;
     private readonly Dictionary<PgpKey, PgpSecretKey?> _unlocked = [];
     private bool _sawLiteral;
+    private bool _lockedSeen;
 
     internal MessageProcessor(PgpReadOptions o, Stream? output)
     {
@@ -631,6 +643,11 @@ internal sealed class MessageProcessor : IDisposable
         List<Candidate> candidates = Candidates(pkesks, skesks, f);
         if (candidates.Count == 0)
         {
+            if (_lockedSeen)
+            {
+                throw new PgpException(PgpFailure.KeyIsProtected, "A secret key that could open the message is protected and no password unlocks it.");
+            }
+
             throw new PgpException(pkesks.Count + skesks.Count == 0 ? PgpFailure.CannotDecrypt : PgpFailure.NoDecryptionKey,
                 "No supplied key or password opens the message.");
         }
@@ -659,6 +676,11 @@ internal sealed class MessageProcessor : IDisposable
     {
         _ = frame;
         var list = new List<Candidate>();
+        foreach ((SymmetricAlgorithm c, byte[] k) in _o.SessionKeysWithCipher)
+        {
+            list.Add(new Candidate(c, k));
+        }
+
         foreach (byte[] sk in _o.SessionKeys)
         {
             list.Add(new Candidate(null, sk));
@@ -729,7 +751,11 @@ internal sealed class MessageProcessor : IDisposable
             return have;
         }
 
-        PgpSecretKey.TryUnlock(key, _o.KeyPasswords, out PgpSecretKey? got, _policy.KdfLimits);
+        if (!PgpSecretKey.TryUnlock(key, _o.KeyPasswords, out PgpSecretKey? got, _policy.KdfLimits))
+        {
+            _lockedSeen = true;
+        }
+
         _unlocked[key] = got;
         return got;
     }

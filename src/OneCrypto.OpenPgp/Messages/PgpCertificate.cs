@@ -387,6 +387,23 @@ public sealed class PgpCertificate
         return null;
     }
 
+    /// <summary>The newest key that is valid at <paramref name="at"/> and may sign, or null.</summary>
+    public PgpKey? FindSigningKey(DateTimeOffset at)
+    {
+        PgpKey? best = null;
+        foreach (PgpKey k in Keys)
+        {
+            PgpKeyState st = k.StateAt(at);
+            bool algOk = k.Algorithm is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448;
+            if (st.IsValid && algOk && (st.Usage & PgpKeyUsage.Sign) != 0 && (best is null || k.Packet.CreationTime > best.Packet.CreationTime))
+            {
+                best = k;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>The public form of this certificate, written as binary packets.</summary>
     public byte[] ExportPublic()
     {

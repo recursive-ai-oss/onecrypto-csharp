@@ -226,6 +226,9 @@ public sealed class PgpWriteOptions
     /// <summary>The compression for the literal data. Default <see cref="CompressionAlgorithm.Uncompressed"/>.</summary>
     public CompressionAlgorithm Compression { get; init; }
 
+    /// <summary>Called with the session key and its symmetric algorithm after an encrypted message is written (for tools that report it).</summary>
+    public Action<SymmetricAlgorithm, byte[]>? OnSessionKey { get; init; }
+
     /// <summary>True to force integrity protection with SEIPD v1 (MDC) instead of choosing from the recipients' features. Default false.</summary>
     public bool ForceSeipd1 { get; init; }
 }
@@ -300,6 +303,7 @@ public static class PgpMessageWriter
         byte[] sessionKey = RandomNumberGenerator.GetBytes(PgpAlgorithms.KeySize(cipher));
         try
         {
+            o.OnSessionKey?.Invoke(cipher, (byte[])sessionKey.Clone());
             foreach (PgpKey k in keys)
             {
                 SessionKeys.Encrypt(k, sessionKey, cipher, v2 ? 6 : 3).WriteTo(sink);
@@ -469,7 +473,7 @@ public static class PgpMessageWriter
 
             using (var lit = new PacketBodyWriter(sink, PacketTag.LiteralData))
             {
-                lit.Write([o.Text ? (byte)'t' : (byte)'b', (byte)o.FileName.Length]);
+                lit.Write([o.Text ? (byte)'u' : (byte)'b', (byte)o.FileName.Length]);
                 lit.Write(o.FileName);
                 byte[] date = new byte[4];
                 BinaryPrimitives.WriteUInt32BigEndian(date, o.LiteralDate);
@@ -504,9 +508,9 @@ public static class PgpMessageWriter
         }
     }
 
-    /// <summary>Writes a detached signature over <paramref name="data"/> by every signer in <see cref="PgpWriteOptions.Signers"/>.</summary>
+    /// <summary>Writes a detached signature over <paramref name="data"/> by every signer in <see cref="PgpWriteOptions.Signers"/> and returns the hash each one used.</summary>
     /// <exception cref="PgpException">No signer is given, or a key cannot sign.</exception>
-    public static void SignDetached(Stream data, Stream output, PgpWriteOptions options)
+    public static IReadOnlyList<PgpHashAlgorithm> SignDetached(Stream data, Stream output, PgpWriteOptions options)
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(output);
@@ -540,6 +544,7 @@ public static class PgpMessageWriter
 
             armor?.Complete();
             armor?.Dispose();
+            return builders.Select(b => b.Hash).ToList();
         }
         finally
         {
@@ -594,7 +599,8 @@ public static class PgpMessageWriter
         }
     }
 
-    internal static string HashHeaderName(PgpHashAlgorithm h) => h switch
+    /// <summary>The name of a hash in a cleartext <c>Hash:</c> header (RFC 9580 00a76.2.2.3), such as <c>SHA512</c>.</summary>
+    public static string HashHeaderName(PgpHashAlgorithm h) => h switch
     {
         PgpHashAlgorithm.Md5 => "MD5",
         PgpHashAlgorithm.Sha1 => "SHA1",
