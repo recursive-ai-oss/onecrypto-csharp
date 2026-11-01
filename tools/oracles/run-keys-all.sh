@@ -13,5 +13,5 @@ export LD_LIBRARY_PATH=$O/openssl-3.5.9/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 if [ $# -gt 0 ]; then "$root/tools/oracles/run-keys-matrices.sh" "$W/m" "$@"; exit $?; fi
 "$root/tools/oracles/run-keys-matrices.sh" "$W/m" build-only >/dev/null 2>&1
 dll=$(find "$W/artifacts" -path '*/bin/OneCrypto.Cli/release/onecrypto.dll' | head -1)
-echo "=== gpg 2.5.24"; GPG=$O/gnupg-2.5.24/bin/gpg "$root/tools/oracles/gpg-keys.sh" "dotnet $dll" "$W/g" > "$W/gpg.log" 2>&1; tail -1 "$W/gpg.log"
+echo "=== gpg 2.5.24"; LD_LIBRARY_PATH=$O/gnupg-2.5.24/lib:$LD_LIBRARY_PATH GPG=$O/gnupg-2.5.24/bin/gpg "$root/tools/oracles/gpg-keys.sh" "dotnet $dll" "$W/g" > "$W/gpg.log" 2>&1; tail -1 "$W/gpg.log"
 echo "=== rnp"; "$root/tools/oracles/rnp-keys.sh" "dotnet $dll" "$W/r" > "$W/rnp.log" 2>&1; tail -1 "$W/rnp.log"
