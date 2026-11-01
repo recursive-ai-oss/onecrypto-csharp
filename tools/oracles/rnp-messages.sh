@@ -14,8 +14,8 @@ RNP="$D/usr/bin/rnp --notty"; RNPK="$D/usr/bin/rnpkeys --notty"
 mkdir -p "$W" && cd "$W" || exit 2
 sop() { $SOP sop "$@"; }
 pass=0; fail=0; unsup=0
-ok() { pass=$((pass+1)); echo "ok   $1"; }
-bad() { fail=$((fail+1)); echo "FAIL $1"; }
+ok() { pass=$((pass+1)); echo "ok   $1"; rm -f dec.bin out.bin; }
+bad() { fail=$((fail+1)); echo "FAIL $1"; rm -f dec.bin out.bin; }
 skip() { unsup=$((unsup+1)); echo "skip $1"; }
 $D/usr/bin/rnp --version | head -1
 printf 'Hello from the oracle test\nsecond line\n' > msg.txt
