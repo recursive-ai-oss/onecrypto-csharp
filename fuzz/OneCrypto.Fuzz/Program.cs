@@ -42,6 +42,7 @@ internal static class Program
         ["online"] = OnlineTarget.Run,
         ["pgppacket"] = PgpPacketTarget.Run,
         ["pgpmessage"] = PgpMessageTarget.Run,
+        ["pgpkey"] = PgpKeyTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
         ["bzip2"] = Bzip2Target.Run,
     };
@@ -69,6 +70,7 @@ internal static class Program
         "online" => OnlineTarget.Seeds(),
         "pgppacket" => PgpPacketTarget.Seeds(),
         "pgpmessage" => PgpMessageTarget.Seeds(),
+        "pgpkey" => PgpKeyTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
         "bzip2" => Bzip2Target.Seeds(),
         _ => [],

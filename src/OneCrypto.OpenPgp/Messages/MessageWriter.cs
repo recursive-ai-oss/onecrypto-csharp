@@ -108,7 +108,7 @@ internal sealed class SignatureBuilder : IDisposable
     }
 
     // Default hashes: SHA-512 for the curve and RSA families, and the hash that matches the NIST curve's size for ECDSA.
-    private static PgpHashAlgorithm DefaultHash(KeyPacket kp)
+    internal static PgpHashAlgorithm DefaultHash(KeyPacket kp)
     {
         if (kp.Algorithm == PublicKeyAlgorithm.Ecdsa && SignatureEngine.Curves.TryFind(kp.Material.CurveOid.Span, out int size))
         {
@@ -126,52 +126,9 @@ internal sealed class SignatureBuilder : IDisposable
     /// <summary>Finishes the hash, signs the digest through the key's <see cref="ISigningKey"/> and returns the signature packet.</summary>
     internal Packet Complete()
     {
+        // v5 document signatures also hash the literal packet fields (LibrePGP draft §5.2.4), hence the meta
         byte[] digest = Hasher.Finish(Version, SignedHeader, LiteralMeta);
-        // The composite ML-DSA keys sign through their own path: they hold two component keys.
-        ISigningKey signer = _key.Key.Algorithm is PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 ? null! : _key.SigningKey;
-        HashAlgorithmName hn = PgpAlgorithms.HashName(_hash);
-        KeyPacket kp = _key.Key.Packet;
-        byte[] material;
-        switch (kp.Algorithm)
-        {
-            case PublicKeyAlgorithm.Ed25519:
-                material = signer.Sign(digest, SignatureSpec.Ed25519());
-                break;
-            case PublicKeyAlgorithm.Ed448:
-                material = signer.Sign(digest, SignatureSpec.Ed448());
-                break;
-            case PublicKeyAlgorithm.MlDsa65Ed25519:
-            case PublicKeyAlgorithm.MlDsa87Ed448:
-                if (Version != 6 || PgpAlgorithms.HashSize(_hash) < 32)
-                {
-                    throw new PgpException(PgpFailure.KeyCannotPerform, "ML-DSA composite signatures need version 6 and a hash of at least 256 bits (RFC 9980 §5.3.1).");
-                }
-
-                material = _key.SignComposite(digest);
-                break;
-            case PublicKeyAlgorithm.EdDsaLegacy:
-                {
-                    byte[] raw = signer.Sign(digest, SignatureSpec.Ed25519());
-                    material = [.. SignatureEngine.Mpi(raw.AsSpan(0, 32)), .. SignatureEngine.Mpi(raw.AsSpan(32, 32))];
-                    break;
-                }
-
-            case PublicKeyAlgorithm.Rsa:
-            case PublicKeyAlgorithm.RsaSignOnly:
-                material = SignatureEngine.Mpi(signer.SignDigest(digest, SignatureSpec.RsaPkcs1(hn)));
-                break;
-            case PublicKeyAlgorithm.Ecdsa:
-                {
-                    byte[] rs = signer.SignDigest(digest, SignatureSpec.Ecdsa(hn, EcdsaSignatureFormat.Rfc4754));
-                    int half = rs.Length / 2;
-                    material = [.. SignatureEngine.Mpi(rs.AsSpan(0, half)), .. SignatureEngine.Mpi(rs.AsSpan(half))];
-                    break;
-                }
-
-            default:
-                throw new PgpException(PgpFailure.KeyCannotPerform, $"The key algorithm {(byte)kp.Algorithm} cannot sign.");
-        }
-
+        byte[] material = SignatureMaterialBuilder.Sign(_key, _hash, Version, digest);
         var body = new List<byte>(SignedHeader);
         if (Version == 6)
         {

@@ -85,14 +85,20 @@ internal static class SignatureEngine
         return digest;
     }
 
-    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed.</summary>
-    internal static byte[] KeyInput(KeyPacket key)
+    /// <summary>RFC 9580 §5.2.4: the octets that stand for a key packet when a key signature is hashed, framed for a signature made by a key of the same version.</summary>
+    internal static byte[] KeyInput(KeyPacket key) => KeyInput(key, key.Version);
+
+    /// <summary>
+    /// RFC 9580 §5.2.4: the framing follows the version of the signature, not of the key it covers: a version 4 signature hashes 0x99 and a two-octet length,
+    /// a version 6 signature 0x9B and a four-octet length (0x9A for version 5), so a third-party certification of a key of another version is framed by its issuer.
+    /// </summary>
+    internal static byte[] KeyInput(KeyPacket key, int signatureVersion)
     {
         ReadOnlySpan<byte> body = key.PublicBody.Span;
-        if (key.Version >= 5)
+        if (signatureVersion >= 5)
         {
             byte[] b = new byte[5 + body.Length];
-            b[0] = key.Version == 5 ? (byte)0x9A : (byte)0x9B;
+            b[0] = signatureVersion == 5 ? (byte)0x9A : (byte)0x9B;
             BinaryPrimitives.WriteUInt32BigEndian(b.AsSpan(1), (uint)body.Length);
             body.CopyTo(b.AsSpan(5));
             return b;
@@ -139,11 +145,36 @@ internal static class SignatureEngine
             return false;
         }
 
+        // RFC 9580 §5.2.3: the signature names the algorithm of the key that made it. A signature by a key of another algorithm (a third-party
+        // certification checked against the wrong key) cannot verify, and its values must not be read as this key's.
+        if (!SameSigningFamily(key.Algorithm, sig.Algorithm))
+        {
+            return false;
+        }
+
         PublicKeyMaterial pub = key.Material;
         IReadOnlyList<ReadOnlyMemory<byte>> sv = sig.Material.Values;
         if (!sig.Material.IsKnown)
         {
             throw new PgpException(PgpFailure.Unsupported, $"The signature algorithm {(byte)sig.Algorithm} is not supported.");
+        }
+
+        // RFC 9580 §5.2.3: each algorithm has a fixed number of signature fields; a signature with fewer cannot verify (and its fields must not be indexed).
+        int fields = sig.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448 => 1,
+            PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Dsa or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            _ => 0,
+        };
+        int keyFields = key.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            PublicKeyAlgorithm.Dsa => 4,
+            _ => 1,
+        };
+        if (sv.Count < fields || pub.Values.Count < keyFields)
+        {
+            return false;
         }
 
         switch (sig.Algorithm)
@@ -246,6 +277,9 @@ internal static class SignatureEngine
                 throw new PgpException(PgpFailure.Unsupported, $"The signature algorithm {(byte)sig.Algorithm} ({sig.Algorithm}) is not supported.");
         }
     }
+
+    private static bool SameSigningFamily(PublicKeyAlgorithm key, PublicKeyAlgorithm signature) =>
+        key == signature || (key is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly && signature is PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly);
 
     internal static byte[] LeftPad(ReadOnlySpan<byte> value, int length)
     {

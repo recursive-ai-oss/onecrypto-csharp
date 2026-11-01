@@ -13,14 +13,14 @@ internal static class MessageCommands
 
     // ---- argument helpers ----
 
-    private static byte[] ReadAll(Stream s)
+    internal static byte[] ReadAll(Stream s)
     {
         using var ms = new MemoryStream();
         s.CopyTo(ms);
         return ms.ToArray();
     }
 
-    private static List<PgpCertificate> LoadCerts(Options o, SopIo io, IEnumerable<string> designators, bool secret)
+    internal static List<PgpCertificate> LoadCerts(Options o, SopIo io, IEnumerable<string> designators, bool secret)
     {
         var list = new List<PgpCertificate>();
         foreach (string d in designators)
@@ -61,7 +61,7 @@ internal static class MessageCommands
         return list;
     }
 
-    private static List<byte[]> Passwords(Options o, SopIo io, string option, bool requireText)
+    internal static List<byte[]> Passwords(Options o, SopIo io, string option, bool requireText)
     {
         var list = new List<byte[]>();
         foreach (string d in o.Values(option))

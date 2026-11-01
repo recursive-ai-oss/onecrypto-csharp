@@ -108,6 +108,20 @@ public sealed class PgpSecretKey : IDisposable
         byte[] kdf = PgpAlgorithms.S2k(p.S2k, password, keySize, limits);
         try
         {
+            return OpenWithDerivedKey(sp, kdf, keySize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(kdf);
+        }
+    }
+
+    // The step after the string-to-key: from the derived key to the secret values (or null when the key or the integrity check is wrong). Split out
+    // so the timing test can exercise it without the password hashing, whose cost depends on the password by design.
+    internal static byte[]? OpenWithDerivedKey(SecretKeyPacket sp, byte[] kdf, int keySize)
+    {
+        SecretKeyProtection p = sp.Protection;
+        {
             ReadOnlySpan<byte> data = sp.SecretData.Span;
             if (p.Usage == 253 && sp.Version == 5)
             {
@@ -185,10 +199,6 @@ public sealed class PgpSecretKey : IDisposable
             }
 
             throw new PgpException(PgpFailure.Unsupported, "This secret key protection method is not supported.");
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(kdf);
         }
     }
 
@@ -375,7 +385,7 @@ public sealed class PgpSecretKey : IDisposable
     /// <summary>
     /// Creates a signing key over the platform's (or the library's) primitives. The result is owned by this object and disposed with it.
     /// </summary>
-    /// <exception cref="PgpException">The algorithm cannot sign here.</exception>
+    /// <exception cref="PgpException">The algorithm cannot sign here, or the secret is not a valid key (<see cref="PgpFailure.KeyCannotPerform"/>).</exception>
     public ISigningKey SigningKey => _signer ??= CreateSigner();
 
     private ISigningKey CreateSigner()
@@ -411,6 +421,11 @@ public sealed class PgpSecretKey : IDisposable
                 default:
                     throw new PgpException(PgpFailure.KeyCannotPerform, $"The key algorithm {(byte)Key.Algorithm} cannot sign.");
             }
+        }
+        catch (Exception e) when (e is CryptographicException or ArgumentException)
+        {
+            // a secret that unlocks but is not a valid key for its public part (a point off the curve, inconsistent RSA primes) is a typed failure
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The secret key material is not a valid key for this algorithm.", e);
         }
         finally
         {
@@ -474,6 +489,9 @@ public sealed class PgpSecretKey : IDisposable
         _signer?.Dispose();
         _signer = null;
     }
+
+    // The unlocked secret values as stored in the packet, without checksum or hash; key management re-protects them under another password.
+    internal ReadOnlySpan<byte> PlainSecret => _plain.AsSpan(0, _length);
 
     // Decryption of the session key lives in SessionKeys.cs and reads the parts through this method.
     internal List<byte[]> SecretParts() => Parts();

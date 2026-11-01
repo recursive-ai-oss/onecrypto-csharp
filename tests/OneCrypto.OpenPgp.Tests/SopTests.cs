@@ -94,13 +94,13 @@ public class SopTests
     private static string Label(byte[] armor) => Encoding.ASCII.GetString(armor).Split('\n')[0];
 
     [Fact]
-    public void VersionNamesTheToolAndRefusesTheSopvSubset()
+    public void VersionNamesTheToolAndTheSopvSubset()
     {
         Result r = Sop([], "version");
         Assert.Equal(0, r.Code);
         Assert.StartsWith("onecrypto ", Encoding.UTF8.GetString(r.Out), StringComparison.Ordinal);
         Assert.StartsWith("~draft-dkg-openpgp-stateless-cli-", Encoding.UTF8.GetString(Sop([], "version", "--sop-spec").Out), StringComparison.Ordinal);
-        Assert.Equal(37, Sop([], "version", "--sopv").Code);
+        Assert.Equal("1.2", Encoding.UTF8.GetString(Sop([], "version", "--sopv").Out).Trim());
         Assert.Equal(83, Sop([], "version", "--backend", "--extended").Code);
         Assert.Equal(37, Sop([], "version", "--bogus").Code);
     }
@@ -108,7 +108,7 @@ public class SopTests
     [Fact]
     public void UnimplementedAndUnknownSubcommandsExitWithUnsupportedSubcommand()
     {
-        foreach (string sub in new[] { "generate-key", "merge-certs", "nonsense" })
+        foreach (string sub in new[] { "nonsense", "generate-keys" })
         {
             Assert.Equal(69, Sop([], sub).Code);
         }

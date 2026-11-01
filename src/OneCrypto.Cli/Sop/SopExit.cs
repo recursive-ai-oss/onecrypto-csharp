@@ -24,6 +24,9 @@ internal static class SopExit
     public const int KeyCannotSign = 79;
     public const int IncompatibleOptions = 83;
     public const int UnsupportedProfile = 89;
+    public const int PrimaryKeyBad = 103;
+    public const int CertUseridNoMatch = 107;
+    public const int KeyCannotCertify = 109;
 }
 
 /// <summary>A failure that ends the command with a given exit code and a message for standard error.</summary>

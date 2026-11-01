@@ -7,17 +7,17 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        if (args.Length > 0 && args[0] == "sop")
+        if (args.Length > 0 && args[0] is "sop" or "sopv")
         {
             using Stream stdin = Console.OpenStandardInput();
             using Stream stdout = Console.OpenStandardOutput();
             var io = new SopIo(stdin, stdout, Console.Error, Environment.GetEnvironmentVariable);
-            return SopApp.Run(args[1..], io);
+            return SopApp.Run(args[1..], io, sopvOnly: args[0] == "sopv");
         }
 
         Console.Error.WriteLine(args.Length == 0
-            ? "onecrypto: no command given. Available: sop."
-            : $"onecrypto: unknown command '{args[0]}'. Available: sop.");
+            ? "onecrypto: no command given. Available: sop, sopv."
+            : $"onecrypto: unknown command '{args[0]}'. Available: sop, sopv.");
         return 2;
     }
 }
