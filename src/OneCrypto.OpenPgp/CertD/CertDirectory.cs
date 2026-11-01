@@ -228,7 +228,7 @@ public sealed class CertDirectory
             foreach (string file in Directory.EnumerateFiles(dir).OrderBy(f => f, StringComparer.Ordinal))
             {
                 string name = prefix + System.IO.Path.GetFileName(file);
-                if (!IsFingerprint(name) || name != name.ToLowerInvariant())
+                if (!IsFingerprint(name) || name.Any(char.IsUpper))
                 {
                     continue;
                 }

@@ -1,7 +1,7 @@
 #pragma warning disable CA5350 // The key-file protection is defined over SHA-1 (S2K and the integrity hash); reading existing keys needs it.
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using System.Text;
-using RecursiveAI.OneCrypto.Internal;
 using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.Primitives;
 
@@ -16,7 +16,7 @@ public sealed class GnuPGSecretKey : IDisposable
 {
     private readonly Dictionary<string, (int Offset, int Length)> _slots = new(StringComparer.Ordinal);
     private readonly Dictionary<string, byte[]> _public = new(StringComparer.Ordinal);
-    private PinnedSecret? _secret;
+    private SecretBuffer? _secret;
 
     private GnuPGSecretKey(string algorithm, string? curve)
     {
@@ -65,13 +65,13 @@ public sealed class GnuPGSecretKey : IDisposable
         }
 
         // The protection key is the first 128 bits of the iterated and salted S2K (RFC 9580 §3.7.1.3) over SHA-1 of the passphrase.
-        using var pass = new PinnedSecret(Encoding.UTF8.GetByteCount(passphrase));
+        using var pass = new SecretBuffer(Encoding.UTF8.GetByteCount(passphrase));
         Encoding.UTF8.GetBytes(passphrase, pass.Span);
-        using var aesKey = new PinnedSecret(16);
+        using var aesKey = new SecretBuffer(16);
         IteratedSalted.Sha1(salt, pass.ReadOnlySpan, count, aesKey.Span);
 
         var key = new GnuPGSecretKey(file.Algorithm, file.Curve);
-        PinnedSecret? plain = null;
+        SecretBuffer? plain = null;
         try
         {
             string[] names = SecretNames(file.Algorithm);
@@ -84,7 +84,7 @@ public sealed class GnuPGSecretKey : IDisposable
                     throw new GnuPGFormatException(GnuPGError.BadSyntax, 0, "OCB nonce or ciphertext length");
                 }
 
-                plain = new PinnedSecret(encrypted.Length - 16);
+                plain = new SecretBuffer(encrypted.Length - 16);
                 using var ocb = new AesOcb(aesKey.ReadOnlySpan, 16);
                 if (!ocb.TryDecrypt(ivOrNonce, encrypted.AsSpan(0, encrypted.Length - 16), encrypted.AsSpan(encrypted.Length - 16), plain.Span, associatedData))
                 {
@@ -98,9 +98,8 @@ public sealed class GnuPGSecretKey : IDisposable
                     throw new GnuPGFormatException(GnuPGError.BadSyntax, 0, "CBC IV or ciphertext length");
                 }
 
-                plain = new PinnedSecret(encrypted.Length);
-                Platform.RequireAes("AES-CBC");
-                using Aes aes = Platform.CreateAes();
+                plain = new SecretBuffer(encrypted.Length);
+                using Aes aes = CreateAes();
                 aes.SetKey(aesKey.ReadOnlySpan);
                 aes.DecryptCbc(encrypted, ivOrNonce, plain.Span, PaddingMode.None);
             }
@@ -316,7 +315,7 @@ public sealed class GnuPGSecretKey : IDisposable
             total += v.Length;
         }
 
-        _secret = new PinnedSecret(total);
+        _secret = new SecretBuffer(total);
         int off = 0;
         foreach ((string name, byte[] v) in items)
         {
@@ -430,58 +429,51 @@ public sealed class GnuPGSecretKey : IDisposable
         ReadOnlySpan<byte> p = Secret("p");
         ReadOnlySpan<byte> q = Secret("q");
         ReadOnlySpan<byte> u = Secret("u");
-        int half = (n.Length + 1) / 2;
-
         // GnuPG's u is p^-1 mod q; the platform's InverseQ is Q^-1 mod P. So the platform's P is GnuPG's q and its Q is GnuPG's p.
-        byte[] pm1 = TrimTo(q).ToArray();
-        byte[] qm1 = TrimTo(p).ToArray();
-        if (pm1.Length == 0 || qm1.Length == 0 || (pm1[^1] & 1) == 0 || (qm1[^1] & 1) == 0)
+        ReadOnlySpan<byte> pp = TrimTo(q);
+        ReadOnlySpan<byte> qq = TrimTo(p);
+        if (pp.Length == 0 || qq.Length == 0 || (pp[^1] & 1) == 0 || (qq[^1] & 1) == 0)
         {
             throw new GnuPGFormatException(GnuPGError.Invalid, 0, "RSA primes must be odd");
         }
 
-        pm1[^1] &= 0xFE; // the primes are odd, so prime - 1 only clears the lowest bit
-        qm1[^1] &= 0xFE;
-        byte[] dp = new byte[pm1.Length];
-        byte[] dq = new byte[qm1.Length];
-        var prm = new RSAParameters
-        {
-            Modulus = n,
-            Exponent = e,
-            D = SecretMod.Fixed(d, n.Length),
-            P = SecretMod.Fixed(q, half),
-            Q = SecretMod.Fixed(p, half),
-            InverseQ = SecretMod.Fixed(u, half),
-        };
         try
         {
-            SecretMod.Reduce(d, pm1, dp);
-            SecretMod.Reduce(d, qm1, dq);
-            prm.DP = SecretMod.Fixed(dp, half);
-            prm.DQ = SecretMod.Fixed(dq, half);
-            RSA rsa = Platform.CreateRsa("GnuPG RSA key");
-            try
-            {
-                rsa.ImportParameters(prm);
-            }
-            catch (CryptographicException ex)
-            {
-                rsa.Dispose();
-                throw new GnuPGFormatException("The RSA parameters are inconsistent.", ex);
-            }
-
-            return PrivateKey.FromRsa(rsa, ownsKey: true);
+            return PrivateKey.FromRsaComponents(n, e, d, pp, qq, u);
         }
-        finally
+        catch (CryptographicException ex)
         {
-            foreach (byte[]? x in new[] { pm1, qm1, dp, dq, prm.D, prm.P, prm.Q, prm.InverseQ, prm.DP, prm.DQ })
-            {
-                if (x is not null)
-                {
-                    CryptographicOperations.ZeroMemory(x);
-                }
-            }
+            throw new GnuPGFormatException("The RSA parameters are inconsistent.", ex);
         }
+    }
+
+    private static Aes CreateAes()
+    {
+        try
+        {
+            return Aes.Create();
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            throw new AlgorithmNotSupportedException("AES-CBC", RuntimeInformation.OSDescription, "the platform has no AES", ex);
+        }
+    }
+
+    private static byte[] LeftPad(ReadOnlySpan<byte> magnitude, int length)
+    {
+        while (magnitude.Length > length && magnitude[0] == 0)
+        {
+            magnitude = magnitude[1..];
+        }
+
+        if (magnitude.Length > length)
+        {
+            throw new GnuPGFormatException(GnuPGError.Invalid, 0, "a number is longer than its field");
+        }
+
+        byte[] r = new byte[length];
+        magnitude.CopyTo(r.AsSpan(length - magnitude.Length));
+        return r;
     }
 
     private static ReadOnlySpan<byte> TrimTo(ReadOnlySpan<byte> s)
@@ -617,7 +609,7 @@ public sealed class GnuPGSecretKey : IDisposable
         {
             Curve = curve,
             Q = new ECPoint { X = q.AsSpan(1, size).ToArray(), Y = q.AsSpan(1 + size, size).ToArray() },
-            D = SecretMod.Fixed(Secret("d"), size),
+            D = LeftPad(Secret("d"), size),
         };
         return prm;
     }
@@ -627,7 +619,14 @@ public sealed class GnuPGSecretKey : IDisposable
         ECParameters prm = EcParameters();
         try
         {
-            return Platform.CreateEcdsa(prm, "GnuPG ECDSA key");
+            try
+            {
+                return ECDsa.Create(prm);
+            }
+            catch (PlatformNotSupportedException ex)
+            {
+                throw new AlgorithmNotSupportedException("GnuPG ECDSA key on this curve", RuntimeInformation.OSDescription, "the platform lacks the curve; private-key operations have no managed fallback", ex);
+            }
         }
         catch (CryptographicException ex)
         {
@@ -664,7 +663,7 @@ internal static class IteratedSalted
     public static void Sha1(ReadOnlySpan<byte> salt, ReadOnlySpan<byte> passphrase, long count, Span<byte> key)
     {
         int unit = salt.Length + passphrase.Length;
-        using var data = new PinnedSecret(unit);
+        using var data = new SecretBuffer(unit);
         salt.CopyTo(data.Span);
         passphrase.CopyTo(data.Span[salt.Length..]);
 
@@ -673,7 +672,7 @@ internal static class IteratedSalted
 
         // Hash in large runs made of whole units so a count of hundreds of megabytes costs thousands of calls, not millions.
         int units = Math.Max(1, 8192 / unit);
-        using var run = new PinnedSecret(units * unit);
+        using var run = new SecretBuffer(units * unit);
         for (int i = 0; i < units; i++)
         {
             data.ReadOnlySpan.CopyTo(run.Span[(i * unit)..]);
@@ -696,5 +695,36 @@ internal static class IteratedSalted
         h.GetHashAndReset(digest);
         digest[..key.Length].CopyTo(key);
         CryptographicOperations.ZeroMemory(digest);
+    }
+}
+
+/// <summary>A byte buffer on the pinned heap, zeroed on dispose, for unlocked key material.</summary>
+internal sealed class SecretBuffer : IDisposable
+{
+    private byte[]? _buffer;
+
+    public SecretBuffer(int length)
+    {
+        byte[] b = GC.AllocateUninitializedArray<byte>(length, pinned: true);
+        b.AsSpan().Clear();
+        _buffer = b;
+    }
+
+    public int Length => Buffer.Length;
+
+    public Span<byte> Span => Buffer;
+
+    public ReadOnlySpan<byte> ReadOnlySpan => Buffer;
+
+    private byte[] Buffer => _buffer ?? throw new ObjectDisposedException(nameof(SecretBuffer));
+
+    public void Dispose()
+    {
+        byte[]? b = _buffer;
+        _buffer = null;
+        if (b is not null)
+        {
+            CryptographicOperations.ZeroMemory(b);
+        }
     }
 }

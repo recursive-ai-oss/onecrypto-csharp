@@ -25,6 +25,24 @@ public sealed class CertDirectoryTests : IDisposable
         return ms.ToArray();
     }
 
+    // A certificate with a direct signature, two user IDs and a second signature on the first one, spliced from two exported certificates.
+    // The merge works on packet identity and does not check signatures, so borrowed signatures are enough to exercise it.
+    private static TransferableKey Rich()
+    {
+        IReadOnlyList<TransferableKey> all = Export();
+        TransferableKey x = all[0];
+        TransferableKey y = all[1];
+        TransferableKey z = all[2];
+        var list = new List<Packet> { x.Primary, y.Subkeys[0].Signatures[0], x.Users[0].Identity };
+        list.AddRange(x.Users[0].Signatures);
+        list.Add(y.Users[0].Signatures[0]);
+        list.Add(z.Users[0].Identity);
+        list.AddRange(z.Users[0].Signatures);
+        list.Add(x.Subkeys[0].Key);
+        list.AddRange(x.Subkeys[0].Signatures);
+        return TransferableKey.Parse(list);
+    }
+
     private static TransferableKey Without(TransferableKey k, Func<Packet, bool> drop) => TransferableKey.Parse(k.Packets.Where(p => !drop(p)).ToList());
 
     [Fact]
@@ -112,9 +130,9 @@ public sealed class CertDirectoryTests : IDisposable
     [Fact]
     public void MergeAddsMissingSignaturesUserIdsAndSubkeysAndLeavesTheRestAsStored()
     {
-        TransferableKey twoUid = Export().First(k => k.Users.Count == 2);
-        TransferableKey revoked = Export().First(k => k.DirectSignatures.Count > 0);
-        TransferableKey withSub = Export().First(k => k.Subkeys.Count > 0 && k.Users.Count == 1 && k.DirectSignatures.Count == 0);
+        TransferableKey withSub = Export()[0];
+        TransferableKey twoUid = Rich();
+        TransferableKey revoked = Rich();
 
         // Each case: store a reduced copy, insert the full one; the result is the full certificate, byte for byte, and the stored part is a prefix-preserving subset.
         foreach ((TransferableKey full, TransferableKey part) in new[]
@@ -122,7 +140,7 @@ public sealed class CertDirectoryTests : IDisposable
             (twoUid, Without(twoUid, p => p == twoUid.Users[1].Identity || twoUid.Users[1].Signatures.Contains(p))),
             (revoked, Without(revoked, p => revoked.DirectSignatures.Contains(p))),
             (withSub, Without(withSub, p => p == withSub.Subkeys[0].Key || withSub.Subkeys[0].Signatures.Contains(p))),
-            (withSub, Without(withSub, p => withSub.Users[0].Signatures.Contains(p) && p == withSub.Users[0].Signatures[^1] && withSub.Users[0].Signatures.Count > 1)),
+            (twoUid, Without(twoUid, p => p == twoUid.Users[0].Signatures[^1])),
         })
         {
             string d = Path.Combine(_dir, Guid.NewGuid().ToString("N"));
@@ -146,14 +164,14 @@ public sealed class CertDirectoryTests : IDisposable
     [Fact]
     public void ASignatureThatDiffersOnlyInItsUnhashedAreaIsNotDuplicated()
     {
-        TransferableKey c = Export().First(k => k.Users.Count > 0);
+        TransferableKey c = Export()[0];
         SignaturePacket sig = c.Users[0].Signatures[0];
         // Rebuild the signature with an extra unhashed subpacket: same hashed data and values, so the same signature.
         byte[] body = sig.Body.ToArray();
         int hashedLen = (body[4] << 8) | body[5];
         int unhashedAt = 6 + hashedLen;
         int unhashedLen = (body[unhashedAt] << 8) | body[unhashedAt + 1];
-        byte[] extra = [6, 0x1F, 1, 2, 3, 4]; // a private subpacket
+        byte[] extra = [5, 0x1F, 1, 2, 3, 4]; // a private subpacket
         var changed = new List<byte>();
         changed.AddRange(body.AsSpan(0, unhashedAt).ToArray());
         int newLen = unhashedLen + extra.Length;
@@ -176,7 +194,7 @@ public sealed class CertDirectoryTests : IDisposable
     [Fact]
     public void ConcurrentInsertsOfPartialCopiesLoseNothing()
     {
-        TransferableKey full = Export().First(k => k.Users.Count == 2 && k.Subkeys.Count == 0);
+        TransferableKey full = Rich();
         TransferableKey a = Without(full, p => p == full.Users[1].Identity || full.Users[1].Signatures.Contains(p));
         TransferableKey b = Without(full, p => p == full.Users[0].Identity || full.Users[0].Signatures.Contains(p));
         TransferableKey bare = Without(full, p => full.Users.Any(u => p == u.Identity || u.Signatures.Contains(p)));
