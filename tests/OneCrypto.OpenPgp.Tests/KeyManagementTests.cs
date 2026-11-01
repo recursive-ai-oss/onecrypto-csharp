@@ -36,6 +36,20 @@ public class KeyManagementTests
         return d;
     }
 
+    [Fact]
+    public void ASecretThatDoesNotMatchAnEcPointIsATypedFailure()
+    {
+        // found by fuzzing: an unprotected secret whose public point was altered unlocks, and the platform then refuses the pair
+        byte[] bytes = Generate(PgpKeyProfile.NistP256).Export();
+        byte[] q = PgpCertificate.Parse(bytes).Primary.Packet.Material.Values[0].ToArray();
+        int at = bytes.AsSpan().IndexOf(q);
+        Assert.True(at >= 0);
+        bytes[at + q.Length - 1] ^= 0x01;
+        PgpCertificate altered = PgpCertificate.Parse(bytes);
+        using PgpSecretKey k = PgpSecretKey.Unlock(altered.Primary, []);
+        Assert.Throws<PgpException>(() => k.SigningKey);
+    }
+
     [Theory]
     [MemberData(nameof(Profiles))]
     public void GeneratedKeysSignEncryptAndDecrypt(PgpKeyProfile profile, bool protectedKey)
