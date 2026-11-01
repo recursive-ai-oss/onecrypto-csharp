@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <PackageValidationBaselineVersion>0.2.0-preview.1</PackageValidationBaselineVersion>
     <Description>Network clients for OneCrypto behind a pluggable, guarded transport: timestamp, OCSP, CRL and issuer-certificate fetching, with a record/replay transport for tests. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
     <PackageTags>cryptography;rfc3161;timestamp;ocsp;crl;x509;aia;revocation;nativeaot;trimmable</PackageTags>
   </PropertyGroup>
