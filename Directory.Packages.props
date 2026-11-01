@@ -3,6 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Family library the PDF bridge builds on (a published version, never a project reference). -->
+    <PackageVersion Include="RecursiveAI.OnePdf" Version="1.15.1" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Test, benchmark and fuzz projects only. The shipped packages reference nothing outside the shared framework. -->
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />

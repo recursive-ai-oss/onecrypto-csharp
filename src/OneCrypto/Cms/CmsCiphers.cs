@@ -114,7 +114,7 @@ internal static class CmsCiphers
     /// <summary>CBC with PKCS #7 padding (RFC 5652 §6.3).</summary>
     public static byte[] EncryptCbc(ContentCipher c, ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> plaintext)
     {
-        using Aes aes = Aes.Create();
+        using Aes aes = Platform.CreateAes();
         aes.Key = key.ToArray();
         return aes.EncryptCbc(plaintext, iv, PaddingMode.PKCS7);
     }
@@ -133,6 +133,7 @@ internal static class CmsCiphers
             if (c.Kind == CipherKind.TripleDesCbc)
             {
 #pragma warning disable CA5350 // Triple DES is read-only here: it exists to open old messages and is gated by an option.
+                Platform.RequireLegacyCipher("Triple DES");
                 using TripleDES des = TripleDES.Create();
 #pragma warning restore CA5350
                 des.Key = key.ToArray();
@@ -140,7 +141,7 @@ internal static class CmsCiphers
                 return true;
             }
 
-            using Aes aes = Aes.Create();
+            using Aes aes = Platform.CreateAes();
             aes.Key = key.ToArray();
             plaintext = aes.DecryptCbc(ciphertext, iv, PaddingMode.PKCS7);
             return true;
@@ -339,7 +340,7 @@ internal static class CmsCiphers
 
         try
         {
-            using Aes aes = Aes.Create();
+            using Aes aes = Platform.CreateAes();
             aes.Key = kek.ToArray();
             return aes.DecryptKeyWrapPadded(wrapped);
         }
@@ -352,7 +353,7 @@ internal static class CmsCiphers
     /// <summary>RFC 5649 wrap, by the platform.</summary>
     public static byte[] AesWrapPadded(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> key)
     {
-        using Aes aes = Aes.Create();
+        using Aes aes = Platform.CreateAes();
         aes.Key = kek.ToArray();
         return aes.EncryptKeyWrapPadded(key);
     }
@@ -397,7 +398,7 @@ internal static class CmsCiphers
         formatted[2] = (byte)~cek[1];
         formatted[3] = (byte)~cek[2];
         cek.CopyTo(formatted.AsSpan(4));
-        using Aes aes = Aes.Create();
+        using Aes aes = Platform.CreateAes();
         aes.Key = kek.ToArray();
         byte[] first = aes.EncryptCbc(formatted, iv, PaddingMode.None);
         return aes.EncryptCbc(first, first.AsSpan(first.Length - block, block), PaddingMode.None);
@@ -414,7 +415,7 @@ internal static class CmsCiphers
 
         try
         {
-            using Aes aes = Aes.Create();
+            using Aes aes = Platform.CreateAes();
             aes.Key = kek.ToArray();
             int n = wrapped.Length;
             byte[] lastInner = aes.DecryptCbc(wrapped[(n - block)..], wrapped.Slice(n - 2 * block, block), PaddingMode.None);

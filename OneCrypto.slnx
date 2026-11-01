@@ -14,6 +14,8 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OneCrypto.Tests/OneCrypto.Tests.csproj" />
+    <Project Path="tests/OneCrypto.Pdf.Tests/OneCrypto.Pdf.Tests.csproj" />
+    <Project Path="tests/OneCrypto.Online.Tests/OneCrypto.Online.Tests.csproj" />
     <Project Path="tests/Interop/OneCrypto.Interop.csproj" />
     <Project Path="tests/TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
     <Project Path="tests/AotSmoke/OneCrypto.AotSmoke.csproj" />

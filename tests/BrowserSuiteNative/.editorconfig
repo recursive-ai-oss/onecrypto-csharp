@@ -1,0 +1,3 @@
+# The suite records whatever escapes a case as that case's failure, so it catches the general exception on purpose.
+[*.cs]
+dotnet_diagnostic.CA1031.severity = none

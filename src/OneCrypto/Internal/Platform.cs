@@ -126,6 +126,76 @@ internal static class Platform
         }
     }
 
+    /// <summary>Makes an AES object, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no AES (the browser).</summary>
+    /// <param name="algorithm">What the AES is for, as the documentation names it.</param>
+    public static Aes CreateAes(string algorithm = "AES")
+    {
+        RequireAes(algorithm);
+        return Aes.Create();
+    }
+
+    /// <summary>Throws <see cref="AlgorithmNotSupportedException"/> when the platform has no block ciphers at all (the browser): triple DES and RC2 are only read, from old files.</summary>
+    /// <param name="algorithm">The legacy cipher.</param>
+    public static void RequireLegacyCipher(string algorithm) =>
+        Require(algorithm, HasAes, "the platform has no symmetric ciphers");
+
+    /// <summary>Makes an RSA object, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no RSA (the browser).</summary>
+    /// <param name="what">What it is for, for the message.</param>
+    public static RSA CreateRsa(string what)
+    {
+        try
+        {
+            return RSA.Create();
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw new AlgorithmNotSupportedException(what, Describe(), "the platform has no RSA; its key operations have no managed fallback", e);
+        }
+    }
+
+    /// <summary>Makes an ECDSA object, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no ECDSA (the browser).</summary>
+    /// <param name="what">What it is for, for the message.</param>
+    public static ECDsa CreateEcdsa(string what)
+    {
+        try
+        {
+            return ECDsa.Create();
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw new AlgorithmNotSupportedException(what, Describe(), "the platform has no ECDSA; its key operations have no managed fallback", e);
+        }
+    }
+
+    /// <summary>Makes an ECDSA object for the given key, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no ECDSA or lacks the curve.</summary>
+    /// <param name="parameters">The key.</param>
+    /// <param name="what">What it is for, for the message.</param>
+    public static ECDsa CreateEcdsa(ECParameters parameters, string what)
+    {
+        try
+        {
+            return ECDsa.Create(parameters);
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw CurveNotSupported(what, e);
+        }
+    }
+
+    /// <summary>Makes an ECDH object, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no ECDH (the browser).</summary>
+    /// <param name="what">What it is for, for the message.</param>
+    public static ECDiffieHellman CreateEcdh(string what)
+    {
+        try
+        {
+            return ECDiffieHellman.Create();
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw new AlgorithmNotSupportedException(what, Describe(), "the platform has no ECDH; its key operations have no managed fallback", e);
+        }
+    }
+
     /// <summary>Throws <see cref="AlgorithmNotSupportedException"/> unless <paramref name="supported"/>.</summary>
     /// <param name="algorithm">The algorithm, as the documentation names it.</param>
     /// <param name="supported">What the platform's own <c>IsSupported</c> property says.</param>

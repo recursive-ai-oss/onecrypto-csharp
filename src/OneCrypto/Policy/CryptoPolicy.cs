@@ -24,6 +24,11 @@ public enum CryptoUse
     Kdf,
     /// <summary>A message authentication code.</summary>
     Mac,
+    /// <summary>
+    /// Checking a signature on a PKI object: a certificate, CRL, OCSP response or request, certificate request or attribute certificate. Judged like
+    /// <see cref="Verify"/> except that an <see cref="AlgorithmRule"/> may carry its own, earlier PKI cutoffs.
+    /// </summary>
+    VerifyPki,
 }
 
 /// <summary>The policy's answer to one question.</summary>
@@ -134,7 +139,17 @@ public enum KdfAlgorithm
 /// <param name="RejectFrom">Verification at or after this instant is rejected. Null: never rejected by date.</param>
 /// <param name="RejectNew">Creating new data with it is rejected whatever the date.</param>
 /// <param name="Reference">The standard behind the dates.</param>
-public sealed record AlgorithmRule(string Name, DateTimeOffset? FlagFrom, DateTimeOffset? RejectFrom, bool RejectNew, string Reference);
+public sealed record AlgorithmRule(string Name, DateTimeOffset? FlagFrom, DateTimeOffset? RejectFrom, bool RejectNew, string Reference)
+{
+    /// <summary>
+    /// For <see cref="CryptoUse.VerifyPki"/>: flagged from this instant. Null: <see cref="FlagFrom"/> applies. A collision-prone hash in a certificate lets an
+    /// attacker forge a certificate, so PKI signatures may be refused long before message signatures are.
+    /// </summary>
+    public DateTimeOffset? PkiFlagFrom { get; init; }
+
+    /// <summary>For <see cref="CryptoUse.VerifyPki"/>: rejected from this instant. Null: <see cref="RejectFrom"/> applies.</summary>
+    public DateTimeOffset? PkiRejectFrom { get; init; }
+}
 
 /// <summary>
 /// Which algorithms, sizes and options the library accepts. Immutable: derive a variant with a <c>with</c> expression
@@ -200,23 +215,6 @@ public sealed record CryptoPolicy
         MinPbkdf2Iterations = 1,
     };
 
-    /// <summary>
-    /// What WebPKI clients accept in certificate signatures: SHA-1 rejected from 2017-01-01 (public CAs stopped issuing it in 2016 and browsers stopped trusting it
-    /// in 2017; CA/Browser Forum Baseline Requirements §7.1.3.2), MD5 as in <see cref="Standard"/>, and RSA keys under 2048 bits rejected from 2014-01-01 (Baseline
-    /// Requirements §6.1.5). The path validator applies it besides its own policy when the server-authentication profile is on.
-    /// </summary>
-    public static CryptoPolicy WebPki { get; } = new()
-    {
-        Name = "WebPki",
-        HashRules =
-        [
-            new("MD5", s_2009 - TimeSpan.FromDays(3650), s_2009, true, "RFC 6151 §2"),
-            new("SHA-1", null, s_2017, true, "CA/Browser Forum Baseline Requirements §7.1.3.2"),
-        ],
-        RsaWeakFrom = s_2014,
-        FlagAsRejected = true,
-    };
-
     /// <summary>A name for reports.</summary>
     public string Name { get; init; } = "Standard";
 
@@ -224,7 +222,11 @@ public sealed record CryptoPolicy
     public IReadOnlyList<AlgorithmRule> HashRules { get; init; } =
     [
         new("MD5", s_2009 - TimeSpan.FromDays(3650), s_2009, true, "RFC 6151 §2"),
-        new("SHA-1", s_2011, s_2031, true, "NIST SP 800-131A Rev. 2 §3; RFC 9155 §3"),
+        new("SHA-1", s_2011, s_2031, true, "NIST SP 800-131A Rev. 2 §3; RFC 9155 §3")
+        {
+            // Certificates, CRLs and OCSP responses: public CAs stopped issuing SHA-1 certificates in 2016 and chosen-prefix collisions make forgery practical.
+            PkiRejectFrom = s_2017,
+        },
     ];
 
     /// <summary>Smallest RSA modulus, in bits, accepted for new signatures and encryption. Default 2048 (NIST SP 800-131A Rev. 2 §3).</summary>
@@ -292,12 +294,18 @@ public sealed record CryptoPolicy
             return Finish(new(PolicyVerdict.Rejected, use, name, id + ".new", $"{name} is not used for new signatures.", rule.Reference));
         }
 
-        if (rule.RejectFrom is { } rej && at >= rej)
+        bool pki = use == CryptoUse.VerifyPki;
+        if (pki)
+        {
+            id += ".pki";
+        }
+
+        if ((pki ? rule.PkiRejectFrom ?? rule.RejectFrom : rule.RejectFrom) is { } rej && at >= rej)
         {
             return Finish(new(PolicyVerdict.Rejected, use, name, id + ".rejected-from", $"{name} is rejected from {rej:yyyy-MM-dd}; the reference time is {at:yyyy-MM-dd}.", rule.Reference));
         }
 
-        if (rule.FlagFrom is { } flag && at >= flag)
+        if ((pki ? rule.PkiFlagFrom ?? rule.FlagFrom : rule.FlagFrom) is { } flag && at >= flag)
         {
             return Finish(new(PolicyVerdict.Flagged, use, name, id + ".flagged-from", $"{name} is deprecated from {flag:yyyy-MM-dd}; the reference time is {at:yyyy-MM-dd}.", rule.Reference));
         }

@@ -25,10 +25,16 @@
     <Compile Include="../Common/FallbackSmoke.cs" Link="FallbackSmoke.cs" />
     <Compile Include="../Common/LoadSmoke.cs" Link="LoadSmoke.cs" />
     <Compile Include="../Common/ValidationSmoke.cs" Link="ValidationSmoke.cs" />
+    <Compile Include="../Common/PdfSmoke.cs" Link="PdfSmoke.cs" />
+    <!-- The PDF smoke signs with the PKI of the bridge's tests. -->
+    <Compile Include="../OneCrypto.Pdf.Tests/PadesKit.cs" Link="Support/PadesKit.cs" />
+    <Compile Include="../Common/OnlineSmoke.cs" Link="OnlineSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
   </ItemGroup>
 
 </Project>
