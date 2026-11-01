@@ -215,47 +215,59 @@ internal static class SessionKeys
         return r;
     }
 
-    /// <summary>Strips the optional algorithm octet and PKCS#5 padding and checks the two-octet sum (RFC 9580 §5.1.3, §11.5).</summary>
-    private static Recovered? FromChecksummed(ReadOnlySpan<byte> m, bool v3, bool padded)
+    /// <summary>
+    /// Strips the optional algorithm octet and PKCS#5 padding and checks the two-octet sum (RFC 9580 §5.1.3, §11.5). Validity is
+    /// accumulated in a mask and tested once at the end, so no branch or loop bound depends on the unwrapped bytes or on whether the
+    /// padding or the checksum matched (RFC 9580 §13: a caller must not learn which check failed). Only the message lengths, which are public,
+    /// and the padding count, which is validated in the same mask, steer control flow.
+    /// </summary>
+    internal static Recovered? FromChecksummed(ReadOnlySpan<byte> m, bool v3, bool padded)
     {
+        int len = m.Length;
+        uint bad = 0;
+        uint pad = 0;
         if (padded)
         {
-            if (m.Length == 0)
+            if (len < 8)
             {
                 return null;
             }
 
-            int pad = m[^1];
-            if (pad is 0 or > 8 || pad > m.Length)
+            pad = m[^1];
+            bad |= IsZero(pad);
+            uint over = (8 - pad) >> 31; // 1 when pad > 8
+            bad |= over;
+            pad ^= (pad ^ 8) & (0 - over); // keep the arithmetic below inside 1..8 whatever the input
+            for (int i = 0; i < 8; i++)
             {
-                return null;
+                uint inPad = ((uint)(i - (int)pad) >> 31) & 1; // 1 when i < pad
+                bad |= (0 - inPad) & (uint)(m[len - 1 - i] ^ (byte)pad);
             }
-
-            for (int i = 0; i < pad; i++)
-            {
-                if (m[m.Length - 1 - i] != pad)
-                {
-                    return null;
-                }
-            }
-
-            m = m[..^pad];
         }
 
+        ReadOnlySpan<byte> inner = m[..(len - (int)pad)];
         int head = v3 ? 1 : 0;
-        if (m.Length < head + 1 + 2)
+        int keyLen = inner.Length - head - 2;
+        bad |= (uint)keyLen >> 31; // too short for a key and a checksum
+        keyLen &= ~(keyLen >> 31);
+        if (inner.Length < head + keyLen + 2)
         {
             return null;
         }
 
-        ReadOnlySpan<byte> key = m.Slice(head, m.Length - head - 2);
-        if (BinaryPrimitives.ReadUInt16BigEndian(m[^2..]) != PgpAlgorithms.Checksum(key))
+        ReadOnlySpan<byte> key = inner.Slice(head, keyLen);
+        bad |= (uint)(BinaryPrimitives.ReadUInt16BigEndian(inner[(head + keyLen)..]) ^ PgpAlgorithms.Checksum(key));
+        bad |= IsZero((uint)keyLen);
+        if (bad != 0)
         {
             return null;
         }
 
         return new Recovered(v3 ? (SymmetricAlgorithm)m[0] : null, key.ToArray());
     }
+
+    /// <summary>1 when the value is zero, else 0, without a branch.</summary>
+    private static uint IsZero(uint v) => ((v | (0 - v)) >> 31) ^ 1;
 
     // ---- encrypt ----
 

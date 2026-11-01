@@ -10,6 +10,7 @@
     <InternalsVisibleTo Include="$(LibName).Tests" />
     <InternalsVisibleTo Include="$(LibName).OpenPgp.Tests" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />
+    <InternalsVisibleTo Include="$(LibName).Timing" />
     <InternalsVisibleTo Include="$(LibName).AotSmoke" />
     <InternalsVisibleTo Include="$(LibName).WasmSmoke" />
   </ItemGroup>

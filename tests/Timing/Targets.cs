@@ -17,6 +17,7 @@ internal static class Targets
         .. KdfTargets.Targets(),
         .. SecretModTargets.Targets(),
         .. FallbackTargets.Targets(),
+        .. OpenPgpTargets.Targets(),
     ];
 }
 
