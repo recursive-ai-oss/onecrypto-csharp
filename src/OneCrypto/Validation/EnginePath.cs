@@ -41,29 +41,21 @@ internal sealed partial class Engine
     // One result per decision, each with the policy's own rule id, so a report says which cutoff or minimum applied.
     private void AlgorithmPolicy(Certificate cert, PublicKeyInfo issuerKey, CertResults r)
     {
-        // The server-authentication profile adds the WebPKI cutoffs to the caller's policy: a certificate must satisfy both.
-        var asked = new List<Policy.CryptoPolicy> { _o.Policy };
-        if (_o.WebPki is { EnforceBaselineRequirements: true })
-        {
-            asked.Add(Policy.CryptoPolicy.WebPki);
-        }
-
+        // PKI signatures (RFC 5280 §4.1.1.2) are asked with their own use, so the policy can refuse SHA-1 in a certificate long before it refuses it in a message.
+        // The server-authentication profile needs no second policy: its 2048-bit RSA floor is a profile rule (WebPkiCertificate) and SHA-1 is already refused from 2017.
         bool any = false;
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Policy.CryptoPolicy asking in asked)
+        Policy.PolicyReport pr = _o.Policy.CheckSignature(cert.SignatureAlgorithm, issuerKey, Policy.CryptoUse.VerifyPki, _o.ReferenceTime);
+        foreach (Policy.PolicyDecision d in pr.Findings)
         {
-            Policy.PolicyReport pr = asking.CheckSignature(cert.SignatureAlgorithm, issuerKey, Policy.CryptoUse.Verify, _o.ReferenceTime);
-            foreach (Policy.PolicyDecision d in pr.Findings)
+            RuleOutcome oc = d.Verdict == Policy.PolicyVerdict.Rejected ? RuleOutcome.Fail : RuleOutcome.Warning;
+            if (!seen.Add($"{d.Rule}|{oc}"))
             {
-                RuleOutcome oc = d.Verdict == Policy.PolicyVerdict.Rejected ? RuleOutcome.Fail : RuleOutcome.Warning;
-                if (!seen.Add($"{d.Rule}|{oc}"))
-                {
-                    continue;
-                }
-
-                any = true;
-                r.Add(ValidationRule.Algorithm, oc, $"{d.Algorithm}: {d.Reason}", d.Reference, d.Rule);
+                continue;
             }
+
+            any = true;
+            r.Add(ValidationRule.Algorithm, oc, $"{d.Algorithm}: {d.Reason}", d.Reference, d.Rule);
         }
 
         if (!any)

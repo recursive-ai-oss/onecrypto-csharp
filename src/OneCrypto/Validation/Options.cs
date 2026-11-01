@@ -55,8 +55,8 @@ public sealed class ValidationLimits
     /// <summary>The most search steps over the whole validation (default 20,000).</summary>
     public int MaxSearchSteps { get; init; } = 20_000;
 
-    /// <summary>The most signature verifications over the whole validation (default 256). Results are cached per certificate and key.</summary>
-    public int MaxSignatureChecks { get; init; } = 256;
+    /// <summary>The most signature verifications over the whole validation (default 1,024). Results are cached per certificate and key; CRL signers validated along the way draw on the same budget.</summary>
+    public int MaxSignatureChecks { get; init; } = 1024;
 
     /// <summary>The most paths that are fully validated (default 32).</summary>
     public int MaxPathsValidated { get; init; } = 32;
@@ -72,6 +72,12 @@ public sealed class ValidationLimits
 
     /// <summary>The most CRLs and OCSP responses examined per certificate (default 64).</summary>
     public int MaxRevocationObjectsPerCertificate { get; init; } = 64;
+
+    /// <summary>
+    /// The most CRL signers validated (each with its own nested path search) over the whole validation (default 256). A pool with many certificates for one
+    /// signing key would otherwise make every nested level repeat the work.
+    /// </summary>
+    public int MaxSignerValidations { get; init; } = 256;
 
     /// <summary>The most rounds of asking an <see cref="ICertificateSource"/> or <see cref="IRevocationSource"/> (default 8).</summary>
     public int MaxSourceRounds { get; init; } = 8;

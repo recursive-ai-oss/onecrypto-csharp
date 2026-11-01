@@ -4,7 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
 - `RecursiveAI.OneCrypto.Online`, new: a guarded HTTP transport (only `http`/`https`; certificate-supplied URLs cannot reach loopback, private, link-local, carrier-grade NAT, multicast or IPv4-wrapping IPv6 addresses, checked on the address actually connected to; timeouts, size and redirect limits applied to every hop), an RFC 9111 cache that also honours CRL and OCSP `thisUpdate`/`nextUpdate` at the caller's reference time, record and replay transports for test fixtures, clients for RFC 3161 time-stamps, OCSP (POST and the RFC 5019 GET form), CRLs with delta CRLs, and `caIssuers` certificates, and `ICertificateSource`/`IRevocationSource` implementations so `PathValidator.ValidateAsync` can fetch what is missing. Nothing is fetched unless a call asks; offline revocation stays unknown. See `docs/online.md`.
+
+### Changed
+
+- The validator's internal review (not an external audit) is closed: all eight findings and observations O1–O5 and O7 are fixed; O6, about report contents only, is open. See `docs/validation-review.md`. The validator stays a preview.
+- `docs/policy.md` is retitled "CryptoPolicy: algorithm and key-size policy".
+- `CryptoPolicy` asks by signature use: PKI signatures (certificates, CRLs, OCSP, requests) use `CryptoUse.VerifyPki`, under which `Standard` rejects SHA-1 from 2017-01-01 (flagged from 2011) while message signatures keep the later SP 800-131A dates. The validator asks the policy about CRL, delta CRL, OCSP response and responder-certificate signatures too, reports the decisions in `RevocationReport.PolicyDecisions` and the reasons data was not used in `RevocationReport.Notes`. Revocation: an authentic stale CRL that lists a certificate for a final reason gives `Revoked`; delegated OCSP responders without `nocheck` are checked against supplied CRLs; `removeFromCRL` lifts only holds. Nested CRL-signer validations share one work budget and the pool is indexed (`MaxSignerValidations`).
+
+### Removed
+
+- `CryptoPolicy.WebPki`: `Standard` now refuses SHA-1 in certificate, CRL and OCSP signatures from 2017, which is what the preset was for (see `docs/policy.md`). An intentional break of the preview API, recorded in `src/OneCrypto/CompatibilitySuppressions.xml`.
 
 ## [0.1.0-preview.1] - 2026-11-01
 
