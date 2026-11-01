@@ -6,6 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- The validator's internal review (not an external audit) is closed: all eight findings and observations O1–O5 and O7 are fixed; O6, about report contents only, is open. See `docs/validation-review.md`. The validator stays a preview.
+- `docs/policy.md` is retitled "CryptoPolicy: algorithm and key-size policy".
 - `CryptoPolicy` asks by signature use: PKI signatures (certificates, CRLs, OCSP, requests) use `CryptoUse.VerifyPki`, under which `Standard` rejects SHA-1 from 2017-01-01 (flagged from 2011) while message signatures keep the later SP 800-131A dates. The validator asks the policy about CRL, delta CRL, OCSP response and responder-certificate signatures too, reports the decisions in `RevocationReport.PolicyDecisions` and the reasons data was not used in `RevocationReport.Notes`. Revocation: an authentic stale CRL that lists a certificate for a final reason gives `Revoked`; delegated OCSP responders without `nocheck` are checked against supplied CRLs; `removeFromCRL` lifts only holds. Nested CRL-signer validations share one work budget and the pool is indexed (`MaxSignerValidations`).
 
 ## [0.1.0-preview.1] - 2026-11-01

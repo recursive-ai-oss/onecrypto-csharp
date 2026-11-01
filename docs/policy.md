@@ -1,4 +1,4 @@
-# Crypto policy
+# CryptoPolicy: algorithm and key-size policy
 
 `CryptoPolicy` (`RecursiveAI.OneCrypto.Policy`) decides which algorithms, key sizes and options the library accepts. It is an immutable record: derive a variant with `with`.
 
