@@ -2,7 +2,7 @@
 
 Cryptography (not cryptocurrency) for .NET: message formats, certificates and the primitives the platform lacks, written from the specifications on the base class library alone. OneCrypto is unaffiliated with other products named OneCrypto.
 
-**Status: preview (0.1), not yet independently audited.** The API may still change between previews. What is tested, against what, and where the library deviates is in [docs/conformance.md](docs/conformance.md); behaviour is specified in [docs/](docs/README.md).
+**Status: preview (0.2), not yet independently audited.** The API may still change between previews. What is tested, against what, and where the library deviates is in [docs/conformance.md](docs/conformance.md); behaviour is specified in [docs/](docs/README.md).
 
 ```csharp
 using RecursiveAI.OneCrypto;
@@ -18,11 +18,11 @@ All packages share one version.
 |---|---|---|
 | `RecursiveAI.OneCrypto` | ASN.1 and PEM, X.509/CSR/CRL/OCSP, CMS, RFC 3161, PKCS#8/#12, OpenSSH keys, `CryptoPolicy`, key interfaces with two-phase signing, CA/TSA/OCSP-responder handlers, `Crypto.Load`, the primitives the platform lacks (Ed25519/Ed448, X25519/X448, OCB, EAX, AES-KW, Argon2, scrypt, bcrypt-pbkdf, Camellia, legacy decrypt-only ciphers); path validation as a preview. Depends on nothing but the base class library | preview |
 | `RecursiveAI.OneCrypto.OpenPgp` | OpenPGP (RFC 9580, RFC 4880, LibrePGP) | planned |
-| `RecursiveAI.OneCrypto.Online` | network clients behind a pluggable, guarded transport | planned |
+| `RecursiveAI.OneCrypto.Online` | RFC 3161, OCSP, CRL and AIA clients over a pluggable, guarded transport with a cache and record/replay; sources for the path validator. Nothing is fetched unless a call asks | preview |
 | `RecursiveAI.OneCrypto.Keys` | PKCS#11, gpg-agent and ssh-agent key backends | planned |
 | `RecursiveAI.OneCrypto.AdES` | CAdES, XAdES, XML-DSig, ASiC and ETSI validation | planned |
 | `RecursiveAI.OneCrypto.Files` | age, minisign, signify, SSHSIG, Sigstore bundle verification | planned |
-| `RecursiveAI.OneCrypto.Pdf` | PAdES and PDF signature validation on OnePDF | planned |
+| `RecursiveAI.OneCrypto.Pdf` | PAdES B-B to B-LTA signing, augmentation and verification on OnePDF, with OneCrypto keys, CMS, time-stamps and path validation | preview |
 | `RecursiveAI.OneCrypto.AzureKeyVault`, `.AwsKms`, `.GoogleKms` | cloud key backends | planned |
 | `onecrypto` (dotnet tool) | `sop`, inspection and convenience verbs | planned |
 

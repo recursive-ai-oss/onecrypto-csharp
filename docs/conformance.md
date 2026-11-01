@@ -18,11 +18,14 @@ Oracles run black-box at pinned versions: OpenSSL 3.5.9, Go 1.26.8, GnuPG 2.4.8,
 | PKCS#8, PKCS#12, OpenSSH keys | PBES2/PBKDF2/scrypt, PBMAC1 (RFC 9579), legacy PKCS#12 PBEs (read) | OpenSSL 3.5.9 (`pkcs8`, `pkey`, `pkcs12`), the platform's PKCS#8/#12 export and import, `ssh-keygen` (keys, certificates, RFC 4716) | `chacha20-poly1305@openssh.com` key files and RC4 PKCS#12 PBEs are not read; ML-DSA/ML-KEM PKCS#8 is preview | [pkcs.md](pkcs.md) |
 | `CryptoPolicy`, keys, two-phase signing | policy decisions per preset and rule | two-phase signatures and certificates verified by OpenSSL 3.5.9 | macOS login-keychain keys need an interactive session | [policy.md](policy.md), [keys.md](keys.md) |
 | Issuer side: CA, CRLs and delta CRLs, RFC 3161 TSA and client messages, OCSP responder | profile, serial, status and nonce rules per RFC 5280 §5, 3161, 5816, 6960 | `openssl ts` 3.5.9 both ways (Ed25519 TSA keys ours only, OpenSSL cannot sign them), `openssl ocsp` 68/68, `openssl verify` and `crl -verify` for issued chains and CRLs | code-signing and S/MIME validity limits are our defaults | [issuance.md](issuance.md), [tsp.md](tsp.md), [ocsp-responder.md](ocsp-responder.md) |
+| `RecursiveAI.OneCrypto.Online`: guarded transport, cache, RFC 3161, OCSP, CRL and AIA clients | record/replay fixtures for every client; SSRF guard cases (loopback, private, link-local, carrier-grade NAT, multicast, IPv4-wrapping IPv6, checked on the connected address and on every redirect) | OpenSSL 3.5.9 `ts`/`ocsp` 11 cases; a live run against public TSAs and a public CA's OCSP, CRL and AIA endpoints | revocation is fetched only after a path is chosen; nothing is fetched unless a call asks, and offline revocation stays unknown | [online.md](online.md) |
+| `RecursiveAI.OneCrypto.Pdf`: PAdES B-B to B-LTA on OnePDF 1.17.1 | OnePDF's PDF signature attack corpus through the bridge: 117 comparisons, 0 disagreements with OnePDF's own verdict; certification (DocMDP) levels with document time-stamps | `openssl cms`/`ts` 3.5.9 on the embedded CMS and time-stamps; poppler `pdfsig` 26.01.0 agrees; **Adobe Acrobat Reader: pending** | EdDSA and ML-DSA signatures are judged by the bridge alone (OnePDF does not check them); ML-DSA is a preview | [pdf.md](pdf.md) |
+| Browser (WebAssembly) | the browser suite in headless Chromium (Chrome for Testing 156.0.8078.80): 13 areas, including 920 Wycheproof signature verifications, 153 x509-limbo validations and 778 certificates; compared case by case with Node and a native run, 1,940 cases, 0 differences | n/a | the browser runtime has no AES, so encrypted PKCS#8, PKCS#12 and OpenSSH keys cannot be opened there (typed `AlgorithmNotSupportedException`) | [browser.md](browser.md) |
 | `Crypto.Load` | 159-file corpus (OpenSSL, `ssh-keygen`, platform exports), 0 misclassifications | n/a | OpenPGP, age and minisign files are not loaded yet | [load.md](load.md) |
 
 ## Speed
 
-Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCastle 2.7.0; also `System.Formats.Asn1` for ASN.1), lower is faster. The bar is a geomean of at most 1.0 per area and no row above 1.25. Measured with BenchmarkDotNet on an AMD Ryzen 9 7950X3D (x64) and an Apple M2 (arm64), .NET 10. The x64 run shared the machine with other work and is marked load-flagged; it is repeated at the next release.
+Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCastle 2.7.0; also `System.Formats.Asn1` for ASN.1), lower is faster. The bar is a geomean of at most 1.0 per area and no row above 1.25. Measured with BenchmarkDotNet on an AMD Ryzen 9 7950X3D (x64) and an Apple M2 (arm64), .NET 10. The x64 runs shared the machine with other work and are marked load-flagged (the x64 validation row is indicative); they are repeated at the next release. Path validation is also reported against the platform's offline `X509Chain`, which calls native code: 1.21 on x64 (indicative), not part of the bar.
 
 | Area | x64 | arm64 |
 |---|---|---|
@@ -37,6 +40,7 @@ Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCa
 | X.509 parse / verify (geomean) | 0.36 / 0.84 | 0.38 / 0.31 |
 | CMS sign / verify / envelope (geomean) | 0.18 / 0.33 / 0.47 | 0.34 / 0.18 / 0.10 |
 | PKCS#12 load / PKCS#8 decrypt | 0.25 / 0.31 | 0.11 / 0.22 |
+| Certificate parse + path validation (geomean; worst row) | 0.80, indicative | 0.56; 0.57 |
 
 The curve span operations allocate nothing.
 
@@ -48,18 +52,18 @@ Documented exceptions to the bar:
 
 ## Robustness
 
-Every parser has a fuzz target (`fuzz/`): asn1, pem, x509, ocsp, verify, cms, cmsenv, keys, pkcs8, pkcs12, ssh, validate, load, tsa, ocspresp. Each ran 600 s without a finding before this release (libFuzzer with SharpFuzz, one core each; 2.4 to 31 million executions per target). Every finding made during development is a committed regression test. Limits are on by default.
+Every parser has a fuzz target (`fuzz/`): asn1, pem, x509, ocsp, verify, cms, cmsenv, keys, pkcs8, pkcs12, ssh, validate, load, tsa, ocspresp, phc, online, pades, placeholder. Each ran 600 s without a finding before this release (libFuzzer with SharpFuzz, one core each; 0.25 to 22 million executions per target; the PDF targets are the slowest). Every finding made during development is a committed regression test. Limits are on by default.
 
 ## Platforms
 
-The per-platform availability of each algorithm (linux-x64 with OpenSSL 3.0 and 3.5, osx-arm64, browser-wasm) is generated by the test suite and checked so it cannot drift: [availability.md](availability.md). NativeAOT (linux-x64) and the browser (WebAssembly under Node) smoke apps run in CI.
+The per-platform availability of each algorithm (linux-x64 with OpenSSL 3.0 and 3.5, osx-arm64, browser-wasm) is generated by the test suite and checked so it cannot drift: [availability.md](availability.md). NativeAOT (linux-x64, osx-arm64) and the browser (WebAssembly under Node, and the browser suite in headless Chromium) run in CI.
 
 ## Constant time
 
 Secret-handling code is written without secret-dependent branches, memory indices or early exits, and each secret-handling primitive has a dudect-style timing test (fixed-vs-random classes, Welch's t-test; [timing.md](timing.md)).
 
 - **Secret data** (plaintext, ciphertext, messages): at 1,000,000 measurements per class on x64 and arm64, every target passes (max |t| at most 2.99 against a threshold of 4.5): AES-EAX, AES key wrap, Blowfish, Camellia-128 and -256. Earlier, shorter runs cover Ed25519/Ed448 signing, X25519/X448, OCB, CAST5, IDEA, Twofish, ChaCha20-Poly1305 and Argon2i. Results per primitive and machine are in [timing.md](timing.md).
-- **Secret keys**: the measurement method for key-dependent timing does not yet pass its own fixed-vs-fixed control at that sample size, so no constant-time claim is made for key handling until it does.
+- **Secret keys**: the method now uses a fresh key object per measurement and a fixed-vs-fixed control for every key target. At 1,000,000 measurements on arm64 every key target that completed, and its control, passes (max |t| 2.86), but most of those runs shared the machine with other work and one group did not finish in its time slot, so no constant-time claim is made for key handling until a run on a quiet machine passes on both x64 and arm64.
 - **Argon2id** uses data-dependent memory access after its first half-pass by design (RFC 9106 §3.4); only Argon2i is data-independent.
 
 This library has not been independently audited.
