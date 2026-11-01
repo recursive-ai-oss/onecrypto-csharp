@@ -22,7 +22,6 @@ internal static class LibrePgpKyber
     {
         X25519,
         X448,
-        Weierstrass,
     }
 
     private static (Kind Kind, int Size, int ShareBits) Curve(ReadOnlySpan<byte> oid)
@@ -37,15 +36,9 @@ internal static class LibrePgpKyber
             return (Kind.X448, 56, 512);
         }
 
-        if (SignatureEngine.Curves.TryFind(oid, out int size))
-        {
-            // The NIST and Brainpool pairings of the draft's table 17 are not accepted: messages GnuPG 2.5.24 wrote for them did not open with the
-            // construction the draft describes, and encrypting to them would write what its readers might not open. They are reported as unsupported.
-            _ = size;
-            throw new PgpException(PgpFailure.Unsupported, "Kyber composites over NIST and Brainpool curves are not supported.");
-        }
-
-        throw new PgpException(PgpFailure.Unsupported, "The elliptic curve of this Kyber key is not supported.");
+        // The NIST and Brainpool pairings of the draft's table 17 are not accepted: messages GnuPG 2.5.24 wrote for them did not open with the construction
+        // the draft describes, and encrypting to them would write what its readers might not open. They are reported as unsupported.
+        throw new PgpException(PgpFailure.Unsupported, "Kyber composites over this curve are not supported; only X25519 and X448 are.");
     }
 
     private static MLKemAlgorithm KemFor(int publicKeyLength) => publicKeyLength switch
@@ -56,9 +49,9 @@ internal static class LibrePgpKyber
     };
 
     /// <summary>The curve point as the key packet stores it (a native key carries the 0x40 prefix of the legacy encoding); the bare encoding is returned.</summary>
-    private static byte[] BarePoint(Kind kind, int size, ReadOnlySpan<byte> stored)
+    private static byte[] BarePoint(int size, ReadOnlySpan<byte> stored)
     {
-        if (kind != Kind.Weierstrass && stored.Length == size + 1 && stored[0] == 0x40)
+        if (stored.Length == size + 1 && stored[0] == 0x40)
         {
             return stored[1..].ToArray();
         }
@@ -97,8 +90,8 @@ internal static class LibrePgpKyber
         }
 
         List<byte[]> sec = key.SecretParts();
-        byte[] eccPublic = BarePoint(kind, size, pm.Values[0].Span);
-        byte[] eccCt = BarePoint(kind, size, p.Values[0].Span);
+        byte[] eccPublic = BarePoint(size, pm.Values[0].Span);
+        byte[] eccCt = BarePoint(size, p.Values[0].Span);
         byte[] mlCt = p.Values[1].ToArray();
         byte[] wrapped = p.Values[3].ToArray();
         byte cipher = p.Values[2].Span[0];
@@ -107,45 +100,22 @@ internal static class LibrePgpKyber
             return null;
         }
 
-        byte[] x;
-        switch (kind)
+        if (eccCt.Length != size)
         {
-            case Kind.X25519:
-            case Kind.X448:
-                {
-                    x = new byte[size];
-                    // GnuPG stores the Curve25519 scalar big-endian, as the legacy Curve25519 key does; X448 has no legacy form and is little-endian.
-                    byte[] scalar = kind == Kind.X25519 ? sec[0].Reverse().ToArray() : sec[0];
-                    bool ok = kind == Kind.X25519 ? X25519.TryDeriveSharedSecret(scalar, eccCt, x) : X448.TryDeriveSharedSecret(scalar, eccCt, x);
-                    if (!ok)
-                    {
-                        return null;
-                    }
-
-                    break;
-                }
-
-            default:
-                {
-                    if (eccCt.Length != 1 + (2 * size) || eccCt[0] != 4)
-                    {
-                        return null;
-                    }
-
-                    ECCurve curve = SignatureEngine.Curves.Find(pm.CurveOid.Span, out _);
-                    using var mine = ECDiffieHellman.Create(new ECParameters
-                    {
-                        Curve = curve,
-                        D = SignatureEngine.LeftPad(sec[0], size),
-                        Q = new ECPoint { X = eccPublic.AsSpan(1, size).ToArray(), Y = eccPublic.AsSpan(1 + size, size).ToArray() },
-                    });
-                    using var theirs = ECDiffieHellman.Create(new ECParameters { Curve = curve, Q = new ECPoint { X = eccCt.AsSpan(1, size).ToArray(), Y = eccCt.AsSpan(1 + size, size).ToArray() } });
-                    x = mine.DeriveRawSecretAgreement(theirs.PublicKey);
-                    break;
-                }
+            return null;
         }
 
-                byte[] eccShare = Share(shareBits, x, eccCt, eccPublic);
+        // GnuPG stores the Curve25519 scalar big-endian, as the legacy Curve25519 key does; X448 has no legacy form and is little-endian.
+        byte[] scalar = kind == Kind.X25519 ? sec[0].Reverse().ToArray() : sec[0];
+        byte[] x = new byte[size];
+        bool ok = kind == Kind.X25519 ? X25519.TryDeriveSharedSecret(scalar, eccCt, x) : X448.TryDeriveSharedSecret(scalar, eccCt, x);
+        CryptographicOperations.ZeroMemory(scalar);
+        if (!ok)
+        {
+            return null;
+        }
+
+        byte[] eccShare = Share(shareBits, x, eccCt, eccPublic);
         CryptographicOperations.ZeroMemory(x);
 
         using MLKem kem = MLKem.ImportDecapsulationKey(KemFor(pm.Values[1].Length), sec[1]);
@@ -176,40 +146,26 @@ internal static class LibrePgpKyber
             throw new PgpException(PgpFailure.Unsupported, "A Kyber recipient needs an AES session key.");
         }
 
-        byte[] eccPublic = BarePoint(kind, size, pm.Values[0].Span);
-        byte[] eccCt;
-        byte[] x;
-        if (kind is Kind.X25519 or Kind.X448)
+        byte[] eccPublic = BarePoint(size, pm.Values[0].Span);
+        byte[] eSec = RandomNumberGenerator.GetBytes(size);
+        byte[] eccCt = new byte[size];
+        byte[] x = new byte[size];
+        bool done;
+        if (kind == Kind.X25519)
         {
-            byte[] eSec = RandomNumberGenerator.GetBytes(size);
-            eccCt = new byte[size];
-            x = new byte[size];
-            bool ok;
-            if (kind == Kind.X25519)
-            {
-                X25519.DerivePublicKey(eSec, eccCt);
-                ok = X25519.TryDeriveSharedSecret(eSec, eccPublic, x);
-            }
-            else
-            {
-                X448.DerivePublicKey(eSec, eccCt);
-                ok = X448.TryDeriveSharedSecret(eSec, eccPublic, x);
-            }
-
-            CryptographicOperations.ZeroMemory(eSec);
-            if (!ok)
-            {
-                throw new PgpException(PgpFailure.KeyCannotPerform, "The recipient's key is a low-order point.");
-            }
+            X25519.DerivePublicKey(eSec, eccCt);
+            done = X25519.TryDeriveSharedSecret(eSec, eccPublic, x);
         }
         else
         {
-            ECCurve curve = SignatureEngine.Curves.Find(pm.CurveOid.Span, out _);
-            using var eph = ECDiffieHellman.Create(curve);
-            using var theirs = ECDiffieHellman.Create(new ECParameters { Curve = curve, Q = new ECPoint { X = eccPublic.AsSpan(1, size).ToArray(), Y = eccPublic.AsSpan(1 + size, size).ToArray() } });
-            x = eph.DeriveRawSecretAgreement(theirs.PublicKey);
-            ECParameters ep = eph.ExportParameters(false);
-            eccCt = [4, .. SignatureEngine.LeftPad(ep.Q.X, size), .. SignatureEngine.LeftPad(ep.Q.Y, size)];
+            X448.DerivePublicKey(eSec, eccCt);
+            done = X448.TryDeriveSharedSecret(eSec, eccPublic, x);
+        }
+
+        CryptographicOperations.ZeroMemory(eSec);
+        if (!done)
+        {
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The recipient's key is a low-order point.");
         }
 
         byte[] eccShare = Share(shareBits, x, eccCt, eccPublic);

@@ -163,6 +163,14 @@ public class Bzip2Tests
     }
 
     [Fact]
+    public void ACommittedBzip2MessageReads()
+    {
+        using var output = new MemoryStream();
+        PgpMessageReader.Read(new MemoryStream(File.ReadAllBytes(TestFiles.OpenPgp("librepgp", "msg-bzip2-literal.pgp"))), output, new PgpReadOptions { Now = Now });
+        Assert.Equal("bzip2 message\n", Encoding.ASCII.GetString(output.ToArray()));
+    }
+
+    [Fact]
     public void ARandomisedBlockIsRefused()
     {
         byte[] bz = (byte[])File.ReadAllBytes(TestFiles.OpenPgp("librepgp", "bzip2-sample.bz2")).Clone();

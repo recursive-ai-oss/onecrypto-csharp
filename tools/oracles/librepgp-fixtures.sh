@@ -46,5 +46,15 @@ if [ "${ONECRYPTO_KYBER:-0}" = 1 ]; then
     gpg --batch --export-secret-keys "k-$a@example.org" > "$out/sec-kyber-$a.gpg"
   done
 fi
+# A key-less message: a compressed data packet (algorithm 3, bzip2) holding one literal packet, built with the bzip2 program.
+python3 - "$out/msg-bzip2-literal.pgp" <<'PY'
+import subprocess, sys
+body = b"b\x00\x00\x00\x00\x00" + b"bzip2 message\n"
+literal = bytes([0xCB, len(body)]) + body
+bz = subprocess.run(["bzip2", "-9", "-c"], input=literal, capture_output=True, check=True).stdout
+compressed = b"\x03" + bz
+assert len(compressed) < 192
+open(sys.argv[1], "wb").write(bytes([0xC8, len(compressed)]) + compressed)
+PY
 { gpg --version | head -1; } > "$out/VERSION"
 gpgconf --kill all || true; rm -rf "$home"

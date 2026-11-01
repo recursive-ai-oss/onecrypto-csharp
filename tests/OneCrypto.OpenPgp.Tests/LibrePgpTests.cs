@@ -162,16 +162,14 @@ public class LibrePgpTests
         Assert.Equal("pw", Read(pwOnly.ToArray(), new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] }));
     }
 
-    [Theory]
-    [InlineData("ocbed")]
-    [InlineData("skesk5")]
-    public void ATamperedLibrePgpMessageReleasesNothing(string which)
+    [Fact]
+    public void ATamperedLibrePgpMessageReleasesNothing()
     {
+        // Every single-bit change of a password message (SKESK version 5 and OCB Encrypted Data) either fails or, for the packet framing only, still yields the true text.
         using var enc = new MemoryStream();
         Write(new MemoryStream("secret plaintext"u8.ToArray()), enc, new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], ForceLibrePgp = true, S2kIterationCode = 0x60 });
         byte[] good = enc.ToArray();
-        int skip = which == "ocbed" ? 0 : 0;
-        for (int i = skip; i < good.Length; i++)
+        for (int i = 0; i < good.Length; i++)
         {
             byte[] bad = (byte[])good.Clone();
             bad[i] ^= 0x01;
@@ -208,5 +206,76 @@ public class LibrePgpTests
         PgpSignatureResult sig = Assert.Single(r.Signatures);
         Assert.True(sig.IsValid, string.Join("; ", sig.Reasons));
         Assert.Equal(5, sig.Signature.Version);
+    }
+
+    // The OCB protection of a version 5 secret key (usage 253) is built here from the draft's description: GnuPG 2.4 and 2.5 do not export keys in that form,
+    // so there is no oracle for it and this checks the reader against the written rules (S2K output as the OCB key, 15 of the 16 IV octets as nonce, the
+    // tag, cipher, mode and public fields as additional data) and its refusal of damage.
+    private static PgpCertificate WithOcbProtectedPrimary(string password, out byte[] protectedBody)
+    {
+        var packets = Packets.PacketParser.ParseAll(Fixture("v5-sec.gpg")).ToList();
+        var sp = (Packets.SecretKeyPacket)packets[0];
+        byte[] plain = sp.SecretData.Span[..^2].ToArray(); // the two-octet checksum is not part of the OCB form
+        byte[] s2k = [3, (byte)Packets.PgpHashAlgorithm.Sha256, 1, 2, 3, 4, 5, 6, 7, 8, 0x60];
+        byte[] iv = [.. Enumerable.Range(0, 15).Select(i => (byte)(0x40 + i)), 0];
+        byte[] key = PgpAlgorithms.S2k(Packets.S2kSpecifier.Parse(s2k, out _), Pw(password), 32, Primitives.KdfLimits.Default);
+        byte[] ad = [0xC5, (byte)Packets.SymmetricAlgorithm.Aes256, (byte)Packets.AeadAlgorithm.Ocb, .. sp.PublicBody.ToArray()];
+        byte[] ct = new byte[plain.Length];
+        byte[] tag = new byte[16];
+        using (var a = new PgpAlgorithms.Aead(Packets.AeadAlgorithm.Ocb, key))
+        {
+            a.Encrypt(iv.AsSpan(0, 15), plain, ct, tag, ad);
+        }
+
+        byte[] fields = [(byte)Packets.SymmetricAlgorithm.Aes256, (byte)Packets.AeadAlgorithm.Ocb, .. s2k, .. iv];
+        int n = ct.Length + 16;
+        protectedBody = [.. sp.PublicBody.ToArray(), 253, (byte)fields.Length, .. fields, (byte)(n >> 24), (byte)(n >> 16), (byte)(n >> 8), (byte)n, .. ct, .. tag];
+        packets[0] = Packets.Packet.Create(5, protectedBody);
+        using var ms = new MemoryStream();
+        Packets.PacketParser.Write(packets, ms);
+        return PgpCertificate.Parse(ms.ToArray());
+    }
+
+    [Fact]
+    public void AVersion5KeyProtectedWithOcbUnlocksOnlyWithItsPasswordAndUndamaged()
+    {
+        PgpCertificate cert = WithOcbProtectedPrimary("pw", out byte[] body);
+        using (PgpSecretKey ok = PgpSecretKey.Unlock(cert.Primary, [Pw("pw")]))
+        {
+            Assert.NotNull(ok);
+        }
+
+        Assert.Throws<PgpException>(() => PgpSecretKey.Unlock(cert.Primary, [Pw("wrong")]));
+        for (int i = body.Length - 50; i < body.Length; i += 7)
+        {
+            byte[] bad = (byte[])body.Clone();
+            bad[i] ^= 1;
+            var packets = Packets.PacketParser.ParseAll(Fixture("v5-sec.gpg")).ToList();
+            packets[0] = Packets.Packet.Create(5, bad);
+            using var ms = new MemoryStream();
+            Packets.PacketParser.Write(packets, ms);
+            PgpCertificate damaged = PgpCertificate.Parse(ms.ToArray());
+            Assert.Throws<PgpException>(() => PgpSecretKey.Unlock(damaged.Primary, [Pw("pw")]));
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void ATamperedKyberSessionKeyIsNotOpened(int part)
+    {
+        // Flip one octet in the ephemeral key (part 0) or in the wrapped session key (part 1) of the PKESK GnuPG wrote.
+        byte[] good = Fixture("msg-kyber-ky768_cv25519.gpg");
+        var packets = Packets.PacketParser.ParseAll(good).ToList();
+        var pkesk = (Packets.PublicKeyEncryptedSessionKeyPacket)packets[0];
+        byte[] body = pkesk.Body.ToArray();
+        int at = part == 0 ? 10 + 2 + 5 : body.Length - 3;
+        body[at] ^= 0x80;
+        packets[0] = Packets.Packet.Create(1, body);
+        using var ms = new MemoryStream();
+        Packets.PacketParser.Write(packets, ms);
+        using var output = new MemoryStream();
+        Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(ms.ToArray()), output, new PgpReadOptions { Now = Now, SecretKeys = [Cert("sec-kyber-ky768_cv25519.gpg")] }));
+        Assert.Equal(0, output.Length);
     }
 }
