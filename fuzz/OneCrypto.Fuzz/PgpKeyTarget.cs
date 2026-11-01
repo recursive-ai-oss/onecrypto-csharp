@@ -122,7 +122,7 @@ internal static class PgpKeyTarget
     {
         foreach (PgpKeyProfile profile in new[] { PgpKeyProfile.Rfc9580, PgpKeyProfile.Rfc4880Curve25519, PgpKeyProfile.NistP256 })
         {
-            PgpCertificate protectedKey = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = Now, Profile = profile, UserIds = ["Fuzz"], Password = Password, Policy = CryptoPolicy.Standard with { KdfLimits = Cheap } });
+            PgpCertificate protectedKey = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = Now, Profile = profile, UserIds = ["Fuzz"], Password = Password });
             yield return [0, .. protectedKey.Export()];
             yield return [1, .. protectedKey.ToPublicCertificate().Export()];
             PgpPreparedSignature p = PgpPreparedSignature.PrepareDetached(protectedKey.Primary, new MemoryStream(Encoding.ASCII.GetBytes("fuzz")), Now);
