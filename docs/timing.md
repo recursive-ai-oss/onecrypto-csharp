@@ -38,8 +38,12 @@ pass). It is the proof that the harness sees leaks on the machine it runs on.
 ## Results and publishable runs
 
 `tools/timing.sh <outdir> …` writes `timing.json`, `machine.txt`, `load.log` and `publishable.txt` under `<outdir>` (relative
-to the repository root). A run is marked `publishable: NO` when it was not class `bench`, or when the 1-minute load average before or during it exceeds 2.0
-(Linux) or 1.5 (macOS); set `PERF_MAX_LOAD` to change the limit. Only publishable runs count as evidence.
+to the repository root). A run is marked `publishable: NO` when it was not class `bench`, or when, on Linux, the share of all CPUs that were busy (sampled from `/proc/stat` every 5 s, iowait counted idle) averaged more
+than 8% or any one sample exceeded 15% (`PERF_MAX_BUSY`, `PERF_MAX_BUSY_SAMPLE`), or on macOS when the CPU was less than 90% idle just
+before it. The load average is recorded beside each sample but does not decide: it also counts processes waiting on disk, so on a
+32-thread host a quiet machine can show a load of 4 to 6. The limits leave room for the run's own thread (one busy thread of 32 is
+3.1%) and a few helpers; a sample over the limit also logs the busiest processes outside the run (`others:` lines in `load.log`) so a
+busy slot can be explained. Only publishable runs count as evidence.
 
 ## Key-secret targets
 
