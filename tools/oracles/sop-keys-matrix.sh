@@ -42,8 +42,9 @@ for prof in $profiles; do
     fi
     o extract-cert < $k.key > $k.cert
     echo "--- ours: $prof / $prot"
-    # an implementation that cannot read the profile's keys (no RFC 9980 support) is not a failure of ours: only our own round trip is checked
-    if ! $OTHER extract-cert < $k.key > /dev/null 2>&1; then
+    # an implementation that cannot use the profile's keys (no RFC 9980 support in its crypto backend: sqop built on nettle cannot even generate them) is not a failure of ours: only our own round trip is checked
+    case $prof in pqc*) probe=1;; *) probe=0;; esac
+    if [ $probe = 1 ] && ! $OTHER sign $kp $k.key < msg.txt > /dev/null 2>&1; then
       cell "[$prof/$prot] our sign -> our verify (the other implementation does not read these keys)" bash -c "$OURS sign $kp $k.key < msg.txt > s0.sig && $OURS verify s0.sig $k.cert < msg.txt"
       cell "[$prof/$prot] our encrypt+sign -> our decrypt+verify" bash -c "rm -f v0.out; $OURS encrypt --sign-with=$k.key $kp $k.cert < msg.txt > e0.asc && $OURS decrypt $kp --verifications-out=v0.out --verify-with=$k.cert $k.key < e0.asc | cmp - msg.txt"
       unsup=$((unsup+1)); echo "unsup [$prof/$prot] other implementation does not read these keys"; continue
