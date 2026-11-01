@@ -19,6 +19,7 @@
     <Project Path="tests/OneCrypto.OpenPgp.Tests/OneCrypto.OpenPgp.Tests.csproj" />
     <Project Path="tests/Interop/OneCrypto.Interop.csproj" />
     <Project Path="tests/TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
+    <Project Path="tests/OpenPgpTwoPhase/OneCrypto.OpenPgpTwoPhase.csproj" />
     <Project Path="tests/AotSmoke/OneCrypto.AotSmoke.csproj" />
     <Project Path="tests/Timing/OneCrypto.Timing.csproj" />
   </Folder>
