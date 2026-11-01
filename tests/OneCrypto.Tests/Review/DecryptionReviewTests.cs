@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using OneCrypto.Tests.Cms;
 using OneCrypto.Tests.Support;
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Asn1;
@@ -9,8 +10,8 @@ using RecursiveAI.OneCrypto.Wire.Cms;
 namespace OneCrypto.Tests.Review;
 
 /// <summary>
-/// Findings of the decryption-path review for CMS (docs/decryption-review.md). A test marked <c>Skip = "review finding Dn"</c> fails today and
-/// passes when the finding is fixed; the other tests pin behaviour the review found correct.
+/// Findings of the decryption-path review for CMS (docs/decryption-review.md). Each finding has a test here; it
+/// pins the fix; the other tests pin behaviour the review found correct.
 /// </summary>
 public class DecryptionReviewTests
 {
@@ -51,24 +52,45 @@ public class DecryptionReviewTests
         return t[n / 2];
     }
 
-    // ---- D12: CBC padding failure is a timing oracle (the platform raises an exception only on the bad-padding path) ----
+    // ---- D12: CBC padding failure must not cost more than success (the padding check is ours, not a platform exception) ----
 
-    [Fact(Skip = "review finding D12")]
+    [Fact]
     public void CbcBadPaddingTakesAsLongAsGoodPadding()
     {
-        EnvelopedData ed = EnvelopedData.Create(Content(48), [KekRecipient()]); // 4 blocks including a full padding block
-        int len = ed.EncryptedContent.Length;
-        EnvelopedData badPad = Flip(ed, len - 32 + 15); // last byte of the second-to-last block: the padding block's last octet changes
-        EnvelopedData goodPad = Flip(ed, 0);            // first block: the padding stays valid
+        // The decrypt call raises its error from one place for every failure, so the exception itself is not what is compared: the padding step is,
+        // through the internal one-shot that returns false instead of throwing.
+        byte[] plain = Content(48); // 4 blocks including a full padding block
+        EnvelopedData ed = EnvelopedData.Create(plain, [KekRecipient()]);
+        byte[] cek = CmsCiphers.AesUnwrap(Kek, ((KekRecipientInfo)ed.RecipientInfos[0]).EncryptedKey.Span)!;
+        CmsCiphers.TryGet(ed.ContentEncryptionAlgorithm.Oid, out ContentCipher cipher);
+        CmsCiphers.ReadParameters(cipher, ed.ContentEncryptionAlgorithm, out byte[] iv, out _);
+        byte[] good = ed.EncryptedContent.ToArray();
+        byte[] bad = (byte[])good.Clone();
+        bad[^17] ^= 0x01; // the second-to-last block changes, so the padding block's last octet decrypts to something else
+        Assert.True(CmsCiphers.TryDecryptCbc(cipher, cek, iv, good, out _));
+        Assert.False(CmsCiphers.TryDecryptCbc(cipher, cek, iv, bad, out _));
+        long tBad = MedianTicks(() => CmsCiphers.TryDecryptCbc(cipher, cek, iv, bad, out _), 5000);
+        long tGood = MedianTicks(() => CmsCiphers.TryDecryptCbc(cipher, cek, iv, good, out _), 5000);
+        Assert.True((double)tBad / tGood is > 0.6 and < 1.5, $"bad-padding path {tBad} ticks, good-padding path {tGood} ticks (median)");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(15)]
+    [InlineData(16)]
+    public void CbcPaddingIsCheckedEveryWay(int padLength)
+    {
+        // Every padding length that is valid decrypts, and each way a pad can be wrong (zero, too long, mixed octets) is refused.
+        byte[] plain = Content(32 - padLength);
+        EnvelopedData ed = EnvelopedData.Create(plain, [KekRecipient()]);
         using CmsDecryptionKey key = KekKey();
-        long bad = MedianTicks(() => Assert.Throws<CmsParseException>(() => badPad.Decrypt(key)), 2000);
-        long good = MedianTicks(() => goodPad.Decrypt(key), 2000);
-        Assert.True((double)bad / good < 1.5, $"bad-padding path {bad} ticks, good-padding path {good} ticks (median)");
+        Assert.Equal(plain, ed.Decrypt(key));
+        Assert.Equal(CmsError.DecryptionFailed, Assert.Throws<CmsParseException>(() => Flip(ed, ed.EncryptedContent.Length - 17).Decrypt(key)).Error);
     }
 
     // ---- D11: AuthEnvelopedData accepts authentication tags of 4 to 11 octets ----
 
-    [Fact(Skip = "review finding D11")]
+    [Fact]
     public void AuthEnvelopedDataRefusesTagsShorterThanTwelveOctets()
     {
         // A four-octet CCM tag is a 2^-32 forgery per attempt. RFC 5084 §3.3 allows it; a library default should not.
@@ -86,12 +108,13 @@ public class DecryptionReviewTests
         Assert.Throws<CmsParseException>(() => shortTag.Decrypt(key));
     }
 
-    // ---- D13: many password recipients multiply the PBKDF2 work ----
+    // ---- D13: many password recipients share one key-derivation budget ----
 
-    [Fact(Skip = "review finding D13")]
+    [Fact]
     public void PasswordRecipientsShareOneKeyDerivationBudget()
     {
-        // Every PasswordRecipientInfo costs up to MaxPbkdf2Iterations (10 million) derivations, and up to 1024 of them are allowed.
+        // Every PasswordRecipientInfo asks for its own iteration count. With a budget of 2 million for the whole call, five recipients of 400,000 iterations
+        // are tried (2 million) and the sixth is skipped: a wrong password costs the budget, not one derivation per recipient.
         var recipients = new List<CmsRecipient>();
         for (int i = 0; i < 8; i++)
         {
@@ -99,19 +122,21 @@ public class DecryptionReviewTests
         }
 
         EnvelopedData ed = EnvelopedData.Create(Content(64), recipients);
+        var small = new CmsDecryptOptions { Limits = new CmsLimits { MaxPbkdf2IterationsPerMessage = 2_000_000 } };
         using CmsDecryptionKey wrong = CmsDecryptionKey.FromPassword("not any of them");
-        var sw = Stopwatch.StartNew();
-        Assert.ThrowsAny<CmsParseException>(() => ed.Decrypt(wrong));
-        long all = sw.ElapsedMilliseconds;
-        sw.Restart();
-        _ = Rfc2898DeriveBytes.Pbkdf2("x", new byte[16], 400_000, HashAlgorithmName.SHA256, 32);
-        long one = sw.ElapsedMilliseconds;
-        Assert.True(all < 3 * Math.Max(one, 1), $"{all} ms for 8 recipients, {one} ms for one derivation");
+        var e = Assert.Throws<CmsParseException>(() => ed.Decrypt(wrong, small));
+        Assert.Equal(CmsError.LimitExceeded, e.Error);
+
+        // The last recipient is beyond the budget, so even its own password is not tried; the first ones are.
+        using CmsDecryptionKey first = CmsDecryptionKey.FromPassword("recipient-0");
+        Assert.Equal(64, ed.Decrypt(first, small).Length);
+        using CmsDecryptionKey last = CmsDecryptionKey.FromPassword("recipient-7");
+        Assert.Equal(CmsError.LimitExceeded, Assert.Throws<CmsParseException>(() => ed.Decrypt(last, small)).Error);
     }
 
     // ---- D8: a truncated zlib stream in CompressedData ----
 
-    [Fact(Skip = "review finding D8")]
+    [Fact]
     public void ATruncatedCompressedDataStreamIsAnError()
     {
         byte[] plain = Content(20_000);
@@ -142,6 +167,69 @@ public class DecryptionReviewTests
         Assert.Equal(plain.Length, got.Length);
         var strict = new CmsDecryptOptions { Policy = CryptoPolicy.Strict, ReferenceTime = standard.ReferenceTime };
         Assert.ThrowsAny<PolicyViolationException>(() => tampered.Decrypt(key, strict));
+    }
+
+    [Fact]
+    public void TheReportSaysCbcIsUnauthenticatedAndAeadIsNot()
+    {
+        byte[] plain = Content(48);
+        using CmsDecryptionKey key = KekKey();
+        CmsDecryptResult cbc = EnvelopedData.Create(plain, [KekRecipient()]).DecryptWithReport(key);
+        Assert.Equal(plain, cbc.Content);
+        Assert.False(cbc.Authenticated);
+        Assert.Equal("AES-256-CBC", cbc.ContentEncryptionAlgorithm);
+        Assert.Equal(["cipher.cbc.unauthenticated.decrypt"], cbc.Reasons);
+        CmsDecryptResult aead = AuthEnvelopedData.Create(plain, [KekRecipient()]).DecryptWithReport(key);
+        Assert.True(aead.Authenticated);
+        Assert.Empty(aead.Reasons);
+        byte[] shared = RandomNumberGenerator.GetBytes(32);
+        CmsDecryptResult enc = EncryptedData.Create(plain, shared).DecryptWithReport(shared);
+        Assert.False(enc.Authenticated);
+        Assert.Equal(plain, enc.Content);
+    }
+
+    [Fact]
+    public void TripleDesContentDecryptsThroughTheStreamingCallToo()
+    {
+        // Triple DES is read-only and opt-in; the streaming path used to build an AES decryptor for it and fail with a generic error.
+        byte[] plain = Content(5000);
+        byte[] cek = RandomNumberGenerator.GetBytes(24);
+        byte[] iv = RandomNumberGenerator.GetBytes(8);
+#pragma warning disable CA5350
+        using var des = TripleDES.Create();
+#pragma warning restore CA5350
+        des.Key = cek;
+        byte[] ct = des.EncryptCbc(plain, iv, PaddingMode.PKCS7);
+        byte[] kek = RandomNumberGenerator.GetBytes(32);
+        byte[] message = EnvKit.WithKek(CmsOids.TripleDesCbc, iv, ct, kek, "id"u8.ToArray(), cek);
+        using CmsDecryptionKey key = CmsDecryptionKey.FromKeyEncryptionKey(kek, "id"u8);
+        var legacy = new CmsDecryptOptions { AllowLegacyCiphers = true };
+        using var sink = new MemoryStream();
+        EnvelopedData.DecryptStream(new MemoryStream(message), sink, key, legacy);
+        Assert.Equal(plain, sink.ToArray());
+        Assert.Throws<CmsParseException>(() => EnvelopedData.DecryptStream(new MemoryStream(message), Stream.Null, key));
+    }
+
+    [Fact]
+    public async Task StreamingCbcChecksThePaddingOfTheLastBlockOnBothTwins()
+    {
+        EnvelopedData ed = EnvelopedData.Create(Content(70_000), [KekRecipient()]);
+        using CmsDecryptionKey key = KekKey();
+        using var ok = new MemoryStream();
+        await EnvelopedData.DecryptStreamAsync(new MemoryStream(ed.Encoded.ToArray()), ok, key);
+        Assert.Equal(Content(70_000), ok.ToArray());
+        EnvelopedData bad = Flip(ed, ed.EncryptedContent.Length - 17);
+        await Assert.ThrowsAsync<CmsParseException>(() => EnvelopedData.DecryptStreamAsync(new MemoryStream(bad.Encoded.ToArray()), Stream.Null, key));
+        Assert.Throws<CmsParseException>(() => EnvelopedData.DecryptStream(new MemoryStream(bad.Encoded.ToArray()), Stream.Null, key));
+    }
+
+    [Fact]
+    public void TheDecompressionRatioLimitsOfCmsAndOpenPgpAgree()
+    {
+        // 100 MiB of zeros deflate to about 1032:1 at best; OpenPGP allows that ratio and CMS now does too.
+        Assert.Equal(1032, CmsLimits.Default.MaxDecompressionRatio);
+        byte[] zeros = new byte[100 << 20];
+        Assert.Equal(zeros.Length, CompressedData.Create(zeros).Decompress().Length);
     }
 
     // ---- checked and correct ----

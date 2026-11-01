@@ -19,6 +19,7 @@ internal static class Targets
         .. GnuPGKeyFileTargets.Targets(),
         .. FallbackTargets.Targets(),
         .. OpenPgpTargets.Targets(),
+        .. CmsTargets.Targets(),
     ];
 }
 

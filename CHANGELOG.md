@@ -18,7 +18,21 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PrivateKey.SigningKeyFromCertificate` and `TrySigningKeyFromStore`: `ISigningKey`-typed twins of the operating-system key lookups, so `CmsSignerSpec.Key` needs no cast.
 - `DistinguishedName.FromDer`, `TryFromDer`, `Parse(string)` and `TryFromString`: names that say whether the input is DER or RFC 4514 text. `Parse(bytes)` stays and still means DER.
 - `TimeStampVerifyOptions.RevocationModel` and `RevocationDataTime`: judge the authority's revocation data in the past-time model.
-- `docs/decryption-review.md`: an internal review of the CMS, PKCS#8/#12 and OpenPGP decryption paths with 13 findings (each with a skipped test that demonstrates it) and the list of what was checked and found correct. Not an external audit.
+- `docs/decryption-review.md`: an internal review of the CMS, PKCS#8/#12 and OpenPGP decryption paths with 13 findings (each with a test; all fixed, see its Status column) and the list of what was checked and found correct. Not an external audit.
+
+### Fixed (decryption paths, from the internal review)
+
+- OpenPGP: a public-key session-key packet that cannot be unwrapped and one that unwraps to a wrong key now fail the same way (`CannotDecrypt`, one message, the same steps), so an RSA key is no padding oracle (RFC 9580 §13.5); `docs/openpgp.md` no longer overstates this.
+- OpenPGP: a session-key packet that does not align with the encrypted data's version is discarded (RFC 9580 §10.3.2.1); at most 64 session-key packets (`OpenPgpLimits.MaxSessionKeyPackets`) and a string-to-key budget (`OpenPgpLimits.MaxS2kWork`) bound the work, and one hostile password packet costs a skip, not the message.
+- OpenPGP: the SEIPD v1 spool file is created owner-only from the start and removed on every exit path; every key that passes the quick check is judged by the MDC, so a false positive cannot hide the right key; the first-chunk probe of the AEAD readers allocates its buffers once.
+- CMS: CBC padding is checked by the library in constant time (also in the streaming call, PBES2 and legacy PEM), not by a platform exception; truncated zlib CompressedData is an error (Adler-32, RFC 1950); an AuthEnvelopedData tag shorter than `CryptoPolicy.MinAuthTagBytes` is refused; the password recipients of one decrypt call share `CmsLimits.MaxPbkdf2IterationsPerMessage`; the CBC streaming decrypt works for Triple DES; `CmsLimits.MaxDecompressionRatio` is 1032, as in OpenPGP.
+- Timing: `OpenPgpSessionKey` targets take their class by a byte mask and have A/A controls; new targets for the RSA session-key failure paths and the CBC padding check.
+
+### Added (decryption paths)
+
+- `PgpReadResult.Protection` (`PgpProtection`: `Aead`, `OcbEncryptedData`, `Mdc`, `None`, `NotEncrypted`).
+- `EnvelopedData.DecryptWithReport`, `EncryptedData.DecryptWithReport`, `AuthEnvelopedData.DecryptWithReport` returning `CmsDecryptResult` (`Authenticated`, `Reasons`): CBC says it is unauthenticated.
+- `CryptoPolicy.MinAuthTagBytes` and `CheckAuthTag`; `OpenPgpLimits.MaxSessionKeyPackets` and `MaxS2kWork`; `CmsLimits.MaxPbkdf2IterationsPerMessage`.
 
 ### Changed
 

@@ -5,8 +5,8 @@ using RecursiveAI.OneCrypto.OpenPgp.Packets;
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests.Review;
 
 /// <summary>
-/// Findings of the decryption-path review for OpenPGP (docs/decryption-review.md). A test marked <c>Skip = "review finding Dn"</c> fails today and
-/// passes when the finding is fixed; the other tests pin behaviour the review found correct.
+/// Findings of the decryption-path review for OpenPGP (docs/decryption-review.md). Each finding has a test here; it
+/// pins the fix; the other tests pin behaviour the review found correct.
 /// </summary>
 [Collection("ProcessMemory")]
 public class DecryptionReviewTests
@@ -37,7 +37,7 @@ public class DecryptionReviewTests
 
     // ---- D1: a failed session-key recovery is a different failure class from a failed body ----
 
-    [Fact(Skip = "review finding D1")]
+    [Fact]
     public void BadSessionKeyAndBadBodyAreTheSameFailure()
     {
         PgpCertificate secret = Cert("A_4.asc");
@@ -58,7 +58,7 @@ public class DecryptionReviewTests
 
     // ---- D2: an unusable password packet in front of a good one aborts the read ----
 
-    [Fact(Skip = "review finding D2")]
+    [Fact]
     public void AHostileSkeskDoesNotMaskAGoodOne()
     {
         byte[] good = Encrypt(new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], S2kIterationCode = 0x10 }, "hello"u8.ToArray());
@@ -69,7 +69,7 @@ public class DecryptionReviewTests
 
     // ---- D3: the version pairing of RFC 9580 §10.3.2.1 is not enforced ----
 
-    [Fact(Skip = "review finding D3")]
+    [Fact]
     public void AV3PkeskMayNotOpenAV2Seipd()
     {
         PgpCertificate secret = Cert("A_4.asc");
@@ -88,7 +88,7 @@ public class DecryptionReviewTests
 
     // ---- D4: nothing bounds how many session-key packets are tried ----
 
-    [Fact(Skip = "review finding D4")]
+    [Fact]
     public void ManySessionKeyPacketsAreRefused()
     {
         PgpCertificate secret = Cert("A_4.asc");
@@ -109,7 +109,7 @@ public class DecryptionReviewTests
 
     // ---- D5: SEIPD v1 plaintext waits in a temporary file readable by other users ----
 
-    [Fact(Skip = "review finding D5")]
+    [Fact]
     [UnsupportedOSPlatform("windows")]
     public void SpooledPlaintextIsNotReadableByOtherUsers()
     {
@@ -126,6 +126,7 @@ public class DecryptionReviewTests
             Assert.NotNull(sink.Mode);
             const UnixFileMode others = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead | UnixFileMode.OtherWrite;
             Assert.Equal((UnixFileMode)0, sink.Mode!.Value & others);
+            Assert.Empty(Directory.GetFiles(dir)); // the spool file is gone once the read has finished
         }
         finally
         {
@@ -175,22 +176,23 @@ public class DecryptionReviewTests
 
     // ---- D6: the result does not say how the plaintext was protected ----
 
-    [Fact(Skip = "review finding D6")]
+    [Fact]
     public void TheResultTellsUnauthenticatedFromAuthenticatedDecryption()
     {
         byte[] sed = File.ReadAllBytes(TestFiles.OpenPgp("legacy", "sed-aes.gpg"));
         PgpReadResult unauth = PgpMessageReader.Read(new MemoryStream(sed), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")], AllowUnauthenticatedEncryption = true });
         byte[] v2 = Encrypt(new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], S2kIterationCode = 0x10 }, "x"u8.ToArray());
         PgpReadResult auth = PgpMessageReader.Read(new MemoryStream(v2), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
-
-        // Every public property that is a flag or a count must differ somewhere, or the caller cannot tell the two apart.
-        static string Fingerprint(PgpReadResult r) => $"{r.WasEncrypted}|{r.CheckedBeforeRelease}|{r.HasValidSignature}|{r.Signatures.Count}";
-        Assert.NotEqual(Fingerprint(unauth), Fingerprint(auth));
+        Assert.Equal(PgpProtection.None, unauth.Protection);
+        Assert.Equal(PgpProtection.Aead, auth.Protection);
+        Assert.False(unauth.CheckedBeforeRelease);
+        byte[] v1 = Encrypt(new PgpWriteOptions { Now = Now, Passwords = [Pw("pw")], ForceSeipd1 = true, S2kIterationCode = 0x10 }, "x"u8.ToArray());
+        Assert.Equal(PgpProtection.Mdc, PgpMessageReader.Read(new MemoryStream(v1), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] }).Protection);
     }
 
     // ---- D7: a quick-check false positive on a wrong candidate hides the right one ----
 
-    [Fact(Skip = "review finding D7")]
+    [Fact]
     public void ASeipd1QuickCheckFalsePositiveDoesNotHideTheRightKey()
     {
         SymmetricAlgorithm cipher = default;

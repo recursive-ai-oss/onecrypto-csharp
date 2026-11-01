@@ -233,7 +233,11 @@ public sealed partial class AuthEnvelopedData
     /// <see cref="CmsLimits.MaxContentBytes"/>). Every failure after a recipient matched raises the same <see cref="CmsError.DecryptionFailed"/>.
     /// </summary>
     /// <exception cref="CmsParseException">No recipient matches, or decryption or authentication failed.</exception>
-    public byte[] Decrypt(CmsDecryptionKey key, CmsDecryptOptions? options = null)
+    public byte[] Decrypt(CmsDecryptionKey key, CmsDecryptOptions? options = null) => DecryptWithReport(key, options).Content;
+
+    /// <summary>Decrypts like <see cref="Decrypt"/> and reports what protected the content: <see cref="CmsDecryptResult.Authenticated"/> is always true here.</summary>
+    /// <exception cref="CmsParseException">No recipient matches, the message declares an authentication tag shorter than the policy's minimum, or decryption or authentication failed.</exception>
+    public CmsDecryptResult DecryptWithReport(CmsDecryptionKey key, CmsDecryptOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(key);
         options ??= new CmsDecryptOptions { Limits = Limits };
@@ -248,6 +252,12 @@ public sealed partial class AuthEnvelopedData
         }
 
         CmsCiphers.ReadParameters(cipher, ContentEncryptionAlgorithm, out byte[] nonce, out int tagBytes);
+        // RFC 5084 lets the sender pick the tag length; a short one is a cheap forgery, so the policy's minimum applies even when no policy was asked for.
+        if (!(options.Policy ?? Policy.CryptoPolicy.Standard).CheckAuthTag(cipher.Name, tagBytes, Policy.CryptoUse.Decrypt).IsAllowed)
+        {
+            throw new CmsParseException("AuthEnvelopedData", CmsError.Unsupported, $"the authentication tag of {tagBytes} octets is shorter than the policy allows");
+        }
+
         CmsPolicyChecks.BeforeDecrypt(options, cipher, key);
         if (!RecipientOpener.TryOpen(RecipientInfos, key, cipher.KeyBytes, options, out byte[] cek, out bool real, out bool matched))
         {
@@ -278,7 +288,7 @@ public sealed partial class AuthEnvelopedData
             throw EnvelopedData.DecryptionFailed("AuthEnvelopedData");
         }
 
-        return plaintext;
+        return new CmsDecryptResult(plaintext, cipher.Name, authenticated: true);
     }
 }
 
@@ -773,7 +783,11 @@ public sealed class EncryptedData
 
     /// <summary>Decrypts with the shared key. A wrong key or damaged content raises <see cref="CmsError.DecryptionFailed"/> and releases nothing.</summary>
     /// <exception cref="CmsParseException">Decryption failed or the algorithm is not accepted.</exception>
-    public byte[] Decrypt(ReadOnlySpan<byte> key, CmsDecryptOptions? options = null)
+    public byte[] Decrypt(ReadOnlySpan<byte> key, CmsDecryptOptions? options = null) => DecryptWithReport(key, options).Content;
+
+    /// <summary>Decrypts like <see cref="Decrypt"/> and reports what protected the content: <see cref="CmsDecryptResult.Authenticated"/> is false, as CBC has no integrity of its own.</summary>
+    /// <exception cref="CmsParseException">Decryption failed or the algorithm is not accepted.</exception>
+    public CmsDecryptResult DecryptWithReport(ReadOnlySpan<byte> key, CmsDecryptOptions? options = null)
     {
         options ??= new CmsDecryptOptions { Limits = Limits };
         if (!CmsCiphers.TryGet(ContentEncryptionAlgorithm.Oid, out ContentCipher cipher) || cipher.Authenticated || (cipher.Kind == CipherKind.TripleDesCbc && !options.AllowLegacyCiphers))
@@ -792,7 +806,7 @@ public sealed class EncryptedData
             throw EnvelopedData.DecryptionFailed("EncryptedData");
         }
 
-        return plaintext;
+        return new CmsDecryptResult(plaintext, cipher.Name, cipher.Authenticated);
     }
 }
 
@@ -894,6 +908,7 @@ public sealed partial class CompressedData
 
         long cap = Math.Min(limits.MaxDecompressedBytes, Math.Max(4096L, (long)CompressedContent.Length * limits.MaxDecompressionRatio));
         var output = new MemoryStream();
+        var adler = new Adler32();
         try
         {
             using var z = new ZLibStream(new MemoryStream(CompressedContent.ToArray(), writable: false), CompressionMode.Decompress);
@@ -906,6 +921,7 @@ public sealed partial class CompressedData
                     throw new CmsParseException("CompressedData", CmsError.LimitExceeded, "the decompressed size passes the limit");
                 }
 
+                adler.Update(buffer.AsSpan(0, n));
                 output.Write(buffer, 0, n);
             }
         }
@@ -913,6 +929,14 @@ public sealed partial class CompressedData
         {
             // The source is an in-memory buffer, so any inflater failure here is damaged input; the inflater signals it as IOException or InvalidDataException.
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, e.Message);
+        }
+
+        // RFC 1950 §2.2: the stream must end with the checksum of what it inflated to; the platform's inflater does not say when the stream stopped early.
+        ReadOnlySpan<byte> compressed = CompressedContent.Span;
+        if (!adler.Completes(compressed.Length, compressed.Length >= 4 ? compressed[^4..] : default))
+        {
+            output.SetLength(0);
+            throw new CmsParseException("CompressedData", CmsError.InvalidValue, "the zlib stream is truncated or its Adler-32 checksum does not match");
         }
 
         return output.ToArray();

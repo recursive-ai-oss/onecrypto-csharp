@@ -469,21 +469,14 @@ internal static class Pbe
     private static PkcsStatus Unpad(PinnedSecret buf, int block, out PinnedSecret? plaintext)
     {
         plaintext = null;
-        ReadOnlySpan<byte> b = buf.ReadOnlySpan;
-        int pad = b[^1];
-        int bad = (pad == 0 ? 1 : 0) | (pad > block ? 1 : 0);
-        int check = Math.Min(pad, block);
-        for (int i = 1; i <= check; i++)
-        {
-            bad |= b[^i] ^ pad;
-        }
-
-        if (bad != 0)
+        // The padding is checked without a branch on its content (Pkcs7Padding), so a wrong password and a damaged body cost the same.
+        int length = Pkcs7Padding.UnpaddedLength(buf.ReadOnlySpan, block);
+        if (length < 0)
         {
             return PkcsStatus.WrongPasswordOrCorrupt;
         }
 
-        plaintext = new PinnedSecret(b[..^pad]);
+        plaintext = new PinnedSecret(buf.ReadOnlySpan[..length]);
         return PkcsStatus.Ok;
     }
 

@@ -63,3 +63,8 @@ A signature on a certificate, CRL, OCSP response or request, certificate request
 There is no separate `WebPki` preset. The server-authentication profile of the path validator does not ask a second policy: SHA-1 is already refused from 2017 under `Standard`, and the profile keeps its own 2048-bit RSA floor as a profile rule (`WebPkiProfile`, Baseline Requirements §6.1.5). A caller who chose `Permissive` or a tuned policy keeps that choice under the profile.
 
 `Permissive` accepts every algorithm and key size the library can verify, with no dated cutoffs: the policy of conformance suites and of reading old data. The path validator takes a policy in `ValidationOptions.Policy` (default `Standard`) and asks `CheckSignature` for every certificate signature at the reference time; its per-certificate results carry the decision's rule id (`docs/validation.md`).
+
+## Authentication tags and CBC in CMS
+
+* `MinAuthTagBytes` is the shortest AEAD tag a message may declare for itself (CMS AuthEnvelopedData, RFC 5084): 12 under `Standard`, 16 under `Strict`, 4 under `Permissive`. `CheckAuthTag` returns the rejection (`cipher.aead.tag.min`).
+* Under `Standard`, CBC EnvelopedData and EncryptedData still decrypt, and the decryption result (`CmsDecryptResult` from `DecryptWithReport`) says `Authenticated` is false with the reason `cipher.cbc.unauthenticated.decrypt`; `Strict` refuses CBC. S/MIME relies on an outer signature, so `Standard` cannot refuse it, but it never does it silently. See docs/cms.md.

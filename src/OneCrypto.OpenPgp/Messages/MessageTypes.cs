@@ -60,6 +60,28 @@ public sealed class PgpSignatureResult
     public IReadOnlyList<string> Reasons { get; }
 }
 
+/// <summary>What protected the plaintext of an encrypted message against being changed (RFC 9580 §13, §5.13, §5.14).</summary>
+public enum PgpProtection
+{
+    /// <summary>The message had no encryption layer.</summary>
+    NotEncrypted = 0,
+
+    /// <summary>
+    /// Symmetrically Encrypted Data (tag 9): nothing authenticates the plaintext. It was decrypted only because the caller opted in with
+    /// <see cref="PgpReadOptions.AllowUnauthenticatedEncryption"/>; the content may have been altered, and decryption is not verification.
+    /// </summary>
+    None,
+
+    /// <summary>SEIPD v1: the SHA-1 modification detection code was checked over the whole body before any plaintext was released.</summary>
+    Mdc,
+
+    /// <summary>LibrePGP OCB Encrypted Data (tag 20): chunked AEAD, each chunk released after its tag verified.</summary>
+    OcbEncryptedData,
+
+    /// <summary>SEIPD v2: chunked AEAD, each chunk released after its tag verified, and the total length authenticated at the end.</summary>
+    Aead,
+}
+
 /// <summary>What was found in a message: its literal data description, whether it was encrypted, how, and every signature with its verdict.</summary>
 public sealed class PgpReadResult
 {
@@ -92,6 +114,13 @@ public sealed class PgpReadResult
 
     /// <summary>True when the message was in a SEIPD v1 or other layer that was fully checked before any output (rather than chunk by chunk).</summary>
     public bool CheckedBeforeRelease { get; internal set; }
+
+    /// <summary>
+    /// How the plaintext was protected. With several encryption layers, the weakest one. <see cref="PgpProtection.None"/> says the content was
+    /// decrypted without any integrity check; an empty <see cref="Signatures"/> list means the message carried no signature, not that the
+    /// content is authentic. Decryption is never verification.
+    /// </summary>
+    public PgpProtection Protection { get; internal set; }
 
     /// <summary>True when at least one signature is valid.</summary>
     public bool HasValidSignature => SignatureList.Any(s => s.IsValid);

@@ -51,13 +51,17 @@ public sealed partial class CompressedData
             using var z = new ZLibStream(counting, CompressionMode.Decompress);
             byte[] buffer = new byte[16 * 1024];
             long total = 0;
+            var adler = new Adler32();
             int n;
             while ((n = z.Read(buffer, 0, buffer.Length)) > 0)
             {
                 total += n;
                 CheckBound(total, counting.Count, limits);
+                adler.Update(buffer.AsSpan(0, n));
                 output.Write(buffer, 0, n);
             }
+
+            RequireComplete(adler, counting);
         }
         catch (Asn1ParseException e)
         {
@@ -121,13 +125,17 @@ public sealed partial class CompressedData
             await using var z = new ZLibStream(counting, CompressionMode.Decompress);
             byte[] buffer = new byte[16 * 1024];
             long total = 0;
+            var adler = new Adler32();
             int n;
             while ((n = await z.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
             {
                 total += n;
                 CheckBound(total, counting.Count, limits);
+                adler.Update(buffer.AsSpan(0, n));
                 await output.WriteAsync(buffer.AsMemory(0, n), cancellationToken).ConfigureAwait(false);
             }
+
+            RequireComplete(adler, counting);
         }
         catch (Asn1ParseException e)
         {
@@ -145,6 +153,15 @@ public sealed partial class CompressedData
         {
             // The inflater reports some damaged zlib data as an internal IOException (not InvalidDataException); a failure of the caller's own stream is not rewritten.
             throw new CmsParseException("CompressedData", CmsError.InvalidValue, "the zlib data is damaged");
+        }
+    }
+
+    /// <summary>RFC 1950 §2.2: the stream must end with the Adler-32 of what it inflated to, so a stream cut short is an error and not a shorter message.</summary>
+    private static void RequireComplete(Adler32 adler, CountingReadStream counting)
+    {
+        if (!adler.Completes(counting.Count, counting.LastFour))
+        {
+            throw new CmsParseException("CompressedData", CmsError.InvalidValue, "the zlib stream is truncated or its Adler-32 checksum does not match");
         }
     }
 
@@ -217,7 +234,25 @@ public sealed partial class CompressedData
     /// <summary>Counts the octets read through it, so the ratio bound can follow the compressed input.</summary>
     private sealed class CountingReadStream(Stream inner) : Stream
     {
+        private readonly byte[] _last = new byte[4];
+
         public long Count { get; private set; }
+
+        /// <summary>The last four octets read (fewer have been read when <see cref="Count"/> is under four).</summary>
+        public ReadOnlySpan<byte> LastFour => _last;
+
+        private void Note(ReadOnlySpan<byte> got)
+        {
+            if (got.Length >= 4)
+            {
+                got[^4..].CopyTo(_last);
+            }
+            else if (!got.IsEmpty)
+            {
+                _last.AsSpan(got.Length).CopyTo(_last);
+                got.CopyTo(_last.AsSpan(4 - got.Length));
+            }
+        }
 
         /// <summary>True once the underlying stream itself has thrown.</summary>
         public bool SourceFaulted { get; private set; }
@@ -244,6 +279,7 @@ public sealed partial class CompressedData
             {
                 int n = inner.Read(buffer);
                 Count += n;
+                Note(buffer[..n]);
                 return n;
             }
             catch
@@ -259,6 +295,7 @@ public sealed partial class CompressedData
             {
                 int n = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 Count += n;
+                Note(buffer.Span[..n]);
                 return n;
             }
             catch
