@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `RecursiveAI.OneCrypto.OpenPgp`, new (not yet released): the OpenPGP packet layer. Every packet of RFC 9580 §5 plus the LibrePGP OCB packet, versions 3 to 6 of keys and signatures (LibrePGP version 5 read only), all signature subpackets with critical-bit handling, the RFC 9980 post-quantum key and PKESK formats, ASCII armor (CRC optional, checked when present), and `TransferableKey`. Reading is lossless (write-back is byte-identical) and bounded by `OpenPgpLimits`; a stream reader exposes packet bodies without buffering. See `docs/openpgp.md`.
+- `onecrypto sop`, new in the `onecrypto` tool: the Stateless OpenPGP CLI subcommands that need only the packet layer (`version`, `list-profiles`, `armor`, `dearmor`, `extract-cert`, `inline-detach`); the other subcommands exit 69 until their units land. `tools/oracles/` installs the oracles (GnuPG, Sequoia, RNP, OpenPGP.js, GopenPGP) and runs the OpenPGP interoperability test suite against `sop` as a scoreboard; see `docs/sop.md`.
+
 ## [0.2.0-preview.1] - 2026-11-01
 
 Second preview. Adds path validation to the core package (still a preview; an internal review is done, an external audit is not), the issuer side, and two new packages: `RecursiveAI.OneCrypto.Online` and `RecursiveAI.OneCrypto.Pdf`. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).

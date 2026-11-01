@@ -13,5 +13,7 @@ Normative, language-neutral notes on behaviour: verification semantics, policy p
 - [legacy-ciphers.md](legacy-ciphers.md): Camellia and the decrypt-only CAST5, IDEA, Blowfish and Twofish; how they avoid secret-indexed tables, their cost, and how they are checked.
 - [kdf.md](kdf.md): Argon2, scrypt and bcrypt-pbkdf: behaviour, limits, side channels, tests.
 - [keys.md](keys.md): key interfaces, signature specs, operating-system keys and two-phase signing (with the serialised state).
+- [openpgp.md](openpgp.md): the OpenPGP packet layer: what is read and preserved, armor, transferable keys, limits, streaming.
 - [pdf.md](pdf.md): the PDF bridge: PAdES levels B-B to B-LTA, augmentation, the verifier's rules and time model, and what OnePDF would need to offer.
 - [policy.md](policy.md): `CryptoPolicy`, the reference-time contract, the dated rules and the presets.
+- [sop.md](sop.md): the `onecrypto sop` command, the interoperability scoreboard and how to run it.

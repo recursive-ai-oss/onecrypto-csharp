@@ -29,6 +29,7 @@
     <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
     <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
     <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
   </ItemGroup>
 
 </Project>
