@@ -391,7 +391,7 @@ public static class PgpKeyEditor
     /// <paramref name="change"/> to its subpackets, so unknown subpackets and the embedded back-signature of a signing subkey carry over.
     /// </summary>
     private static PgpCertificate UpdateSelfSignatures(PgpCertificate cert, PgpSecretKey primary, DateTimeOffset now, CryptoPolicy pol, Action<List<SignatureSubpacket>> change,
-        byte[]? subkeyFingerprint, PgpSecretKey? subkeySecret = null)
+        byte[]? subkeyFingerprint)
     {
         RequireOwner(cert, primary);
         KeyWork w = KeyWork.From(cert.Transferable);
@@ -408,7 +408,6 @@ public static class PgpKeyEditor
             // The back-signature of a signing subkey stays valid: it covers the same two keys, not the binding.
             var unhashed = latest.UnhashedSubpackets.Concat(latest.HashedSubpackets).Where(s => s.TypeId == (byte)SubpacketType.EmbeddedSignature).Take(1).ToList();
             sub.Items.Add(KeySignatures.MakeWith(primary, SignatureType.SubkeyBinding, hashed, unhashed, now, pol, pk, sk));
-            _ = subkeySecret;
             return w.ToCertificate();
         }
 

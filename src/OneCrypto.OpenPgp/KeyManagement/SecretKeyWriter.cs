@@ -31,17 +31,18 @@ internal static class SecretKeyWriter
     /// </summary>
     internal static SecretKeyPacket Build(KeyPacket publicKey, ReadOnlySpan<byte> secret, bool protect, Func<S2kSpecifier, int, byte[]> derive)
     {
+        // Only version 4 and 6 packets are written: version 5 is LibrePGP's, with its own secret-key layout, and versions 2 and 3 are read-only.
+        if (publicKey.Version is not (4 or 6))
+        {
+            throw new PgpException(PgpFailure.Unsupported, $"Secret keys of version {publicKey.Version} are not written.");
+        }
+
         byte tag = publicKey.IsSubkey ? (byte)PacketTag.SecretSubkey : (byte)PacketTag.SecretKey;
         var body = new List<byte>(publicKey.PublicBody.Length + secret.Length + 96);
         body.AddRange(publicKey.PublicBody.Span);
         if (!protect)
         {
             body.Add(0);
-            if (publicKey.Version == 5)
-            {
-                throw new PgpException(PgpFailure.Unsupported, "Version 5 keys are never written.");
-            }
-
             if (publicKey.Version == 6)
             {
                 // RFC 9580 §5.5.3: version 6 carries no checksum when unprotected, and no parameter count either.
