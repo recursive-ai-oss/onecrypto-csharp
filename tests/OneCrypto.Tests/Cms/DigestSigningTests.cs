@@ -72,7 +72,9 @@ public class DigestSigningTests
                 Assert.Equal(CmsOids.Shake256, oid);
             }
 
-            if (OpenSslTool.Available && (kind != "ed448" || OpenSslTool.AtLeast(3, 5)))
+            // OpenSSL before 3.5 refuses EdDSA SignerInfos with signed attributes ("invalid digest"), so EdDSA is checked
+            // against 3.5 or newer only.
+            if (OpenSslTool.Available && (kind is not ("ed448" or "ed25519") || OpenSslTool.AtLeast(3, 5)))
             {
                 string dir = Path.Combine(OpenSslTool.TempDir("cms-digest"), kind);
                 Directory.CreateDirectory(dir);

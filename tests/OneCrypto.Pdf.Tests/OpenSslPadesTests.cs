@@ -40,9 +40,10 @@ public class OpenSslPadesTests
     public void OpenSslVerifiesTheCmsOfEachLevelAndEveryTimestamp(KeyKind kind, bool pss)
     {
         OpenSslTool.RequireOrSkip();
-        if (kind is KeyKind.Ed448 or KeyKind.MlDsa65)
+        // OpenSSL before 3.5 refuses EdDSA SignerInfos with signed attributes ("invalid digest").
+        if (kind is KeyKind.Ed25519 or KeyKind.Ed448 or KeyKind.MlDsa65)
         {
-            OpenSslTool.RequireOrSkip(3, 5, "Ed448 and ML-DSA in CMS");
+            OpenSslTool.RequireOrSkip(3, 5, "EdDSA and ML-DSA in CMS with signed attributes");
         }
 
         if (kind == KeyKind.MlDsa65 && !MLDsa.IsSupported)
