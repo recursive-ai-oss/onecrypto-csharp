@@ -36,7 +36,8 @@ gpg --batch --passphrase '' --quick-add-key "$(fpr v4@example.org)" cv25519 encr
 for k in v5 v4o v4; do gpg --batch --export $k@example.org > $k.cert; gpg --batch --export-secret-keys $k@example.org > $k.key; done
 
 for k in v5 v4o v4; do
-  want=20; [ $k = v4 ] && want=18
+  # a key announcing OCB Encrypted Data (features bit 0x02) gets tag 20; one announcing only MDC (features 01) gets SEIPD v1, tag 18
+  want=20; gpg --list-packets $k.cert 2>/dev/null | grep -q "features: 01" && want=18
   # ours -> GnuPG
   sop encrypt $k.cert < big.bin > $k.oenc
   [ "$(tags $k.oenc "^# off=.* tag=$want ")" -ge 1 ] && ok "$k ours uses packet tag $want" || bad "$k ours uses packet tag $want"
@@ -77,11 +78,12 @@ for mib in 0 1 8 $BZMAX; do
     : > bz.bin; i=0; while [ $i -lt $mib ]; do head -c 524288 /dev/urandom >> bz.bin; yes 'the quick brown fox jumps over the lazy dog' | head -c 524288 >> bz.bin; i=$((i+1)); done
   fi
   gpg --batch --yes --pinentry-mode loopback --passphrase-file pw.txt --symmetric --compress-algo bzip2 -o bz.gpg bz.bin 2>/dev/null
+  if [ ! -s bz.gpg ]; then skip "gpg here cannot write bzip2 (${mib} MiB)"; continue; fi
   sop decrypt --with-password=pw.txt < bz.gpg > dec.bin && cmp -s dec.bin bz.bin && ok "ours decrypts gpg bzip2 (${mib} MiB)" || bad "ours decrypts gpg bzip2 (${mib} MiB)"
 done
 head -c 300000 /dev/zero > zeros.bin
 gpg --batch --yes --trust-model always -r v5@example.org --compress-algo bzip2 -o zeros.gpg --encrypt zeros.bin 2>/dev/null
-sop decrypt v5.key < zeros.gpg > dec.bin && cmp -s dec.bin zeros.bin && ok "ours decrypts gpg bzip2 of zeros inside OCB Encrypted Data" || bad "ours decrypts gpg bzip2 of zeros inside OCB Encrypted Data"
+if [ -s zeros.gpg ]; then sop decrypt v5.key < zeros.gpg > dec.bin && cmp -s dec.bin zeros.bin && ok "ours decrypts gpg bzip2 of zeros inside OCB Encrypted Data" || bad "ours decrypts gpg bzip2 of zeros inside OCB Encrypted Data"; else skip "gpg here cannot write bzip2 of zeros"; fi
 
 # Kyber (GnuPG 2.5)
 if gpg --version | grep -q 'GnuPG) 2\.[5-9]'; then
@@ -103,8 +105,9 @@ if [ -n "${ONECRYPTO_RNP:-}" ] && [ -x "$ONECRYPTO_RNP/usr/bin/rnp" ]; then
   export LD_LIBRARY_PATH=$ONECRYPTO_RNP/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
   RNP="$ONECRYPTO_RNP/usr/bin/rnp --notty"; RNPK="$ONECRYPTO_RNP/usr/bin/rnpkeys --notty"
   $ONECRYPTO_RNP/usr/bin/rnp --version | head -1
-  H=$W/rnphome; rm -rf "$H"; mkdir -m 700 "$H"
   for k in v5 v4o v4; do
+    # one RNP home per key, so a user ID can only select that key
+    H=$W/rnphome-$k; rm -rf "$H"; mkdir -m 700 "$H"
     $RNPK --homedir "$H" --import $k.key >/dev/null 2>&1
     want="ok"; [ $k = v5 ] && want="v5"
     $RNP --homedir "$H" --password '' --decrypt $k.oenc --output rnp.bin --overwrite >/dev/null 2>&1
