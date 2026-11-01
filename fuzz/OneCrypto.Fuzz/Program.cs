@@ -43,6 +43,8 @@ internal static class Program
         ["pgppacket"] = PgpPacketTarget.Run,
         ["pgpmessage"] = PgpMessageTarget.Run,
         ["gnupghome"] = GnuPGHomeTarget.Run,
+        ["autocrypt"] = AutocryptTarget.Run,
+        ["hkpindex"] = DiscoveryTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -69,6 +71,8 @@ internal static class Program
         "pgppacket" => PgpPacketTarget.Seeds(),
         "pgpmessage" => PgpMessageTarget.Seeds(),
         "gnupghome" => GnuPGHomeTarget.Seeds(),
+        "autocrypt" => AutocryptTarget.Seeds(),
+        "hkpindex" => DiscoveryTarget.Seeds(),
         _ => [],
     };
 
