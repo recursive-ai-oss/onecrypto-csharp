@@ -112,6 +112,8 @@ Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib,
 
 **Checked against**: `KeyManagementTests` and `SopKeyTests` (every profile with and without a password through signing, encryption, revocation, certification and password changes; edits shown lossless on RFC 9580 Appendix A.4), the two-way scripts `tools/oracles/gpg-keys.sh`, `rnp-keys.sh` and `sop-keys-matrix.sh`, the interoperability suite ([sop.md](sop.md)), the `pgpkey` fuzz target and the `OpenPgpSecretKeyUnlock` timing target.
 
+**Fuzzing** (`pgpkey`): the first three runs each found a defect, all fixed and kept as regression tests (`testdata/fuzz-repros/pgpkey-*`): a secret that unlocked but did not fit its public EC point escaped as a platform exception; a completed signature or key with too few fields was indexed; an Argon2 specifier with zero lanes escaped as an `ArgumentOutOfRangeException`. The run after the fixes: 900 s, 572,828 executions, 7,586 coverage features, 0 crashes.
+
 **Interop results** (keys we generate, edit, revoke and certify, checked by other implementations; throwaway keys):
 
 | Oracle | Result |
