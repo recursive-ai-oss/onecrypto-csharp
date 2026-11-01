@@ -423,5 +423,11 @@ if (!OneCrypto.Smoke.OpenPgpSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.OpenPgpSmoke.RunMessages())
+{
+    Console.Error.WriteLine("the v6 sign, encrypt, decrypt and verify round trip failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
