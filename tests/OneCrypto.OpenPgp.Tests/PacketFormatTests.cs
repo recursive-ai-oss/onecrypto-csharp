@@ -3,6 +3,7 @@ using RecursiveAI.OneCrypto.OpenPgp.Packets;
 
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
+[Collection("ProcessMemory")]
 public class PacketFormatTests
 {
     private static byte[] Cat(params byte[][] parts) => parts.SelectMany(p => p).ToArray();

@@ -4,6 +4,7 @@ using RecursiveAI.OneCrypto.OpenPgp.Packets;
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
 /// <summary>Messages: the RFC 9580 Appendix A samples and round trips with the sample keys.</summary>
+[Collection("ProcessMemory")]
 public class MessageTests
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -51,7 +52,7 @@ public class MessageTests
         PgpCertificate locked = Cert("A_5.asc");
         var o = new PgpReadOptions { Now = Now, SecretKeys = [locked] };
         PgpException e = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(Sample("A_8_5.asc")), null, o));
-        Assert.Equal(PgpFailure.NoDecryptionKey, e.Failure);
+        Assert.Equal(PgpFailure.KeyIsProtected, e.Failure);
         using var output = new MemoryStream();
         PgpMessageReader.Read(new MemoryStream(Sample("A_8_5.asc")), output, new PgpReadOptions { Now = Now, SecretKeys = [locked], KeyPasswords = [Pw("correct horse battery staple")] });
         Assert.Equal("Hello, world!", Encoding.UTF8.GetString(output.ToArray()));

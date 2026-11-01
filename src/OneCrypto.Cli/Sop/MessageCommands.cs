@@ -407,7 +407,7 @@ internal static class MessageCommands
         List<PgpCertificate> certs = LoadCerts(o, io, o.Positionals, secret: false);
         var opts = new PgpReadOptions { Now = Now(), Certificates = certs, Require = PgpRequirement.NotEncrypted };
         // Nothing is emitted unless a signature verifies, so the plaintext is held until the verdict is known.
-        using var held = new MemoryStream();
+        using var held = new SpoolForSop();
         PgpReadResult r;
         try
         {
@@ -423,7 +423,8 @@ internal static class MessageCommands
             return SopExit.NoSignature;
         }
 
-        io.Stdout.Write(held.GetBuffer(), 0, (int)held.Length);
+        held.Position = 0;
+        held.CopyTo(io.Stdout);
         if (vout is not null)
         {
             using Stream v = SopIo.OpenOutput(vout);
