@@ -78,6 +78,17 @@ public class SopTests
         Assert.Equal(29, SopEnv(pw.Out, new Dictionary<string, string> { ["PW"] = "nope" }, "decrypt", "--with-password=@ENV:PW").Code);
     }
 
+    [Fact]
+    public void ValueOptionsAcceptTheValueAsTheNextArgument()
+    {
+        // Other implementations and the interoperability suite write `--with-password VALUE`; both forms must mean the same.
+        var env = new Dictionary<string, string> { ["PW"] = "secret" };
+        byte[] msg = "hello"u8.ToArray();
+        Result enc = SopEnv(msg, env, "encrypt", "--no-armor", "--with-password", "@ENV:PW", "--profile", "rfc4880");
+        Assert.Equal(0, enc.Code);
+        Assert.Equal(msg, SopEnv(enc.Out, env, "decrypt", "--with-password", "@ENV:PW").Out);
+    }
+
     private static byte[] Vector(string name) => File.ReadAllBytes(TestFiles.OpenPgp("rfc9580", name));
 
     private static string Label(byte[] armor) => Encoding.ASCII.GetString(armor).Split('\n')[0];

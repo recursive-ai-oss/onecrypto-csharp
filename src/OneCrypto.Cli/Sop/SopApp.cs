@@ -172,6 +172,14 @@ internal sealed class Options
     private static readonly HashSet<string> MultiOptions =
         ["--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with"];
 
+    // Options that take a value. The draft writes them as --name=value; other implementations, and the interoperability suite, also give the
+    // value as the next argument, so that form is read for these names only (a flag followed by a positional must stay a flag).
+    private static readonly HashSet<string> ValueOptions =
+    [
+        "--as", "--for", "--micalg-out", "--not-after", "--not-before", "--profile", "--session-key-out", "--signatures-out", "--verifications-out",
+        "--verify-not-after", "--verify-not-before", "--verify-out", "--with-password", "--with-key-password", "--with-session-key", "--sign-with", "--verify-with",
+    ];
+
     private Options()
     {
     }
@@ -184,8 +192,9 @@ internal sealed class Options
     {
         var o = new Options();
         bool optionsEnded = false;
-        foreach (string a in args)
+        for (int i = 0; i < args.Length; i++)
         {
+            string a = args[i];
             if (!optionsEnded && a == "--")
             {
                 optionsEnded = true;
@@ -200,6 +209,11 @@ internal sealed class Options
                 }
 
                 string? val = eq < 0 ? null : a[(eq + 1)..];
+                if (val is null && ValueOptions.Contains(name) && i + 1 < args.Length)
+                {
+                    val = args[++i];
+                }
+
                 if (MultiOptions.Contains(name))
                 {
                     // Options the draft allows more than once keep every value, in order.
