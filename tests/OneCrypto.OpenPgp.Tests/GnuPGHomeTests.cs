@@ -369,3 +369,61 @@ public class TrustDbTests
         Assert.Equal(GnuPGError.BadHeader, f.Error);
     }
 }
+
+public sealed class GnuPGHomeDirectoryTests
+{
+    [Theory]
+    [MemberData(nameof(GnuPGHomes.VersionData), MemberType = typeof(GnuPGHomes))]
+    public void AHomeDirectoryReadsItsKeysTrustAndSecretKeyFiles(string version)
+    {
+        var home = GnuPGHome.Open(GnuPGHomes.Dir(version, "main"));
+        Assert.True(home.HasKeybox);
+        IReadOnlyList<TransferableKey> keys = home.ReadPublicKeys();
+        var expected = GnuPGHomes.ReadColons(GnuPGHomes.Dir(version, "main", "list-keys.colons")).Select(k => k.Fingerprint).Order().ToList();
+        Assert.Equal(expected, keys.Select(k => k.Primary.FingerprintHex).Order().ToList());
+        Assert.NotNull(home.ReadTrustDb());
+
+        IReadOnlyList<KeyValuePair<string, GnuPGKeyFile>> files = home.ReadKeyFiles(out var skipped);
+        Assert.Empty(skipped);
+        Assert.NotEmpty(files);
+
+        // Every secret key file is found again from the public key it belongs to.
+        foreach (TransferableKey k in keys)
+        {
+            Assert.NotNull(home.FindKeyFile(k.Primary));
+        }
+    }
+
+    [Fact]
+    public void ALegacyHomeFallsBackToThePubring()
+    {
+        var home = GnuPGHome.Open(GnuPGHomes.Dir("2.4.8", "legacy"));
+        Assert.False(home.HasKeybox);
+        Assert.NotEmpty(home.ReadPublicKeys());
+        Assert.Null(home.ReadTrustDb());
+        Assert.Empty(home.ReadKeyFiles(out _));
+    }
+
+    [Fact]
+    public void ADamagedKeyFileIsReportedAndTheOthersStillRead()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "gnupg-home-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string keys = Path.Combine(dir, "private-keys-v1.d");
+            Directory.CreateDirectory(keys);
+            string src = GnuPGHomes.Dir("2.4.8", "main", "private-keys-v1.d");
+            string good = Directory.GetFiles(src, "*.key").Order(StringComparer.Ordinal).First();
+            File.Copy(good, Path.Combine(keys, Path.GetFileName(good)));
+            File.WriteAllBytes(Path.Combine(keys, "0000000000000000000000000000000000000000.key"), [(byte)'x', 1, 2, 3]);
+            var home = GnuPGHome.Open(dir);
+            Assert.Single(home.ReadKeyFiles(out var skipped));
+            Assert.Single(skipped);
+            Assert.Throws<DirectoryNotFoundException>(() => GnuPGHome.Open(Path.Combine(dir, "nothing")));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+}
