@@ -59,7 +59,7 @@ internal static class PadesTarget
                     throw new InvalidOperationException("bridge-error: " + string.Join("; ", s.Checks.Where(static c => c.Rule == "bridge-error").Select(static c => c.Reason)));
                 }
 
-                if (s.IsValid && !s.OnePdf.IsValid)
+                if (s.IsValid && !s.OnePdf.IsValid && s.Find("onepdf")?.Status != CmsCheckStatus.Warning)
                 {
                     throw new InvalidOperationException("the bridge accepts a signature OnePDF rejects");
                 }

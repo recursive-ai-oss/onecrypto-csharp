@@ -37,6 +37,7 @@ internal static class Program
         ["ocspresp"] = IssuerTarget.RunOcsp,
         ["load"] = LoadTarget.Run,
         ["pades"] = PadesTarget.Run,
+        ["placeholder"] = PlaceholderTarget.Run,
         ["online"] = OnlineTarget.Run,
     };
 
@@ -58,6 +59,7 @@ internal static class Program
         "ocspresp" => IssuerTarget.SeedsOcsp(),
         "load" => LoadTarget.Seeds(),
         "pades" => PadesTarget.Seeds(),
+        "placeholder" => PlaceholderTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
         _ => [],
     };

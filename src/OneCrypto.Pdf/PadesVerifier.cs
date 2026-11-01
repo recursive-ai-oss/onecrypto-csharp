@@ -253,9 +253,16 @@ public static class PadesVerifier
 
         (TimeStampReport? report, IReadOnlyList<CmsCheck> tokenChecks, bool trusted) = CheckToken(contents, hash =>
         {
+            // The signed bytes come from OnePDF's own accessor, so the digest covers exactly what its model says the ranges are.
             using IncrementalHash h = IncrementalHash.CreateHash(hash);
-            h.AppendData(pdf.Span[..(int)a]);
-            h.AppendData(pdf.Span.Slice((int)b, (int)c));
+            using Stream signed = s.OpenSignedData() ?? PdfLayout.SignedContent(pdf, a, b, c);
+            byte[] buffer = new byte[1 << 16];
+            int n;
+            while ((n = signed.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                h.AppendData(buffer, 0, n);
+            }
+
             return h.GetHashAndReset();
         }, options, pool, MergeRevocation(options, dss, null, null));
         return new PadesTimestamp(true, s.FieldName, report, tokenChecks, b + c, a, trusted);
@@ -309,6 +316,18 @@ public static class PadesVerifier
         r.Checks.FirstOrDefault(static c => c.Status is CmsCheckStatus.Failed or CmsCheckStatus.Unsupported) is { } f ? f.Rule + ": " + f.Reason : "The token is not valid.";
 
     // ---- signatures ------------------------------------------------------------------------------------------------------
+
+    /// <summary>True when OnePDF left the signature or digest check open (an algorithm it does not support) and found nothing else wrong.</summary>
+    private static bool OnePdfDefersToBridge(PdfSignatureVerification one, bool requireKeyUsage) =>
+        (one.Integrity == PdfCheckStatus.NotChecked || one.SignatureCheck == PdfCheckStatus.NotChecked)
+        && one.ByteRange == PdfByteRangeStatus.Valid
+        && one.Integrity != PdfCheckStatus.Invalid
+        && one.SignatureCheck != PdfCheckStatus.Invalid
+        && one.Chain is PdfChainStatus.Trusted or PdfChainStatus.NotChecked
+        && (one.KeyUsage != PdfCheckStatus.Invalid || !requireKeyUsage)
+        && (one.Timestamp is null || one.Timestamp.IsValid)
+        && one.Revocation != PdfRevocationStatus.Revoked
+        && one.Coverage != PdfSignatureCoverage.EarlierRevisionDisallowedChanges;
 
     private static async ValueTask<PadesSignatureReport> SignatureReport(
         PdfSignature s,
@@ -432,7 +451,7 @@ public static class PadesVerifier
         ValidationReport? embedded = null;
         if (cms is not null && signer is not null && rangeOk)
         {
-            using Stream content = PdfLayout.SignedContent(pdf, a, b, c);
+            using Stream content = s.OpenSignedData() ?? PdfLayout.SignedContent(pdf, a, b, c);
             cmsReport = cms.Verify(content, new SignedDataVerifyOptions
             {
                 ExtraCertificates = pool,
@@ -457,12 +476,19 @@ public static class PadesVerifier
         }
 
         PdfSignatureVerification one = s.Verify(OnePdfOptions(options, anchors, pool, at), ct);
+        // OnePDF cannot check EdDSA or ML-DSA signatures (it reports the integrity or signature check as not checked, and the chain with it).
+        // When everything else it can judge is fine and the bridge verified the CMS signature itself, the bridge's verdict stands in, and the
+        // report says so: the verdict for those signatures comes from this package, not from OnePDF.
+        bool bridgeCmsPassed = checks.Any(static k => k.Rule == "cms-signature" && k.Status == CmsCheckStatus.Passed);
+        bool delegated = !one.IsValid && bridgeCmsPassed && OnePdfDefersToBridge(one, options.RequireSigningKeyUsage);
         checks.Add(one.IsValid
             ? new CmsCheck("onepdf", CmsCheckStatus.Passed, string.Empty, "ISO 32000-2 §12.8")
-            : new CmsCheck("onepdf", CmsCheckStatus.Failed, one.Warnings.Count > 0 ? one.Warnings[0] : "OnePDF does not accept the signature.", "ISO 32000-2 §12.8"));
+            : delegated
+                ? new CmsCheck("onepdf", CmsCheckStatus.Warning, "OnePDF does not check this signature algorithm; the verdict is the bridge's.", "ISO 32000-2 §12.8")
+                : new CmsCheck("onepdf", CmsCheckStatus.Failed, one.Warnings.Count > 0 ? one.Warnings[0] : "OnePDF does not accept the signature.", "ISO 32000-2 §12.8"));
 
         PadesLevel level = LevelOf(s, cms, cmsReport, chain, embedded, timestamps, dss, vri, checks);
-        bool valid = one.IsValid && checks.All(static k => k.Status is not (CmsCheckStatus.Failed or CmsCheckStatus.Unsupported));
+        bool valid = (one.IsValid || delegated) && checks.All(static k => k.Status is not (CmsCheckStatus.Failed or CmsCheckStatus.Unsupported));
         return new PadesSignatureReport(one, PadesSignatureKind.Signature, checks, cmsReport, chain, timestamps, proof, at, valid ? level : PadesLevel.None, valid);
     }
 

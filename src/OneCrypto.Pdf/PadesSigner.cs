@@ -10,17 +10,19 @@ using RecursiveAI.OneCrypto.X509;
 namespace RecursiveAI.OneCrypto.Pdf;
 
 /// <summary>
-/// Signs a PDF at a PAdES baseline level with a OneCrypto key. OnePDF writes the field, the byte range and the CMS (PAdES baseline:
-/// content type, message digest and ESS signing-certificate-v2 signed attributes, no signing time); the key signs the digest of the
-/// signed attributes through OnePDF's external-signer seam, so a software key, an operating-system key or any other
-/// <see cref="ISigningKey"/> works the same way. The time-stamp authority and the revocation sources are the caller's functions.
+/// Signs a PDF at a PAdES baseline level with a OneCrypto key. OnePDF writes the field, the byte range and an empty signature hole; core builds
+/// the CMS over the bytes outside the hole (PAdES baseline signed attributes: content type, message digest and ESS signing-certificate-v2, no
+/// signing time; sub-filter <c>ETSI.CAdES.detached</c>, EN 319 142-1 §6.3) and the key signs it, so a software key, an operating-system key or any
+/// other <see cref="ISigningKey"/> works the same way. The time-stamp authority and the revocation sources are the caller's functions.
 /// </summary>
 /// <remarks>
-/// <para><b>Keys.</b> RSA (PKCS #1 v1.5 or PSS) and ECDSA keys. OnePDF's seam hands over a digest and asks for an RSA or ECDSA signature
-/// value, so EdDSA and ML-DSA keys, which sign the attributes themselves, are refused with <see cref="PadesError.UnsupportedKey"/>.</para>
+/// <para><b>Keys.</b> RSA (PKCS #1 v1.5 or PSS), ECDSA, Ed25519, Ed448 and ML-DSA. ISO/TS 32002 puts Ed25519 and Ed448 in PDF 2.0; ML-DSA in PDF is
+/// not standardised and is preview. Readers that predate a scheme report the signature as unverifiable. <see cref="PadesVerifier"/> verifies all of
+/// them; OnePDF's own verifier reports EdDSA and ML-DSA as not checked.</para>
 /// <para><b>Levels.</b> B-B is the signature; B-T adds the signature time-stamp inside the signature; B-LT then appends the document security
 /// store with the validation data of the signer's and the time-stamp authority's chains; B-LTA then appends a document time-stamp that
 /// covers it all. Each step is an incremental update, so every earlier signature stays valid byte for byte.</para>
+/// <para>For signing in two steps, possibly in different processes, see <see cref="PadesTwoPhase"/>.</para>
 /// </remarks>
 public static class PadesSigner
 {
@@ -78,42 +80,74 @@ public static class PadesSigner
             throw new PadesException(PadesError.InvalidArgument, $"Level {options.Level} needs validation data (trust anchors, a reference time and revocation data or sources).");
         }
 
-        SignatureSpec Spec(PdfSignRequest r) => r.KeyType == PdfSigningKeyType.Rsa
-            ? (r.RsaPadding == PdfRsaPadding.Pss ? SignatureSpec.RsaPss(r.HashAlgorithm) : SignatureSpec.RsaPkcs1(r.HashAlgorithm))
-            : SignatureSpec.Ecdsa(r.HashAlgorithm);
+        CmsSignerSpec spec = BuildSpec(key, certificate, options);
+        // New data: the policy judges the signature algorithm, the key and the digest before anything is written.
+        string digestOid = SignedData.DigestAlgorithmFor(spec, options.Policy);
+        SignedDataOptions cmsOptions = CmsOptions(chain);
 
-        SignatureSpec probe = SignatureSpec.DefaultFor(key.PublicKey);
-        if (probe.Kind is not (SignatureKind.RsaPkcs1 or SignatureKind.RsaPss or SignatureKind.Ecdsa))
-        {
-            throw new PadesException(PadesError.UnsupportedKey, $"A {probe.Kind} key cannot sign through OnePDF's external-signer seam, which passes a digest of the signed attributes and accepts RSA and ECDSA signature values only.");
-        }
+        // OnePDF writes the field, the byte range and an empty /Contents hole; core builds the SignerInfo over the bytes outside the hole
+        // (EN 319 142-1 §6.3: CAdES signed attributes with ESS signing-certificate-v2, no signing time) and the key signs it.
+        using var ms = new MemoryStream();
+        PdfSignaturePlaceholder hole = document.AddSignaturePlaceholder(ms, PlaceholderOptions(options), options.Pdf?.ContentsReserve ?? DefaultReserve, ct);
+        ct.ThrowIfCancellationRequested();
+        byte[] digest = HashOutsideHole(ms, hole.HoleStart, hole.HoleEnd, digestOid);
+        SignedData cms = SignedData.CreateDetachedFromDigest(digest, digestOid, [spec], cmsOptions);
+        PdfSignatureHole.Fill(ms, hole.HoleStart, hole.HoleEnd, cms.Encoded.Span);
+        byte[] signed = ms.ToArray();
+        string field = hole.FieldName;
 
-        SignatureSpec planned = probe.Kind == SignatureKind.Ecdsa ? SignatureSpec.Ecdsa(options.Hash) : (options.RsaPss ? SignatureSpec.RsaPss(options.Hash) : SignatureSpec.RsaPkcs1(options.Hash));
-        PolicyReport policy = options.Policy.CheckSignature(planned, key.PublicKey, CryptoUse.Sign, default);
-        if (!policy.IsAllowed)
+        int revisions = 1;
+        byte[] final = signed;
+        if (options.Level >= PadesLevel.Timestamped)
         {
-            throw new PolicyViolationException(policy);
-        }
-
-        X509Certificate2 signerCert;
-        List<X509Certificate2> chainCerts = [];
-        try
-        {
-            signerCert = certificate.ToX509Certificate2();
-            foreach (Certificate c in chain ?? [])
+            var augment = new PadesAugmentOptions
             {
-                chainCerts.Add(c.ToX509Certificate2());
-            }
-        }
-        catch (CryptographicException e)
-        {
-            throw new PadesException(PadesError.UnsupportedKey, "The platform cannot load a certificate for OnePDF: " + e.Message, e);
+                Level = options.Level,
+                Timestamp = options.Timestamp,
+                TimestampHash = options.TimestampHash,
+                ValidationData = options.ValidationData,
+            };
+            final = await PadesAugmenter.AugmentAsync(signed, augment, ct).ConfigureAwait(false);
+            revisions += options.Level == PadesLevel.LongTermArchive ? 2 : options.Level == PadesLevel.LongTerm ? 1 : 0;
         }
 
-        PdfExternalSigner external = request => key.SignDigest(request.Hash.Span, Spec(request));
-        PdfSigningCredential credential = PdfSigningCredential.FromExternalSigner(signerCert, external, chainCerts);
+        await output.WriteAsync(final, ct).ConfigureAwait(false);
+        return new PadesSignResult(field, options.Level, revisions);
+    }
+
+    internal static CmsSignerSpec BuildSpec(ISigningKey? key, Certificate certificate, PadesSignOptions options)
+    {
+        SignatureSpec probe = SignatureSpec.DefaultFor(certificate.PublicKey);
+        return probe.Kind switch
+        {
+            // RSA and ECDSA sign a digest of the signed attributes in the hash the caller picked; EdDSA and ML-DSA sign the attributes
+            // themselves and bring their own digest algorithm (RFC 8419 §3.1, RFC 9882).
+            SignatureKind.Ecdsa => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = SignatureSpec.Ecdsa(options.Hash), DigestAlgorithm = HashOid(options.Hash) },
+            SignatureKind.RsaPkcs1 or SignatureKind.RsaPss => new CmsSignerSpec
+            {
+                Certificate = certificate,
+                Key = key,
+                SignatureSpec = options.RsaPss ? SignatureSpec.RsaPss(options.Hash) : SignatureSpec.RsaPkcs1(options.Hash),
+                DigestAlgorithm = HashOid(options.Hash),
+            },
+            _ => new CmsSignerSpec { Certificate = certificate, Key = key, SignatureSpec = probe },
+        };
+    }
+
+    internal static string HashOid(HashAlgorithmName hash) =>
+        hash == HashAlgorithmName.SHA256 ? KnownOids.Sha256 :
+        hash == HashAlgorithmName.SHA384 ? KnownOids.Sha384 :
+        hash == HashAlgorithmName.SHA512 ? KnownOids.Sha512 :
+        hash == HashAlgorithmName.SHA1 ? KnownOids.Sha1 :
+        throw new PadesException(PadesError.InvalidArgument, "The signature hash must be SHA-256, SHA-384 or SHA-512 (SHA-1 is refused by the default policy).");
+
+    internal static SignedDataOptions CmsOptions(IEnumerable<Certificate>? chain) => new() { Certificates = [.. chain ?? []] };
+
+    /// <summary>The placeholder's own options. Its digest is not used (the digest algorithm follows the key), so any SHA-2 will do.</summary>
+    internal static PdfSigningOptions PlaceholderOptions(PadesSignOptions options)
+    {
         PdfSigningOptions basis = options.Pdf ?? new PdfSigningOptions();
-        var pdfOptions = new PdfSigningOptions
+        return new PdfSigningOptions
         {
             FieldName = basis.FieldName,
             PageIndex = basis.PageIndex,
@@ -126,39 +160,18 @@ public static class PadesSigner
             SigningTime = basis.SigningTime ?? options.ReferenceTime ?? options.ValidationData?.ReferenceTime,
             Certify = basis.Certify,
             FieldLock = basis.FieldLock,
-            ContentsReserve = basis.ContentsReserve ?? DefaultReserve,
             Format = PdfSignatureFormat.PadesBaseline,
-            Hash = options.Hash,
-            RsaPadding = options.RsaPss ? PdfRsaPadding.Pss : PdfRsaPadding.Pkcs1,
-            Timestamp = options.Level >= PadesLevel.Timestamped ? Adapt(options.Timestamp!, ct) : null,
+            SubFilter = "ETSI.CAdES.detached",
+            Hash = HashAlgorithmName.SHA512,
         };
+    }
 
-        // OnePDF signs synchronously and calls the time-stamp function from inside; run it off the caller's context so a function
-        // that awaits cannot deadlock a single-threaded one.
-        (byte[] signed, string field) = await Task.Run(() =>
-        {
-            using var ms = new MemoryStream();
-            PdfSigningResult r = document.Sign(ms, credential, pdfOptions, ct);
-            return (ms.ToArray(), r.FieldName);
-        }, ct).ConfigureAwait(false);
-
-        int revisions = 1;
-        byte[] final = signed;
-        if (options.Level >= PadesLevel.LongTerm)
-        {
-            var augment = new PadesAugmentOptions
-            {
-                Level = options.Level,
-                Timestamp = options.Timestamp,
-                TimestampHash = options.TimestampHash,
-                ValidationData = options.ValidationData,
-            };
-            final = await PadesAugmenter.AugmentAsync(signed, augment, ct).ConfigureAwait(false);
-            revisions += options.Level == PadesLevel.LongTermArchive ? 2 : 1;
-        }
-
-        await output.WriteAsync(final, ct).ConfigureAwait(false);
-        return new PadesSignResult(field, options.Level, revisions);
+    /// <summary>Hashes the two byte ranges (everything but the <c>/Contents</c> hole), ISO 32000-2 §12.8.1.</summary>
+    internal static byte[] HashOutsideHole(MemoryStream file, long holeStart, long holeEnd, string digestOid)
+    {
+        ReadOnlyMemory<byte> bytes = file.GetBuffer().AsMemory(0, (int)file.Length);
+        using Stream ranges = PdfLayout.SignedContent(bytes, holeStart, holeEnd, bytes.Length - holeEnd);
+        return SignedData.HashContent(digestOid, ranges);
     }
 
     /// <summary>Bridges the caller's asynchronous function to OnePDF's synchronous callback, on the thread OnePDF is signing on.</summary>
