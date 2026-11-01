@@ -109,7 +109,6 @@ public class MessageTests
         long before = GC.GetAllocatedBytesForCurrentThread();
         PgpMessageReader.Read(new MemoryStream(message), Stream.Null, new PgpReadOptions { Now = Now, MessagePasswords = [Pw("pw")] });
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        
         Assert.True(allocated < 96 * 1024, "allocated " + allocated);
     }
 
