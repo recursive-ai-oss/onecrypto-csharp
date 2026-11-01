@@ -51,11 +51,11 @@ for name in rnp-rsa rsa3072 ed25519; do
   sop sign $name.key < msg.txt > $name.osig
   $RNP --homedir "$H" --verify $name.osig --source msg.txt >/dev/null 2>&1 && ok "$name rnp verifies our detached" || bad "$name rnp verifies our detached"
   sop inline-sign $name.key < big.bin > $name.osigned
-  $RNP --homedir "$H" --decrypt $name.osigned --output dec.bin --overwrite >/dev/null 2>&1 && cmp -s dec.bin big.bin && ok "$name rnp verifies our inline" || bad "$name rnp verifies our inline"
+  rm -f dec.bin; $RNP --homedir "$H" --decrypt $name.osigned --output dec.bin --overwrite >/dev/null 2>&1 && cmp -s dec.bin big.bin && ok "$name rnp verifies our inline" || bad "$name rnp verifies our inline"
   sop inline-sign --as=clearsigned $name.key < msg.txt > $name.oclear
   $RNP --homedir "$H" --verify $name.oclear >/dev/null 2>&1 && ok "$name rnp verifies our cleartext" || bad "$name rnp verifies our cleartext"
   sop encrypt --profile=rfc4880 --sign-with=$name.key $name.cert < big.bin > $name.oenc
-  $RNP --homedir "$H" --password '' --decrypt $name.oenc --output dec.bin --overwrite >/dev/null 2>&1 && cmp -s dec.bin big.bin && ok "$name rnp decrypts ours (rfc4880, signed)" || bad "$name rnp decrypts ours (rfc4880, signed)"
+  rm -f dec.bin; $RNP --homedir "$H" --password '' --decrypt $name.oenc --output dec.bin --overwrite >/dev/null 2>&1 && cmp -s dec.bin big.bin && ok "$name rnp decrypts ours (rfc4880, signed)" || bad "$name rnp decrypts ours (rfc4880, signed)"
 done
 
 # --- passwords
