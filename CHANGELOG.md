@@ -8,6 +8,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `RecursiveAI.OneCrypto.Pdf`, the PDF bridge on OnePDF 1.15.1 (a new package, not yet released): PAdES signing from B-B to B-LTA with any RSA or ECDSA `ISigningKey` (signature time-stamp, document security store, document time-stamp; the time-stamp authority and revocation sources are the caller's), augmentation of signed files and archive time-stamp renewal, and verification that adds OneCrypto's CMS verifier, RFC 3161 verifier and path validator (past-time model through signature and document time-stamps, the store's contents, per-rule reports, the PAdES level) to OnePDF's own verdict without weakening it. EdDSA and ML-DSA keys are refused until OnePDF offers a prepare/complete signing seam. See `docs/pdf.md`.
 
+### Changed
+
+- The validator's internal review (not an external audit) is closed: all eight findings and observations O1–O5 and O7 are fixed; O6, about report contents only, is open. See `docs/validation-review.md`. The validator stays a preview.
+- `docs/policy.md` is retitled "CryptoPolicy: algorithm and key-size policy".
+- `CryptoPolicy` asks by signature use: PKI signatures (certificates, CRLs, OCSP, requests) use `CryptoUse.VerifyPki`, under which `Standard` rejects SHA-1 from 2017-01-01 (flagged from 2011) while message signatures keep the later SP 800-131A dates. The validator asks the policy about CRL, delta CRL, OCSP response and responder-certificate signatures too, reports the decisions in `RevocationReport.PolicyDecisions` and the reasons data was not used in `RevocationReport.Notes`. Revocation: an authentic stale CRL that lists a certificate for a final reason gives `Revoked`; delegated OCSP responders without `nocheck` are checked against supplied CRLs; `removeFromCRL` lifts only holds. Nested CRL-signer validations share one work budget and the pool is indexed (`MaxSignerValidations`).
+
+### Removed
+
+- `CryptoPolicy.WebPki`: `Standard` now refuses SHA-1 in certificate, CRL and OCSP signatures from 2017, which is what the preset was for (see `docs/policy.md`). An intentional break of the preview API, recorded in `src/OneCrypto/CompatibilitySuppressions.xml`.
+
 ## [0.1.0-preview.1] - 2026-11-01
 
 First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stable yet. This library has not been independently audited. What is tested, against what, and the documented deviations: [docs/conformance.md](docs/conformance.md).

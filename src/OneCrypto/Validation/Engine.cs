@@ -9,45 +9,37 @@ namespace RecursiveAI.OneCrypto.Validation;
 /// <summary>One validation run: builds candidate paths and validates each (RFC 5280 §6.1). Instances are single use.</summary>
 internal sealed partial class Engine
 {
-    private sealed class RefComparer : IEqualityComparer<(object A, object B)>
-    {
-        public bool Equals((object A, object B) x, (object A, object B) y) => ReferenceEquals(x.A, y.A) && ReferenceEquals(x.B, y.B);
-
-        public int GetHashCode((object A, object B) k) => HashCode.Combine(RuntimeHelpers.GetHashCode(k.A), RuntimeHelpers.GetHashCode(k.B));
-    }
-
     private readonly ValidationOptions _o;
     private readonly ValidationLimits _l;
-    private readonly Dictionary<Certificate, CertView> _views = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<(object, object), SignatureVerification> _sigCache = new(new RefComparer());
-    private readonly List<CertView> _pool = [];
+    private readonly RunState _st;
     private readonly List<PathReport> _paths = [];
     private readonly List<RejectedCandidate> _rejected = [];
     private readonly List<IssuerLocation> _locations = [];
-    private int _steps;
-    private int _sigChecks;
-    private int _validated;
     private bool _limit;
     private bool _stop;
     private PathReport? _winner;
 
     private readonly int _depth;
 
-    public Engine(ValidationOptions options, int depth = 0)
+    public Engine(ValidationOptions options, int depth = 0, RunState? state = null)
     {
         _depth = depth;
         _o = options;
         _l = options.Limits ?? ValidationLimits.Default;
-        foreach (Certificate c in options.Intermediates)
+        if (state is null)
         {
-            if (c is null || _pool.Any(p => p.Cert.Equals(c)))
+            state = new RunState();
+            foreach (Certificate c in options.Intermediates)
             {
-                continue;
+                state.AddToPool(c);
             }
-
-            _pool.Add(View(c));
         }
+
+        _st = state;
     }
+
+    /// <summary>True when this engine, or a CRL-signer validation it started, stopped at a work limit.</summary>
+    public bool LimitReached => _limit;
 
     // The purpose every certificate's extKeyUsage must allow: the caller's, or serverAuth under the server-authentication profile (RFC 5280 §4.2.1.12).
     private string? RequiredEku => _o.RequiredExtendedKeyUsage ?? (_o.WebPki is { RequireServerAuth: true } ? KnownOids.ServerAuth : null);
@@ -61,10 +53,10 @@ internal sealed partial class Engine
 
     public CertView View(Certificate c)
     {
-        if (!_views.TryGetValue(c, out CertView? v))
+        if (!_st.Views.TryGetValue(c, out CertView? v))
         {
             v = new CertView(c);
-            _views[c] = v;
+            _st.Views[c] = v;
         }
 
         return v;
@@ -73,58 +65,58 @@ internal sealed partial class Engine
     /// <summary>Verifies a signature once per certificate and key; the count of real verifications is limited.</summary>
     public SignatureVerification VerifyCert(Certificate cert, PublicKeyInfo key)
     {
-        if (_sigCache.TryGetValue((cert, key), out SignatureVerification cached))
+        if (_st.SigCache.TryGetValue((cert, key), out SignatureVerification cached))
         {
             return cached;
         }
 
-        if (_sigChecks >= _l.MaxSignatureChecks)
+        if (_st.SigChecks >= _l.MaxSignatureChecks)
         {
             _limit = true;
             return new(SignatureStatus.Malformed, string.Empty, "signature-check limit reached", "limit");
         }
 
-        _sigChecks++;
+        _st.SigChecks++;
         SignatureVerification r = cert.VerifySignature(key);
-        _sigCache[(cert, key)] = r;
+        _st.SigCache[(cert, key)] = r;
         return r;
     }
 
     public SignatureVerification VerifyCrl(CertificateRevocationList crl, PublicKeyInfo key)
     {
-        if (_sigCache.TryGetValue((crl, key), out SignatureVerification cached))
+        if (_st.SigCache.TryGetValue((crl, key), out SignatureVerification cached))
         {
             return cached;
         }
 
-        if (_sigChecks >= _l.MaxSignatureChecks)
+        if (_st.SigChecks >= _l.MaxSignatureChecks)
         {
             _limit = true;
             return new(SignatureStatus.Malformed, string.Empty, "signature-check limit reached", "limit");
         }
 
-        _sigChecks++;
+        _st.SigChecks++;
         SignatureVerification r = crl.VerifySignature(key);
-        _sigCache[(crl, key)] = r;
+        _st.SigCache[(crl, key)] = r;
         return r;
     }
 
     public SignatureVerification VerifyOcsp(OcspBasicResponse resp, PublicKeyInfo key)
     {
-        if (_sigCache.TryGetValue((resp, key), out SignatureVerification cached))
+        if (_st.SigCache.TryGetValue((resp, key), out SignatureVerification cached))
         {
             return cached;
         }
 
-        if (_sigChecks >= _l.MaxSignatureChecks)
+        if (_st.SigChecks >= _l.MaxSignatureChecks)
         {
             _limit = true;
             return new(SignatureStatus.Malformed, string.Empty, "signature-check limit reached", "limit");
         }
 
-        _sigChecks++;
+        _st.SigChecks++;
         SignatureVerification r = resp.VerifySignature(key);
-        _sigCache[(resp, key)] = r;
+        _st.SigCache[(resp, key)] = r;
         return r;
     }
 
@@ -295,12 +287,9 @@ internal sealed partial class Engine
     private List<CertView> Candidates(CertView subject, IEnumerable<CertView> chain)
     {
         var list = new List<(int Score, CertView V)>();
-        foreach (CertView p in _pool)
+        foreach (Certificate pc in _st.PoolBySubject(subject.Cert.Issuer))
         {
-            if (!subject.Cert.Issuer.Matches(p.Cert.Subject))
-            {
-                continue;
-            }
+            CertView p = View(pc);
 
             // Loop detection (RFC 4158 §4.1): a certificate may appear once, and so may a subject and key pair (cross-certificates of one key make cycles).
             if (chain.Any(c => ReferenceEquals(c, p) || c.Cert.Equals(p.Cert)
@@ -322,7 +311,7 @@ internal sealed partial class Engine
             return false;
         }
 
-        if (++_steps > _l.MaxSearchSteps)
+        if (++_st.Steps > _l.MaxSearchSteps)
         {
             _limit = true;
             _stop = true;
@@ -430,14 +419,14 @@ internal sealed partial class Engine
 
     private bool Complete(List<Certificate> chainFromTarget, TrustAnchor anchor)
     {
-        if (_validated >= _l.MaxPathsValidated)
+        if (_st.Validated >= _l.MaxPathsValidated)
         {
             _limit = true;
             _stop = true;
             return false;
         }
 
-        _validated++;
+        _st.Validated++;
         PathReport report = ValidatePath(anchor, chainFromTarget);
         if (_paths.Count < _l.MaxReportedPaths)
         {
