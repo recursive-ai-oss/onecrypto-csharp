@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Online.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Tests deliberately call blocking and token-defaulted APIs of the library under test. -->
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+    <Using Include="Xunit" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same test kit the core tests use: CAs, signers, and the openssl runner. -->
+    <Compile Include="../OneCrypto.Tests/Support/*.cs" LinkBase="Support" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
+    <ProjectReference Include="../TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
+  </ItemGroup>
+
+</Project>

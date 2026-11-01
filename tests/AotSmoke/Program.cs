@@ -405,5 +405,11 @@ if (!OneCrypto.Smoke.ValidationSmoke.Run())
     return 1;
 }
 
+if (!await OneCrypto.Smoke.OnlineSmoke.Run())
+{
+    Console.Error.WriteLine("replayed fetch gave the wrong answer");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;
