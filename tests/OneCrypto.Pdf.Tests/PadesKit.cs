@@ -16,6 +16,9 @@ public enum KeyKind
     Rsa2048,
     P256,
     P384,
+    Ed25519,
+    Ed448,
+    MlDsa65,
 }
 
 /// <summary>A signer: certificate, key and the chain to embed.</summary>
@@ -89,6 +92,9 @@ internal sealed class PadesKit
             {
                 KeyKind.Rsa2048 => PrivateKey.FromRsa(RSA.Create(2048), ownsKey: true),
                 KeyKind.P256 => PrivateKey.FromECDsa(ECDsa.Create(ECCurve.NamedCurves.nistP256), ownsKey: true),
+                KeyKind.Ed25519 => PrivateKey.FromEd25519(Primitives.Ed25519PrivateKey.Generate(), ownsKey: true),
+                KeyKind.Ed448 => PrivateKey.FromEd448(Primitives.Ed448PrivateKey.Generate(), ownsKey: true),
+                KeyKind.MlDsa65 => PrivateKey.FromMLDsa(MLDsa.GenerateKey(MLDsaAlgorithm.MLDsa65), ownsKey: true),
                 _ => PrivateKey.FromECDsa(ECDsa.Create(ECCurve.NamedCurves.nistP384), ownsKey: true),
             };
             Certificate cert = Intermediate.Issue(key.PublicKey, DistinguishedName.Create((KnownOids.CommonName, name ?? $"Test Signer {kind}")), new CertificateIssueOptions

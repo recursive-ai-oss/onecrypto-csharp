@@ -38,6 +38,7 @@ internal static class Program
         ["load"] = LoadTarget.Run,
         ["phc"] = PhcTarget.Run,
         ["pades"] = PadesTarget.Run,
+        ["placeholder"] = PlaceholderTarget.Run,
         ["online"] = OnlineTarget.Run,
     };
 
@@ -60,6 +61,7 @@ internal static class Program
         "load" => LoadTarget.Seeds(),
         "phc" => PhcTarget.Seeds(),
         "pades" => PadesTarget.Seeds(),
+        "placeholder" => PlaceholderTarget.Seeds(),
         "online" => OnlineTarget.Seeds(),
         _ => [],
     };

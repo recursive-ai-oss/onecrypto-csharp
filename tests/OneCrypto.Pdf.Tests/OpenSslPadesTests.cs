@@ -34,9 +34,22 @@ public class OpenSslPadesTests
     [InlineData(KeyKind.Rsa2048, true)]
     [InlineData(KeyKind.P256, false)]
     [InlineData(KeyKind.P384, false)]
+    [InlineData(KeyKind.Ed25519, false)]
+    [InlineData(KeyKind.Ed448, false)]
+    [InlineData(KeyKind.MlDsa65, false)]
     public void OpenSslVerifiesTheCmsOfEachLevelAndEveryTimestamp(KeyKind kind, bool pss)
     {
         OpenSslTool.RequireOrSkip();
+        if (kind is KeyKind.Ed448 or KeyKind.MlDsa65)
+        {
+            OpenSslTool.RequireOrSkip(3, 5, "Ed448 and ML-DSA in CMS");
+        }
+
+        if (kind == KeyKind.MlDsa65 && !MLDsa.IsSupported)
+        {
+            return;
+        }
+
         TestSigner signer = Kit.Signer(kind);
         DateTimeOffset at = Kit.Now;
         var options = new PadesSignOptions
