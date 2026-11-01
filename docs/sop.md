@@ -44,15 +44,17 @@ The scoreboard script writes `config.json` for the drivers it finds, leaves out 
 
 ### Latest run (251 tests, 14 sections, one score per driver per case)
 
-| Driver | Failure | IO | Neutral | Success |
-|---|---|---|---|---|
-| sqop 0.38.0 (Sequoia 2.4.1, nettle) | 72 | 0 | 537 | 1072 |
-| gosop 1.1.0 (GopenPGP 3.0.0) | 99 | 0 | 537 | 1045 |
-| onecrypto (this tool, x64, OpenSSL 3.0 platform without ML-KEM/ML-DSA) | 131 | 1 | 536 | 1013 |
+| Driver | Failure | Neutral | Success |
+|---|---|---|---|
+| sqop 0.38.0 (Sequoia 2.4.1, nettle) | 72 | 546 | 1193 |
+| gosop 1.1.0 (GopenPGP 3.0.0) | 100 | 546 | 1165 |
+| onecrypto (this tool, x64, OpenSSL 3.0 platform without ML-KEM/ML-DSA) | 131 | 546 | 1134 |
+
+Before `generate-key` and the other key subcommands existed, the same suite scored onecrypto 131 failures, 1 IO, 536 neutral and 1013 successes: the round-trip cells that start from `generate-key` now run (Key Generation: 185 successes, 13 neutral, no failures; Revocations 88 successes). The failures did not change and no cell that Sequoia passes was lost. The round-trip cells exist for every driver once it can generate keys, which is why the other drivers' totals moved too; the summary script shows no IO score in this run.
 
 The first run of the message subcommands scored 904 successes and 226 failures; the rest of the difference is fixes found by reading the failing cells (certificate evaluation, message grammar, unknown packets, armor, parser strictness).
 
-**Cells where Sequoia succeeds and we do not: 69, all explained.**
+**Cells where Sequoia succeeds and we do not: 69 (unchanged), all explained.**
 
 | Cells | Test | Why |
 |---|---|---|
@@ -60,7 +62,7 @@ The first run of the message subcommands scored 904 successes and 226 failures; 
 | 5 | Signature over the shattered SHA-1 collision | `Standard` flags SHA-1 data signatures made before 2031 (SP 800-131A dates) and accepts them with the flag; Sequoia rejects them. A `Strict` policy rejects them. |
 | 4 | Encrypt-decrypt round trip with a v4 EdDSA/ECDH + ML-KEM-768+X25519 key | The platform of the run (OpenSSL 3.0) has no ML-KEM, so the message cannot be opened here: `AlgorithmNotSupportedException`, `sop` exit 13. Platforms with ML-KEM and ML-DSA run the post-quantum cells. |
 
-The post-quantum message and signature cells score as failures on a platform without ML-KEM/ML-DSA (exit 13) and pass where the platform has them (RFC 9980 Appendix A is checked by unit tests there). The one remaining IO score is a LibrePGP version 5 secret key protected with OCB; it used to crash and now reports the key as not openable (LibrePGP v5 AEAD key protection is not implemented).
+The post-quantum message and signature cells score as failures on a platform without ML-KEM/ML-DSA (exit 13) and pass where the platform has them (RFC 9980 Appendix A is checked by unit tests there). 
 
 Cells where only GopenPGP succeeds, or where Sequoia and GopenPGP disagree about what the right answer is, are not listed: for example unknown packets before the literal data (Sequoia refuses, GopenPGP and the draft's text accept; we refuse), and signatures with the old signature-before-literal layout (GopenPGP accepts; Sequoia and we refuse).
 

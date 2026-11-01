@@ -37,6 +37,15 @@ public class KeyManagementTests
     }
 
     [Fact]
+    public void ACompletedSignatureWithTooFewFieldsIsRefusedNotIndexed()
+    {
+        // a minimized fuzz input: a saved state whose key is ECDSA, completed with a signature of the wrong shape
+        byte[] state = File.ReadAllBytes(Path.Combine(TestFiles.TestData, "fuzz-repros", "pgpkey-prepared-signature-too-few-fields.bin"));
+        Assert.True(PgpPreparedSignature.TryDecode(state, out PgpPreparedSignature? p, out _));
+        Assert.Throws<PgpException>(() => p!.Complete(new byte[64]));
+    }
+
+    [Fact]
     public void ASecretThatDoesNotMatchAnEcPointIsATypedFailure()
     {
         // found by fuzzing: an unprotected secret whose public point was altered unlocks, and the platform then refuses the pair

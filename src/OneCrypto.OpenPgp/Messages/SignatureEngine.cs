@@ -137,6 +137,24 @@ internal static class SignatureEngine
             throw new PgpException(PgpFailure.Unsupported, $"The signature algorithm {(byte)sig.Algorithm} is not supported.");
         }
 
+        // RFC 9580 §5.2.3: each algorithm has a fixed number of signature fields; a signature with fewer cannot verify (and its fields must not be indexed).
+        int fields = sig.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.Ed25519 or PublicKeyAlgorithm.Ed448 => 1,
+            PublicKeyAlgorithm.Ecdsa or PublicKeyAlgorithm.EdDsaLegacy or PublicKeyAlgorithm.Dsa or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            _ => 0,
+        };
+        int keyFields = key.Algorithm switch
+        {
+            PublicKeyAlgorithm.Rsa or PublicKeyAlgorithm.RsaSignOnly or PublicKeyAlgorithm.MlDsa65Ed25519 or PublicKeyAlgorithm.MlDsa87Ed448 => 2,
+            PublicKeyAlgorithm.Dsa => 4,
+            _ => 1,
+        };
+        if (sv.Count < fields || pub.Values.Count < keyFields)
+        {
+            return false;
+        }
+
         switch (sig.Algorithm)
         {
             case PublicKeyAlgorithm.Rsa:
