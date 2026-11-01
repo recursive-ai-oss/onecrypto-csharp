@@ -245,7 +245,7 @@ public sealed class PgpWriteOptions
 }
 
 /// <summary>Writes OpenPGP messages: signed (one-pass), encrypted, or both, streaming in constant memory.</summary>
-public static class PgpMessageWriter
+public static partial class PgpMessageWriter
 {
     // GnuPG 2.4 rejects armor whose data ends without padding and without a checksum line; RFC 9580 §6.1 makes the CRC optional, so we always write it.
     private static readonly ArmorWriteOptions GnuPgCompatible = ArmorWriteOptions.Default;

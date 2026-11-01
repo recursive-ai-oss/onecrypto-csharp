@@ -334,4 +334,31 @@ public class MessageTests
         Assert.Equal("round trip", Encoding.UTF8.GetString(dec.ToArray()));
         Assert.True(r.Signatures.Single().IsValid, string.Join("; ", r.Signatures[0].Reasons));
     }
+
+    [Fact]
+    public async Task AsyncTwinsRoundTripAndWriteNothingOnFailure()
+    {
+        PgpCertificate secret = Cert("A_4.asc");
+        PgpCertificate pub = PgpCertificate.Parse(secret.ExportPublic());
+        using PgpSecretKey signer = PgpSecretKey.Unlock(secret.Primary);
+        byte[] data = new byte[200_000];
+        new Random(5).NextBytes(data);
+        using var enc = new MemoryStream();
+        await PgpMessageWriter.WriteAsync(new MemoryStream(data), enc, new PgpWriteOptions { Now = Now, Recipients = [pub], Signers = [signer] });
+        using var dec = new MemoryStream();
+        PgpReadResult r = await PgpMessageReader.ReadAsync(new MemoryStream(enc.ToArray()), dec, new PgpReadOptions { Now = Now, SecretKeys = [secret], Certificates = [pub] });
+        Assert.Equal(data, dec.ToArray());
+        Assert.True(r.Signatures.Single().IsValid);
+
+        using var sig = new MemoryStream();
+        await PgpMessageWriter.SignDetachedAsync(new MemoryStream(data), sig, new PgpWriteOptions { Now = Now, Signers = [signer] });
+        PgpReadResult v = await PgpMessageReader.VerifyDetachedAsync(new MemoryStream(data), new MemoryStream(sig.ToArray()), new PgpReadOptions { Now = Now, Certificates = [pub] });
+        Assert.True(v.Signatures.Single().IsValid);
+
+        byte[] bad = enc.ToArray();
+        bad[^20] ^= 1;
+        using var sink = new MemoryStream();
+        await Assert.ThrowsAsync<PgpException>(() => PgpMessageReader.ReadAsync(new MemoryStream(bad), sink, new PgpReadOptions { Now = Now, SecretKeys = [secret] }));
+        Assert.Equal(0, sink.Length);
+    }
 }

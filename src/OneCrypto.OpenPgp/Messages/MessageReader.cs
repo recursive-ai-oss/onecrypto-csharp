@@ -12,7 +12,7 @@ namespace RecursiveAI.OneCrypto.OpenPgp;
 /// output (it spools to a temporary file beyond a few MiB); SEIPD v2 and OCB Encrypted Data release each chunk after its tag verifies, and a damaged,
 /// reordered or truncated stream makes the read throw <see cref="PgpException"/> with <see cref="PgpFailure.CannotDecrypt"/> at the point it is detected.
 /// </summary>
-public static class PgpMessageReader
+public static partial class PgpMessageReader
 {
     /// <summary>
     /// Reads a message, writing the literal data to <paramref name="output"/> (may be null to discard it).
