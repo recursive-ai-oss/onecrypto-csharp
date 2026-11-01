@@ -52,6 +52,7 @@ public class LibrePgpTests
     [InlineData("ky1024_cv448")]
     public void GnuPg25KyberMessagesDecrypt(string kind)
     {
+        Assert.SkipUnless(System.Security.Cryptography.MLKem.IsSupported, "ML-KEM is not available on this platform");
         PgpCertificate secret = Cert($"sec-kyber-{kind}.gpg");
         using var output = new MemoryStream();
         PgpReadResult r = PgpMessageReader.Read(new MemoryStream(Fixture($"msg-kyber-{kind}.gpg")), output, new PgpReadOptions { Now = Now, SecretKeys = [secret] });
@@ -276,6 +277,7 @@ public class LibrePgpTests
     [InlineData(1)]
     public void ATamperedKyberSessionKeyIsNotOpened(int part)
     {
+        Assert.SkipUnless(System.Security.Cryptography.MLKem.IsSupported, "ML-KEM is not available on this platform");
         // Flip one octet in the ephemeral key (part 0) or in the wrapped session key (part 1) of the PKESK GnuPG wrote.
         byte[] good = Fixture("msg-kyber-ky768_cv25519.gpg");
         var packets = Packets.PacketParser.ParseAll(good).ToList();

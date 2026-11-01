@@ -199,41 +199,33 @@ public class PacketFormatTests
     public void ALargeStreamedLiteralPassesInConstantMemory()
     {
         // 256 MiB by default; set ONECRYPTO_STREAM_CHUNKS=16384 for the 1 GiB run (64 KiB chunks).
-        // The bound is on working set growth, sampled while reading, not on bytes allocated.
+        // The bound is on bytes allocated while reading, which stays far below the stream size only if nothing is buffered.
         long chunks = long.TryParse(Environment.GetEnvironmentVariable("ONECRYPTO_STREAM_CHUNKS"), out long c) ? c : 4096;
         using var input = new SyntheticLiteralStream(chunks);
         long total = input.BodyLength;
         using var reader = new PacketReader(input);
         PacketFrame frame = reader.ReadFrame()!;
-        using var self = System.Diagnostics.Process.GetCurrentProcess();
-        GC.Collect();
-        self.Refresh();
-        long baseline = self.WorkingSet64;
-        long peak = baseline;
+        // Allocations on this thread, not the process working set: other test classes run in parallel in the same process
+        // and would make a working-set reading meaningless. The read below is synchronous, so every byte it allocates counts here.
+        long baseline = GC.GetAllocatedBytesForCurrentThread();
         long seen = 0;
-        long reads = 0;
         byte[] buffer = new byte[64 * 1024];
         int n;
         while ((n = frame.Body.Read(buffer, 0, buffer.Length)) > 0)
         {
             seen += n;
-            if ((++reads & 255) == 0)
-            {
-                self.Refresh();
-                peak = Math.Max(peak, self.WorkingSet64);
-            }
         }
 
         Assert.Equal(total, seen);
-        long growth = peak - baseline;
+        long growth = GC.GetAllocatedBytesForCurrentThread() - baseline;
         string? artifacts = Environment.GetEnvironmentVariable("ONECRYPTO_ARTIFACTS");
         if (artifacts is not null)
         {
             Directory.CreateDirectory(artifacts);
-            File.WriteAllText(Path.Combine(artifacts, "stream-working-set.txt"), $"streamed {total >> 20} MiB; baseline {baseline >> 20} MiB; peak {peak >> 20} MiB; growth {growth >> 20} MiB\n");
+            File.WriteAllText(Path.Combine(artifacts, "stream-allocations.txt"), $"streamed {total >> 20} MiB; allocated {growth >> 10} KiB while reading\n");
         }
 
-        Assert.True(growth < 100L << 20, $"working set grew {growth >> 20} MiB (peak {peak >> 20} MiB) over {total >> 20} MiB");
+        Assert.True(growth < 100L << 20, $"reading allocated {growth >> 20} MiB over {total >> 20} MiB");
         Assert.Null(reader.ReadFrame());
     }
 }
