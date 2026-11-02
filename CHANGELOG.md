@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- `PgpSecretKey.FromExternalKey` refuses an external key whose public key is not the key packet's (different algorithm, curve or key material) with the new `PgpFailure.KeyMismatch`, instead of failing later at the verifier.
+- gpg-agent, ssh-agent, PKCS #11 and Cloud Signature Consortium keys refuse a signature with `AlgorithmNotSupportedException` when the platform cannot verify its scheme, instead of releasing it unchecked. `AllowUncheckedSignatures` (`GpgAgentOptions`, `SshAgentOptions`, `Pkcs11Session`, `CscKeyOptions`) opts out and weakens the check.
+
 ## [0.3.0-preview.2] - 2026-11-02
 
 A fix release for 0.3. A certificate with one unusable subkey is now kept. Key generation defaults to the version 4 form every major OpenPGP implementation reads. The `onecrypto` tool has help output. It also carries early key-backend work from the next stage: the Cloud Signature Consortium client in `.Online` is a **preview that has not been reviewed yet**, so don't rely on it. The `.Keys` package (PKCS #11, gpg-agent, ssh-agent) is listed below but is not published in this release. This library has not been independently audited.

@@ -33,6 +33,16 @@ public sealed class GpgAgentOptions
     /// </summary>
     public bool VerifySignatures { get; init; } = true;
 
+    /// <summary>
+    /// Release a signature unchecked when the platform cannot verify its scheme at all (for example a curve or post-quantum scheme the operating system lacks).
+    /// Default false: such a signature is refused with <see cref="AlgorithmNotSupportedException"/>. Setting it true weakens the check, because a faulty or hostile
+    /// signer's output is then passed on without being compared with the public key. Has no effect where the scheme can be verified, or when <see cref="VerifySignatures"/> is false.
+    /// </summary>
+    public bool AllowUncheckedSignatures { get; init; }
+
+    /// <summary>Treat every scheme as one the platform cannot verify; for tests of the refusal.</summary>
+    internal bool SimulateVerificationGap { get; init; }
+
     /// <summary>The most octets one agent reply may take, over all its lines. Default 256 KiB; replies are a few kilobytes.</summary>
     public int MaxReplyBytes { get; init; } = 256 * 1024;
 }

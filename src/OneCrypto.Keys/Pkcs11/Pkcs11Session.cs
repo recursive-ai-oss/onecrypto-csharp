@@ -102,6 +102,16 @@ public sealed class Pkcs11Session : IDisposable
     public bool ReadWrite { get; }
 
     /// <summary>
+    /// Release a token's signature unchecked when the platform cannot verify its scheme at all. Default false: such a signature is refused with
+    /// <see cref="AlgorithmNotSupportedException"/>. Setting it true weakens the check, because a faulty or hostile token's output is then passed on without being
+    /// compared with the key's public key. Has no effect where the scheme can be verified. Read when each signature is made, so it applies to keys already opened.
+    /// </summary>
+    public bool AllowUncheckedSignatures { get; set; }
+
+    /// <summary>Treat every scheme as one the platform cannot verify; for tests of the refusal.</summary>
+    internal bool SimulateVerificationGap { get; set; }
+
+    /// <summary>
     /// True while the user is logged in on the token (C_GetSessionInfo, §5.6.4: the login state belongs to the token, so a login or logout in any
     /// session of this application shows in all of them).
     /// </summary>

@@ -39,7 +39,12 @@ public class KeyBackendGlueTests
         }
     }
 
-    private static readonly PublicKeyInfo AnyRsaPublicKey = PrivateKey.FromRsa(RSA.Create(2048), ownsKey: true).PublicKey;
+    private static PublicKeyInfo RsaPublicOf(PgpKey key)
+    {
+        using var rsa = RSA.Create();
+        rsa.ImportParameters(new RSAParameters { Modulus = key.Packet.Material.Values[0].ToArray(), Exponent = key.Packet.Material.Values[1].ToArray() });
+        return PublicKeyInfo.Parse(rsa.ExportSubjectPublicKeyInfo());
+    }
 
     private sealed class LockedTokenException() : CryptographicException("the token is locked");
 
@@ -55,7 +60,7 @@ public class KeyBackendGlueTests
     private static PgpException ReadFails(PgpCertificate cert, byte[] message, Func<byte[]> answer)
     {
         PgpCertificate pub = cert.ToPublicCertificate();
-        using PgpSecretKey ext = PgpSecretKey.FromExternalKey(pub.Keys[1], new ScriptedDecryptor(AnyRsaPublicKey, answer));
+        using PgpSecretKey ext = PgpSecretKey.FromExternalKey(pub.Keys[1], new ScriptedDecryptor(RsaPublicOf(pub.Keys[1]), answer));
         var options = new PgpReadOptions { Now = new DateTimeOffset(2026, 6, 1, 12, 1, 0, TimeSpan.Zero), ExternalKeys = [ext] };
         return Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(message), new MemoryStream(), options));
     }
@@ -94,7 +99,7 @@ public class KeyBackendGlueTests
     {
         (PgpCertificate cert, byte[] message) = RsaMessage();
         PgpCertificate pub = cert.ToPublicCertificate();
-        using PgpSecretKey ext = PgpSecretKey.FromExternalKey(pub.Keys[1], new ScriptedDecryptor(AnyRsaPublicKey, () => throw new LockedTokenException()));
+        using PgpSecretKey ext = PgpSecretKey.FromExternalKey(pub.Keys[1], new ScriptedDecryptor(RsaPublicOf(pub.Keys[1]), () => throw new LockedTokenException()));
         var options = new PgpReadOptions { Now = new DateTimeOffset(2026, 6, 1, 12, 1, 0, TimeSpan.Zero), ExternalKeys = [ext] };
         Assert.Throws<LockedTokenException>(() => PgpMessageReader.Read(new MemoryStream(message), new MemoryStream(), options));
     }

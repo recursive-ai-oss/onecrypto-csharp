@@ -30,14 +30,17 @@ public sealed class PgpSecretKey : IDisposable
     /// <summary>
     /// Wraps a key that lives elsewhere (an agent, a token, a service) so it can sign and decrypt for this OpenPGP key. Nothing is unlocked and no secret is held here:
     /// signing goes to <see cref="ISigningKey"/>, RSA decryption to <see cref="IDecryptionKey"/> and ECDH or X25519 decryption to <see cref="IAgreementKey"/>. The caller
-    /// keeps ownership of <paramref name="external"/>; disposing this object does not dispose it. The caller is responsible for the key being the private half of <paramref name="key"/>.
+    /// keeps ownership of <paramref name="external"/>; disposing this object does not dispose it. The external key's public key must be the one in the key packet: the
+    /// same algorithm and the same key material (RSA modulus and exponent, curve and point, or the Ed25519, Ed448, X25519 or X448 key); otherwise nothing is wrapped.
     /// </summary>
     /// <param name="key">The public key packet the external key belongs to.</param>
     /// <param name="external">The external key; an <see cref="ISigningKey"/> and/or <see cref="IDecryptionKey"/> or <see cref="IAgreementKey"/> as the algorithm needs.</param>
+    /// <exception cref="PgpException"><see cref="PgpFailure.KeyMismatch"/> when the external key's public key differs from the key packet's; <see cref="PgpFailure.Unsupported"/> for a packet algorithm whose pairing cannot be checked.</exception>
     public static PgpSecretKey FromExternalKey(PgpKey key, IKey external)
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(external);
+        ExternalKeyPairing.Require(key.Packet, external.PublicKey);
         return new PgpSecretKey(key, [], 0) { _external = external, _signer = external as ISigningKey };
     }
 

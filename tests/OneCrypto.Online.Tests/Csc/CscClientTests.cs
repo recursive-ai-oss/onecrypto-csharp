@@ -367,6 +367,27 @@ public class CscClientTests
         Assert.Equal(CscOutcome.ServiceError, ex.Outcome);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ASchemeThePlatformCannotVerifyIsRefusedUnlessTheCallerOptsOut(bool allow)
+    {
+        var rig = new CscRig();
+        rig.Server.Add(CscRig.Credential("C1", "rsa"));
+        CscKeyOptions options = new() { AuthDataProvider = CscRig.WithPin().AuthDataProvider, SimulateVerificationGap = true, AllowUncheckedSignatures = allow };
+        using CscSigningKey key = (await rig.Client.OpenSigningKeyAsync("C1", options)).Value!;
+        byte[] digest = CscRig.Digest("x", HashAlgorithmName.SHA256);
+        if (allow)
+        {
+            byte[] sig = await key.SignDigestAsync(digest, key.DefaultSpec);
+            Assert.True(key.DefaultSpec.VerifyDigest(key.PublicKey, digest, sig).IsValid);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<AlgorithmNotSupportedException>(async () => await key.SignDigestAsync(digest, key.DefaultSpec));
+        }
+    }
+
     [Fact]
     public async Task ASignatureFromAnotherKeyIsNeverReleased()
     {
