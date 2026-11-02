@@ -177,6 +177,12 @@ The `small-and-glue` group (102 targets, N = 1,000,000) was re-run after the cha
   IDEA `decrypt-data` 6.85 (the target replaced by `decrypt-data-x16`), Twofish-128 `pair-decrypt-data` 18.34, and ChaCha20-Poly1305
   `decrypt-wrong-tag-key-100B` 9.46 and `encrypt-key-1000B` 8.67. These runs are not evidence under the publishability rule, so no claim
   changes on x64; the sporadic flags are kept open for the next quiet publishable runs.
+- **x64, fourth run** (publishable: mean CPU busy 3.3%, worst sample 3.9%): 100 of 102 targets pass, including every target touched by the
+  changes above. Two ChaCha20-Poly1305 key-secret targets flag, both replicated across halves: `encrypt-key-17B` 6.49 (means 343.8 / 344.0 ns)
+  and `decrypt-wrong-tag-key-100B` 8.43 (295.8 / 295.9 ns); the same two flagged in the third (unpublishable) run. Under the rule that every
+  publishable run must pass, **the ChaCha20-Poly1305 key-secret claim is withdrawn on x64** and kept on arm64; the five targets above stay
+  arm64-only as well, since one publishable run of the group is not the repeat they need. Investigation open. The managed ChaCha20-Poly1305
+  is a fallback used only where the platform has no ChaCha20-Poly1305.
 
 ## Results: 0.3 release runs (publishable)
 
@@ -184,8 +190,9 @@ Every group of `tools/timing-groups.sh` ran as an exclusive benchmark job that p
 
 Outcome:
 
-- **Claimed on x64 and arm64:** every target below that is not listed next. This covers Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the ChaCha20-Poly1305 key targets, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check.
-- **Claimed on arm64 only; x64 pending a publishable run** (causes found and fixed or isolated, see "x64 follow-up"; the 0.4 x64 runs were not publishable):
+- **Claimed on x64 and arm64:** every target below that is not listed next. This covers Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check.
+- **Claimed on arm64 only; x64 pending** (causes found and fixed or isolated, see "x64 follow-up"; see "Results: 0.4 release runs"):
+  - ChaCha20-Poly1305 key-secret targets (withdrawn on x64 in 0.4: two flags in the publishable 0.4 run);
   - Twofish-128 and -256 key setup (see above);
   - Camellia-128 key setup: the low-bits key control flags in all three x64 runs, with a 5–15 ns difference in about 700 ns, while the fixed-against-random target passes;
   - ChaCha20-Poly1305 encryption with secret data: flags in two of three x64 runs, with a mean difference of at most 1.1 ns in 3 µs;
