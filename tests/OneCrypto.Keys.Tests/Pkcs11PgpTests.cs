@@ -47,7 +47,7 @@ public class Pkcs11PgpTests
             }
 
             string file = Path.Combine(dir, $"key{i}.pem");
-            File.WriteAllText(file, Tools.Pem("PRIVATE KEY", pkcs8));
+            File.WriteAllText(file, TokenTools.Pem("PRIVATE KEY", pkcs8));
             var r = SoftHsm.Util_("--import", file, "--token", "u-import", "--label", LabelOf(i, run), "--id", $"{i:X2}{run.GetHashCode():X8}", "--pin", SoftHsm.UserPin);
             Assert.True(r.Code == 0, "softhsm2-util --import: " + r.Output);
         }
@@ -170,11 +170,11 @@ public class Pkcs11PgpTests
             var tampered = PgpMessageReader.VerifyDetached(new MemoryStream([.. Data, 0]), new MemoryStream(sig.ToArray()), new PgpReadOptions { Now = Now.AddMinutes(1), Certificates = [imp.Public] });
             Assert.DoesNotContain(tampered.Signatures, s => s.IsValid);
 
-            Tools.RequireSqop();
+            TokenTools.RequireSqop();
             File.WriteAllBytes(Path.Combine(imp.Dir, "data.bin"), Data);
             File.WriteAllBytes(Path.Combine(imp.Dir, "sig.asc"), sig.ToArray());
             File.WriteAllBytes(Path.Combine(imp.Dir, "cert.pgp"), imp.Public.ExportPublic(armor: true));
-            var r = Tools.Run(Tools.Sqop!, Path.Combine(imp.Dir, "data.bin"), "verify", Path.Combine(imp.Dir, "sig.asc"), Path.Combine(imp.Dir, "cert.pgp"));
+            var r = TokenTools.Run(TokenTools.Sqop!, Path.Combine(imp.Dir, "data.bin"), "verify", Path.Combine(imp.Dir, "sig.asc"), Path.Combine(imp.Dir, "cert.pgp"));
             Assert.True(r.Code == 0, $"sqop verify ({profile}): {r.Error}");
         }
     }
@@ -232,11 +232,11 @@ public class Pkcs11PgpTests
             Assert.ThrowsAny<PgpException>(() => PgpMessageReader.Read(new MemoryStream(otherEnc.ToArray()), new MemoryStream(), options));
 
             // Written by Sequoia.
-            if (Tools.Sqop is not null)
+            if (TokenTools.Sqop is not null)
             {
                 File.WriteAllBytes(Path.Combine(imp.Dir, "data.bin"), Data);
                 File.WriteAllBytes(Path.Combine(imp.Dir, "cert.pgp"), imp.Public.ExportPublic(armor: true));
-                var r = Tools.Run(Tools.Sqop, Path.Combine(imp.Dir, "data.bin"), "encrypt", "--as=binary", Path.Combine(imp.Dir, "cert.pgp"));
+                var r = TokenTools.Run(TokenTools.Sqop, Path.Combine(imp.Dir, "data.bin"), "encrypt", "--as=binary", Path.Combine(imp.Dir, "cert.pgp"));
                 Assert.True(r.Code == 0, "sqop encrypt: " + r.Error);
                 using var plain2 = new MemoryStream();
                 PgpMessageReader.Read(new MemoryStream(r.Out), plain2, options);

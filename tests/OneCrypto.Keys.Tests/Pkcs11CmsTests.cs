@@ -44,7 +44,7 @@ public class Pkcs11CmsTests
     [MemberData(nameof(Kinds))]
     public void SignedDataSignedByTheTokenVerifiesHereAndInOpenSsl(string kind)
     {
-        Tools.RequireOpenSsl();
+        TokenTools.RequireOpenSsl();
         (Pkcs11Module module, Pkcs11Session session) = SoftHsm.Open();
         using (module)
         using (session)
@@ -65,12 +65,12 @@ public class Pkcs11CmsTests
                     args = [.. args, "-content", Path.Combine(dir, "content.bin")];
                 }
 
-                if (kind == "ed25519" && !Tools.OpenSslAtLeast(3, 5))
+                if (kind == "ed25519" && !TokenTools.OpenSslAtLeast(3, 5))
                 {
                     continue; // OpenSSL before 3.5 refuses EdDSA without signed attributes
                 }
 
-                var r = Tools.Run(Tools.OpenSsl!, null, args);
+                var r = TokenTools.Run(TokenTools.OpenSsl!, null, args);
                 Assert.True(r.Code == 0, $"{kind} detached={detached}: openssl cms -verify: {r.Error}");
                 Assert.Equal(Doc, File.ReadAllBytes(Path.Combine(dir, "out.bin")));
             }
@@ -113,7 +113,7 @@ public class Pkcs11CmsTests
     [InlineData("p256", "ec")]
     public void AnOpenSslEnvelopedMessageIsOpenedByTheToken(string kind, string how)
     {
-        Tools.RequireOpenSsl();
+        TokenTools.RequireOpenSsl();
         (Pkcs11Module module, Pkcs11Session session) = SoftHsm.Open();
         using (module)
         using (session)
@@ -121,11 +121,11 @@ public class Pkcs11CmsTests
             (Pkcs11Key key, SignatureSpec spec, KeyUsages usages) = Make(session, kind);
             Certificate cert = TokenCertificates.SelfSigned("token recipient " + kind, (ISigningKey)key, usages, spec);
             string dir = Dir($"env-{kind}-{how}");
-            File.WriteAllText(Path.Combine(dir, "cert.pem"), Tools.Pem("CERTIFICATE", cert.Encoded.ToArray()));
+            File.WriteAllText(Path.Combine(dir, "cert.pem"), TokenTools.Pem("CERTIFICATE", cert.Encoded.ToArray()));
             File.WriteAllBytes(Path.Combine(dir, "content.bin"), Doc);
             string[] args = ["cms", "-encrypt", "-aes-256-cbc", "-binary", "-outform", "DER", "-in", Path.Combine(dir, "content.bin"), "-out", Path.Combine(dir, "msg.der")];
             args = how == "oaep" ? [.. args, "-recip", Path.Combine(dir, "cert.pem"), "-keyopt", "rsa_padding_mode:oaep", "-keyopt", "rsa_oaep_md:sha1", "-keyopt", "rsa_mgf1_md:sha1"] : [.. args, Path.Combine(dir, "cert.pem")];
-            var r = Tools.Run(Tools.OpenSsl!, null, args);
+            var r = TokenTools.Run(TokenTools.OpenSsl!, null, args);
             Assert.True(r.Code == 0, "openssl cms -encrypt: " + r.Error);
             EnvelopedData ed = EnvelopedData.Parse(File.ReadAllBytes(Path.Combine(dir, "msg.der")));
             using CmsDecryptionKey dk = CmsDecryptionKey.FromKey(key, cert);

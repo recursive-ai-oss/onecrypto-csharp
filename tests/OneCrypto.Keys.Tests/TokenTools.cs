@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace OneCrypto.Keys.Tests;
 
 /// <summary>Runs command-line oracles (openssl, sqop) as black boxes.</summary>
-internal static class Tools
+internal static class TokenTools
 {
     internal static string? OpenSsl => Environment.GetEnvironmentVariable("ONECRYPTO_OPENSSL") is { Length: > 0 } p && File.Exists(p) ? p : Find("openssl");
 

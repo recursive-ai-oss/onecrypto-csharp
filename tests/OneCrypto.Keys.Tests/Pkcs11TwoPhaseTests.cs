@@ -94,9 +94,9 @@ public class Pkcs11TwoPhaseTests
             Assert.True(sd.Verify(Data).IsValid);
             Assert.False(sd.Verify("other"u8).IsValid);
 
-            if (Tools.OpenSsl is not null && (kind != "ed25519" || Tools.OpenSslAtLeast(3, 5)))
+            if (TokenTools.OpenSsl is not null && (kind != "ed25519" || TokenTools.OpenSslAtLeast(3, 5)))
             {
-                var r = Tools.Run(Tools.OpenSsl, null, "cms", "-verify", "-inform", "DER", "-in", output, "-content", dataFile, "-noverify", "-binary", "-out", Path.Combine(dir, "o.bin"));
+                var r = TokenTools.Run(TokenTools.OpenSsl, null, "cms", "-verify", "-inform", "DER", "-in", output, "-content", dataFile, "-noverify", "-binary", "-out", Path.Combine(dir, "o.bin"));
                 Assert.True(r.Code == 0, "openssl cms -verify: " + r.Error);
             }
         }
@@ -133,9 +133,9 @@ public class Pkcs11TwoPhaseTests
             File.WriteAllBytes(raw + ".bad", flipped);
             Assert.NotEqual(0, Step("complete-pgp", state, raw + ".bad", output + ".bad").Code);
 
-            if (Tools.Sqop is not null)
+            if (TokenTools.Sqop is not null)
             {
-                var r = Tools.Run(Tools.Sqop, dataFile, "verify", output, certFile);
+                var r = TokenTools.Run(TokenTools.Sqop, dataFile, "verify", output, certFile);
                 Assert.True(r.Code == 0, "sqop verify: " + r.Error);
             }
         }
