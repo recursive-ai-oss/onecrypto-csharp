@@ -121,7 +121,113 @@ isolated. Twofish key setup therefore carries **no constant-time claim on x64** 
 
 Machines: x64 AMD Ryzen 9 7950X3D, .NET 10.0.402; arm64 Apple M2, .NET 10.0.403. The first x64 run used the earlier key-setup harness (Twofish-128 decrypt-key 1.39, key-setup 2.56, control 1.62; Twofish-256 1.49, 3.93, 2.19, all passing). One Ed448 sign flag (6.18) on arm64, taken while other jobs loaded the machine, did not repeat in two quiet runs (1.50, 1.35).
 
-## Results (indicative)
+## Results: 0.3 release runs (publishable)
+
+Every group of `tools/timing-groups.sh` ran as an exclusive benchmark job that passed the publishability check. x64: AMD Ryzen 9 7950X3D, Linux, .NET 10.0.402, mean CPU busy 3.3–3.5% during each run. arm64: Apple M2, macOS, .NET 10.0.403, at least 95.9% idle before each run. Values are the maximum |t| over the uncropped data and 100 crops; the threshold is 4.5, and **bold** marks a run over it. Blowfish targets ran as two halves of 500,000 (shown a / b), and both must pass. The `small-and-glue` group was run twice more on x64 after its first run flagged; a target is claimed on a machine only when every publishable run of it passes there.
+
+Outcome:
+
+- **Claimed on x64 and arm64:** every target below that is not listed next. This covers Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the ChaCha20-Poly1305 key targets, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check.
+- **Claimed on arm64 only; x64 investigation open:**
+  - Twofish-128 and -256 key setup (see above);
+  - Camellia-128 key setup: the low-bits key control flags in all three x64 runs, with a 5–15 ns difference in about 700 ns, while the fixed-against-random target passes;
+  - ChaCha20-Poly1305 encryption with secret data: flags in two of three x64 runs, with a mean difference of at most 1.1 ns in 3 µs;
+  - IDEA decryption with secret data: flags in one of three x64 runs, with a 0.1 ns difference.
+
+  None of these code paths has a secret-dependent branch or index. Until the x64 cause is known, no claim is made there.
+- **No claim:** the RSA PKCS #1 session-key path (`pkesk-rsa`), a residual in the platform's RSA decryption (below).
+
+| Target | N | x64 | x64 re-runs | arm64 |
+|---|---|---|---|---|
+| Blowfish/control-decrypt-key | 500,000 | 1.66 / 1.88 |  | 2.20 / 1.83 |
+| Blowfish/control-key-setup | 500,000 | 1.25 / 1.45 |  | 2.78 / 2.25 |
+| Blowfish/decrypt-data | 500,000 | 1.90 / 1.20 |  | 2.11 / 1.35 |
+| Blowfish/decrypt-key | 500,000 | 1.40 / 2.71 |  | 2.26 / 1.88 |
+| Blowfish/key-setup | 500,000 | 1.80 / 3.72 |  | 2.71 / 1.68 |
+| Ed25519/sign | 1,000,000 | 1.94 |  | 1.81 |
+| Ed448/sign | 1,000,000 | 1.68 |  | 1.71 |
+| X25519/scalar-multiply | 1,000,000 | 2.53 |  | 1.74 |
+| X25519/base-multiply | 1,000,000 | 2.02 |  | 1.16 |
+| X448/scalar-multiply | 1,000,000 | 1.94 |  | 2.09 |
+| X448/base-multiply | 1,000,000 | 1.66 |  | 1.63 |
+| OpenPgpSessionKey/pkesk-rsa-bad-padding-vs-bad-checksum | 300,000 | **197.02** |  | **195.39** |
+| AES-EAX/decrypt-data-40B | 1,000,000 | 1.01 | 1.43 ; 1.92 | 1.56 |
+| AES-EAX/decrypt-data-2100B | 1,000,000 | 2.21 | 2.93 ; 2.72 | 1.56 |
+| AES-EAX/decrypt-key-40B | 1,000,000 | 0.99 | 1.72 ; 1.75 | 0.95 |
+| AES-EAX/control-key-40B | 1,000,000 | 1.42 | 1.38 ; 1.73 | 1.80 |
+| AES-KW/unwrap-data-32B | 1,000,000 | 2.27 | 1.52 ; 1.19 | 0.93 |
+| AES-KW/unwrap-key-32B | 1,000,000 | 3.35 | 3.43 ; 1.87 | 0.61 |
+| AES-KW/control-key-32B | 1,000,000 | 1.58 | 2.30 ; 3.23 | 2.07 |
+| AES-OCB/decrypt-data-40B | 1,000,000 | 1.36 | 1.58 ; 2.16 | 0.96 |
+| AES-OCB/decrypt-data-2100B | 1,000,000 | 1.82 | 1.85 ; 1.59 | 1.74 |
+| AES-OCB/decrypt-key-40B | 1,000,000 | 2.42 | 2.55 ; 1.45 | 1.82 |
+| AES-OCB/control-key-40B | 1,000,000 | 1.82 | 1.79 ; 1.44 | 1.35 |
+| CAST5/decrypt-data | 1,000,000 | 2.43 | 1.60 ; 2.61 | 1.93 |
+| CAST5/decrypt-key | 1,000,000 | 1.96 | 1.71 ; 2.29 | 1.83 |
+| CAST5/key-setup | 1,000,000 | 1.82 | 2.44 ; 1.79 | 2.07 |
+| CAST5/control-key-setup | 1,000,000 | 2.43 | 2.24 ; 1.64 | 2.54 |
+| CAST5/pair-key-setup | 1,000,000 | 1.94 | 1.55 ; 1.99 | 1.63 |
+| CAST5/lowbits-key-setup | 1,000,000 | 2.29 | 1.78 ; 3.26 | 2.49 |
+| CAST5/control-decrypt-key | 1,000,000 | 1.87 | 1.69 ; 2.23 | 1.96 |
+| Camellia-128/decrypt-data | 1,000,000 | 2.26 | 1.22 ; 1.91 | 0.69 |
+| Camellia-128/decrypt-key | 1,000,000 | 1.15 | 1.42 ; 1.30 | 2.16 |
+| Camellia-128/encrypt-data | 1,000,000 | 1.72 | 2.16 ; 2.01 | 1.71 |
+| Camellia-128/encrypt-key | 1,000,000 | 3.97 | 0.99 ; 1.33 | 2.09 |
+| Camellia-128/key-setup | 1,000,000 | 2.42 | 1.62 ; 2.98 | 2.13 |
+| Camellia-128/control-key-setup | 1,000,000 | 2.28 | 2.37 ; 1.71 | 2.43 |
+| Camellia-128/pair-key-setup | 1,000,000 | 1.92 | 2.85 ; 2.10 | 1.68 |
+| Camellia-128/lowbits-key-setup | 1,000,000 | **5.86** | **4.90** ; **5.19** | 1.73 |
+| Camellia-128/control-decrypt-key | 1,000,000 | 1.79 | 1.58 ; 1.60 | 2.47 |
+| Camellia-128/control-encrypt-key | 1,000,000 | 1.31 | 1.02 ; 1.46 | 1.37 |
+| Camellia-256/decrypt-data | 1,000,000 | 2.18 | 1.31 ; 0.74 | 1.07 |
+| Camellia-256/decrypt-key | 1,000,000 | 1.50 | 2.39 ; 0.89 | 1.12 |
+| Camellia-256/encrypt-data | 1,000,000 | 1.96 | 0.94 ; 1.47 | 1.25 |
+| Camellia-256/encrypt-key | 1,000,000 | 2.43 | 2.07 ; 1.87 | 1.12 |
+| Camellia-256/key-setup | 1,000,000 | 2.43 | 1.87 ; 2.62 | 2.31 |
+| Camellia-256/control-key-setup | 1,000,000 | 2.08 | 2.29 ; 2.26 | 1.70 |
+| Camellia-256/pair-key-setup | 1,000,000 | 3.93 | 1.53 ; 2.44 | 1.96 |
+| Camellia-256/lowbits-key-setup | 1,000,000 | 1.90 | 2.00 ; 2.06 | 1.58 |
+| Camellia-256/control-decrypt-key | 1,000,000 | 2.05 | 3.17 ; 1.48 | 1.31 |
+| Camellia-256/control-encrypt-key | 1,000,000 | 2.33 | 1.35 ; 1.96 | 2.21 |
+| ChaCha20-Poly1305/encrypt-key-1000B | 1,000,000 | 1.12 | 2.08 ; 2.59 | 1.19 |
+| ChaCha20-Poly1305/encrypt-data-1000B | 1,000,000 | **6.54** | **5.46** ; 3.80 | 2.13 |
+| ChaCha20-Poly1305/encrypt-key-17B | 1,000,000 | 1.01 | 1.43 ; 2.19 | 1.03 |
+| ChaCha20-Poly1305/decrypt-wrong-tag-key-100B | 1,000,000 | 1.69 | 2.00 ; 1.35 | 1.99 |
+| ChaCha20-Poly1305/control-encrypt-key-1000B | 1,000,000 | 1.97 | 1.81 ; 1.84 | 2.78 |
+| ChaCha20-Poly1305/control-encrypt-key-17B | 1,000,000 | 1.31 | 0.86 ; 1.62 | 1.19 |
+| ChaCha20-Poly1305/control-decrypt-wrong-tag-key-100B | 1,000,000 | 1.07 | 0.64 ; 1.20 | 2.21 |
+| CmsCbc/cbc-bad-padding-shape | 1,000,000 | 1.13 | 1.94 ; 1.89 | 1.97 |
+| IDEA/decrypt-data | 1,000,000 | 2.51 | **6.24** ; 1.07 | 0.55 |
+| IDEA/decrypt-key | 1,000,000 | 2.59 | 1.97 ; 2.03 | 2.71 |
+| IDEA/key-setup | 1,000,000 | 3.57 | 1.87 ; 1.72 | 1.86 |
+| IDEA/control-key-setup | 1,000,000 | 1.94 | 1.98 ; 1.85 | 1.97 |
+| IDEA/pair-key-setup | 1,000,000 | 1.99 | 1.12 ; 1.84 | 1.74 |
+| IDEA/lowbits-key-setup | 1,000,000 | 1.82 | 1.81 ; 2.08 | 1.56 |
+| IDEA/control-decrypt-key | 1,000,000 | 1.59 | 2.49 ; 1.37 | 1.50 |
+| OpenPgpSecretKeyUnlock/unlock-aead-v6-secret-bytes | 1,000,000 | 1.89 | 2.46 ; 1.88 | 2.36 |
+| OpenPgpSecretKeyUnlock/unlock-cfb-sha1-v4-secret-bytes | 1,000,000 | 2.19 | 1.48 ; 3.11 | 1.08 |
+| OpenPgpSessionKey/checksum-padded-ecdh-bad-padding-vs-bad-checksum | 1,000,000 | 1.49 | 0.36 ; 1.77 | 2.04 |
+| OpenPgpSessionKey/checksum-padded-ecdh-key-bytes-control | 1,000,000 | 2.29 | 1.45 ; 1.09 | 2.17 |
+| OpenPgpSessionKey/checksum-padded-ecdh-key-bytes | 1,000,000 | 2.30 | 2.60 ; 0.96 | 2.39 |
+| OpenPgpSessionKey/checksum-unpadded-v6-key-bytes-control | 1,000,000 | 1.69 | 1.60 ; 0.99 | 2.41 |
+| OpenPgpSessionKey/checksum-unpadded-v6-key-bytes | 1,000,000 | 1.39 | 2.47 ; 2.24 | 3.00 |
+| Twofish-128/decrypt-data | 1,000,000 | 3.12 | 2.64 ; 2.46 | 1.64 |
+| Twofish-128/decrypt-key | 1,000,000 | 1.54 | 2.35 ; 2.03 | 1.58 |
+| Twofish-128/key-setup | 1,000,000 | 1.52 | 2.84 ; 3.72 | 1.24 |
+| Twofish-128/control-key-setup | 1,000,000 | 2.21 | 2.69 ; 1.90 | 1.80 |
+| Twofish-128/pair-key-setup | 1,000,000 | **7.06** | 1.54 ; 1.91 | 2.13 |
+| Twofish-128/lowbits-key-setup | 1,000,000 | 2.09 | 2.51 ; 2.84 | 1.67 |
+| Twofish-128/control-decrypt-key | 1,000,000 | 2.32 | 1.94 ; 1.50 | 2.25 |
+| Twofish-256/decrypt-data | 1,000,000 | 2.14 | 1.73 ; 2.41 | 1.32 |
+| Twofish-256/decrypt-key | 1,000,000 | 3.24 | 2.17 ; 1.81 | 1.53 |
+| Twofish-256/key-setup | 1,000,000 | **6.57** | 4.46 ; 3.34 | 1.22 |
+| Twofish-256/control-key-setup | 1,000,000 | 1.72 | 1.61 ; 2.69 | 2.08 |
+| Twofish-256/pair-key-setup | 1,000,000 | 3.10 | 2.31 ; **4.56** | 0.62 |
+| Twofish-256/lowbits-key-setup | 1,000,000 | 4.29 | 2.89 ; 2.58 | 1.02 |
+| Twofish-256/control-decrypt-key | 1,000,000 | 2.76 | 1.27 ; 2.32 | 0.93 |
+
+
+## Earlier indicative results
 
 N = 1,000,000 calls per target, full-opt JIT, run as shared-host jobs (not exclusive), so every number is indicative. Values are the
 maximum |t| over the uncropped data and 100 crops; the pass threshold is 4.5. x64: AMD Ryzen 9 7950X3D, Linux, .NET 10.0.402 (the

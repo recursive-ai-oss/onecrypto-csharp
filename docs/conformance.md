@@ -55,30 +55,32 @@ The OpenPGP counts on 3.5.9 include the 6 tests added for the two fixes of this 
 
 ## Speed
 
-Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCastle 2.7.0; also `System.Formats.Asn1` for ASN.1), lower is faster. The bar is a geomean of at most 1.0 per area and no row above 1.25. Measured with BenchmarkDotNet on an AMD Ryzen 9 7950X3D (x64) and an Apple M2 (arm64), .NET 10. The x64 runs shared the machine with other work and are marked load-flagged (the x64 validation row is indicative); they are repeated at the next release. Path validation is also reported against the platform's offline `X509Chain`, which calls native code: 1.21 on x64 (indicative), not part of the bar.
+Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCastle 2.7.0; also `System.Formats.Asn1` for ASN.1), lower is faster. The bar is a geomean of at most 1.0 per area and no row above 1.25. Measured with BenchmarkDotNet on an AMD Ryzen 9 7950X3D (x64) and an Apple M2 (arm64), .NET 10. Every number comes from exclusive benchmark jobs that passed the publishability check (x64: mean CPU busy of 3.3–5.0% during each run; arm64: at least 90% idle before each run); the x64 column was re-measured for this release. Path validation is also reported against the platform's offline `X509Chain`, which calls native code: 1.19 on x64, not part of the bar.
 
 | Area | x64 | arm64 |
 |---|---|---|
 | Ed25519 sign / verify | 0.55 / 0.90 | 0.48 / 0.89 |
-| Ed448 sign / verify | 0.52 / 0.61 | 0.71 / 0.94 |
-| X25519 / X448 agreement | 0.76 / 0.50 | 0.77 / 0.74 |
+| Ed448 sign / verify | 0.52 / 0.62 | 0.71 / 0.94 |
+| X25519 / X448 agreement | 0.75 / 0.50 | 0.77 / 0.74 |
 | OCB, EAX (geomean) | 0.19 | 0.13 |
-| AES key wrap | 1.53 (exception 2) | 0.32 |
-| Argon2 / scrypt | 0.36 / 0.86 | 0.46 / 0.90 |
-| Camellia CBC | 1.61 (exception 1) | 1.58 (exception 1) |
-| ASN.1 certificate / 50k-element SEQUENCE (vs `AsnReader`) | 0.89 / 0.95 | 0.95 / 0.91 |
-| X.509 parse / verify (geomean) | 0.36 / 0.84 | 0.38 / 0.31 |
-| CMS sign / verify / envelope (geomean) | 0.18 / 0.33 / 0.47 | 0.34 / 0.18 / 0.10 |
-| PKCS#12 load / PKCS#8 decrypt | 0.25 / 0.31 | 0.11 / 0.22 |
-| Certificate parse + path validation (geomean; worst row) | 0.80, indicative | 0.56; 0.57 |
+| AES key wrap | 1.52 (exception 2) | 0.32 |
+| Argon2 / scrypt | 0.38 / 0.93 | 0.46 / 0.90 |
+| Camellia CBC | 1.60 (exception 1) | 1.58 (exception 1) |
+| ASN.1 certificate / 50k-element SEQUENCE (vs `AsnReader`) | 0.91 / 0.97 | 0.95 / 0.91 |
+| X.509 parse / verify (geomean) | 0.36 / 0.82 | 0.38 / 0.31 |
+| CMS sign / verify / envelope (geomean) | 0.19 / 0.33 / 0.45 | 0.34 / 0.18 / 0.10 |
+| PKCS#12 load / PKCS#8 decrypt | 0.25 / 0.32 | 0.11 / 0.22 |
+| Certificate parse + path validation (geomean; worst row) | 0.86; 0.86 | 0.56; 0.57 |
+| RFC 3161 time-stamp verify (geomean; worst row) | 0.86; 1.66 (exception 3) | |
+| OpenPGP sign / verify / encrypt / decrypt, 1 KiB to 64 MiB (geomean; worst row) | 0.17; 0.85 | 0.13; 0.84 |
 
-The curve span operations allocate nothing.
+The curve span operations allocate nothing. The platform-gap fallbacks are reported, not gated (they run only where the platform lacks the algorithm): SHA-3 0.86 and ChaCha20-Poly1305 1.72 against BouncyCastle on x64.
 
 Documented exceptions to the bar:
 
 1. **Camellia** encrypts at about 2.3–2.4× and decrypts at about 1.1× BouncyCastle. OneCrypto's Camellia never indexes a table with secret data (its S-box is computed with an AES instruction and nibble shuffles), while table-driven implementations leak through the cache. CBC encryption is a serial chain that parallel blocks cannot shorten.
 2. **AES key wrap on x64** is 1.53×: RFC 3394 key wrap is a chain of dependent single-block AES calls, and the cost is the platform's per-call overhead; OneCrypto does not reimplement AES.
-3. **ECDSA P-256 verification**, worst row: 1.70× for a certificate and 1.66× for a 1 KiB CMS message on x64 (1.16 and 1.15 on arm64). Verification calls the platform's ECDSA and is within 4% of the platform called directly; the area geomeans meet the bar.
+3. **ECDSA P-256 verification**, worst row: 1.68× for a certificate, 1.69× for a 1 KiB CMS message and 1.66× for a P-256 time-stamp token on x64 (1.16 and 1.15 on arm64). Verification calls the platform's ECDSA and is within 4% of the platform called directly; the area geomeans meet the bar.
 
 ## Robustness
 
@@ -111,8 +113,11 @@ The per-platform availability of each algorithm (linux-x64 with OpenSSL 3.0 and 
 
 Secret-handling code is written without secret-dependent branches, memory indices or early exits, and each secret-handling primitive has a dudect-style timing test (fixed-vs-random classes, Welch's t-test; [timing.md](timing.md)).
 
-- **Secret data** (plaintext, ciphertext, messages): at 1,000,000 measurements per class on x64 and arm64, every target passes (max |t| at most 2.99 against a threshold of 4.5): AES-EAX, AES key wrap, Blowfish, Camellia-128 and -256. Earlier, shorter runs cover Ed25519/Ed448 signing, X25519/X448, OCB, CAST5, IDEA, Twofish, ChaCha20-Poly1305 and Argon2i. Results per primitive and machine are in [timing.md](timing.md).
-- **Secret keys**: the method now uses a fresh key object per measurement and a fixed-vs-fixed control for every key target. At 1,000,000 measurements on arm64 every key target that completed, and its control, passes (max |t| 2.86), but most of those runs shared the machine with other work and one group did not finish in its time slot, so no constant-time claim is made for key handling until a run on a quiet machine passes on both x64 and arm64.
+- **Release runs (0.3, publishable):** every group ran at 1,000,000 measurements per class (Blowfish as two halves of 500,000) in exclusive benchmark jobs on x64 and arm64. Results per target are in [timing.md](timing.md#results-03-release-runs-publishable).
+  - **Claimed on both machines:** Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the ChaCha20-Poly1305 key targets, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check, with secret data and secret keys.
+  - **Claimed on arm64 only; x64 investigation open:** Twofish and Camellia-128 key setup, ChaCha20-Poly1305 and IDEA with secret data. Each flagged in at least one x64 run, by 0.1–15 ns.
+  - **No claim:** the RSA PKCS #1 session-key path, which has a residual in the platform's RSA decryption.
+  - **Argon2i** keeps its claim from the 0.1 runs on both machines; it is not part of the release groups.
 - **Argon2id** uses data-dependent memory access after its first half-pass by design (RFC 9106 §3.4); only Argon2i is data-independent.
 
 This library has not been independently audited.

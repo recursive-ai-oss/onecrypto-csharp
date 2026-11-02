@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.3.0-preview.1] - 2026-11-02
+
+Third preview. Adds OpenPGP in a new package, `RecursiveAI.OneCrypto.OpenPgp`: RFC 9580 version 6 and 4, the post-quantum algorithms of RFC 9980, LibrePGP read and written only for recipients that need it, version 3 read, key management, GnuPG home and cert-d, two trust models, WKD, HKP, VKS and Autocrypt. It also adds the `onecrypto` tool with `sop`. Decryption paths in CMS and OpenPGP have had an internal review, and its findings are fixed. The API is not stable yet. This library has not been independently audited. Interop results, timing evidence and the documented deviations are in [docs/conformance.md](docs/conformance.md).
+
 ### Added
 
 - Certificate discovery: `WkdClient`, `WkdAddress`, `WkdPolicy` (Web Key Directory: advanced and direct methods, z-base-32 hash, `l=`, policy file, read-only submission address), `HkpClient`, `HkpServer`, `HkpSearch`, `HkpIndex` (HKP legacy `get`, `index`, `vindex`, `/pks/add`) and `VksClient` (keys.openpgp.org: by fingerprint, key ID and email, upload, verification request) in `.Online`, returning `KeyFetchResult`; `FetchResult.TransportFailure` says why a transport failed. `KeyDiscovery` in `.OpenPgp` finds the certificates in a response and keeps only what answers the query: the queried User ID alone, third-party certifications removed, no secret keys.
@@ -38,6 +42,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Timing: `OpenPgpSessionKey` targets take their class by a byte mask and have A/A controls; new targets for the RSA session-key failure paths and the CBC padding check.
 
 ### Fixed (OpenPGP, from the release interop runs)
+
+- Timing evidence: every timing group was re-run in exclusive jobs on x64 and arm64. Twofish and Camellia-128 key setup, ChaCha20-Poly1305 and IDEA with secret data are claimed on arm64 only until an x64 flag is explained ([docs/timing.md](docs/timing.md)).
 
 - OpenPGP: ECDH session-key values padded to 40 octets to hide the key size (RFC 9580 §11.5) are accepted; up to 24 octets of padding were rejected before.
 - OpenPGP: encryption refuses an RSA key smaller than the policy's size for new data (`PgpFailure.PolicyViolation`; RFC 9580 §12.4) instead of encrypting to it.
@@ -111,6 +117,7 @@ First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stabl
 - Platform gaps in AES-GCM, AES-CCM, named curves (for example Brainpool on macOS) and ML-KEM/ML-DSA keys now surface as `AlgorithmNotSupportedException` naming the algorithm and platform, never the platform's own `PlatformNotSupportedException`; the availability table lists AES-GCM and AES-CCM (macOS has no AES-CCM; AuthEnvelopedData defaults to AES-256-GCM and writes CCM only when asked).
 - Package metadata, package validation, NativeAOT and browser-wasm smoke apps, fuzz targets for every parser, and benchmarks against the managed libraries this one replaces.
 
-[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.2.0-preview.1...HEAD
+[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.1...HEAD
+[0.3.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.2.0-preview.1...v0.3.0-preview.1
 [0.2.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.1.0-preview.1...v0.2.0-preview.1
 [0.1.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/releases/tag/v0.1.0-preview.1
