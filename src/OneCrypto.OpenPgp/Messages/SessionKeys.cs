@@ -75,7 +75,8 @@ internal static class SessionKeys
 
     private static Recovered? DecryptRsa(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p)
     {
-        var rsa = (IDecryptionKey)key.SigningKey;
+        // An external key (an agent, a token) is asked directly: it need not sign to decrypt.
+        var rsa = key.External as IDecryptionKey ?? (IDecryptionKey)key.SigningKey;
         int n = key.Key.Packet.Material.Values[0].Length;
         byte[] c = SignatureEngine.LeftPad(p.Values[0].Span, n);
         byte[] m = rsa.Decrypt(c, DecryptionSpec.RsaPkcs1());

@@ -48,6 +48,7 @@ internal static class Program
         ["trust"] = TrustTarget.Run,
         ["autocrypt"] = AutocryptTarget.Run,
         ["hkpindex"] = DiscoveryTarget.Run,
+        ["pkcs11attrs"] = Pkcs11AttributeTarget.Run,
         ["agents"] = AgentsTarget.Run,
         ["csc"] = CscTarget.Run,
     };
@@ -81,6 +82,7 @@ internal static class Program
         "trust" => TrustTarget.Seeds(),
         "autocrypt" => AutocryptTarget.Seeds(),
         "hkpindex" => DiscoveryTarget.Seeds(),
+        "pkcs11attrs" => Pkcs11AttributeTarget.Seeds(),
         "agents" => AgentsTarget.Seeds(),
         "csc" => CscTarget.Seeds(),
         _ => [],
