@@ -172,7 +172,8 @@ public sealed class HttpTransport : ITransport, IDisposable
                 _ => TransportFailure.Network,
             },
         };
-        return new TransportException(kind, ex.Message, ex);
+        // HttpRequestException's own text is generic; the inner exception says what the peer did (for example, closed the connection).
+        return new TransportException(kind, ex.InnerException is { } inner ? ex.Message + " (" + inner.Message + ")" : ex.Message, ex);
     }
 
     private HttpClient CreateClient(bool guarded)

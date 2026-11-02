@@ -15,35 +15,34 @@ public sealed class PgpSecretKey : IDisposable
     private readonly byte[] _plain;
     private readonly int _length;
     private ISigningKey? _signer;
-    private readonly IKey? _external;
+    private IKey? _external;
 
-    private PgpSecretKey(PgpKey key, byte[] plain, int length, IKey? external = null)
+    private PgpSecretKey(PgpKey key, byte[] plain, int length)
     {
         Key = key;
         _plain = plain;
         _length = length;
-        _external = external;
     }
-
-    /// <summary>
-    /// A secret key whose private operation runs behind a key interface (a PKCS #11 token, an agent): signing and decryption call it and the key material
-    /// is never seen. <paramref name="key"/> supplies the public packet; <paramref name="external"/> must hold the matching private key. The result does not
-    /// own <paramref name="external"/>: the caller disposes it. Use it as a signer in <see cref="PgpWriteOptions.Signers"/> or in
-    /// <see cref="PgpReadOptions.ExternalKeys"/>. Operations the interfaces cannot express (X25519 and X448 agreement, composite ML-DSA/ML-KEM) are refused.
-    /// </summary>
-    /// <exception cref="ArgumentException">The key is not a public packet that fits the external key's public key.</exception>
-    public static PgpSecretKey FromExternal(PgpKey key, IKey external)
-    {
-        ArgumentNullException.ThrowIfNull(key);
-        ArgumentNullException.ThrowIfNull(external);
-        return new PgpSecretKey(key, [], 0, external);
-    }
-
-    // The key interface behind an externally held key, or null for key material held here.
-    internal IKey? External => _external;
 
     /// <summary>The public side: the key packet and its certificate.</summary>
     public PgpKey Key { get; }
+
+    /// <summary>
+    /// Wraps a key that lives elsewhere (an agent, a token, a service) so it can sign and decrypt for this OpenPGP key. Nothing is unlocked and no secret is held here:
+    /// signing goes to <see cref="ISigningKey"/>, RSA decryption to <see cref="IDecryptionKey"/> and ECDH or X25519 decryption to <see cref="IAgreementKey"/>. The caller
+    /// keeps ownership of <paramref name="external"/>; disposing this object does not dispose it. The caller is responsible for the key being the private half of <paramref name="key"/>.
+    /// </summary>
+    /// <param name="key">The public key packet the external key belongs to.</param>
+    /// <param name="external">The external key; an <see cref="ISigningKey"/> and/or <see cref="IDecryptionKey"/> or <see cref="IAgreementKey"/> as the algorithm needs.</param>
+    public static PgpSecretKey FromExternalKey(PgpKey key, IKey external)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(external);
+        return new PgpSecretKey(key, [], 0) { _external = external, _signer = external as ISigningKey };
+    }
+
+    /// <summary>The external key this object wraps, or null for an unlocked local key.</summary>
+    internal IKey? External => _external;
 
     /// <summary>
     /// Unlocks a secret key packet. Tries each password in turn when the packet is protected (RFC 9580 §5.5.3); an unprotected packet needs none.
@@ -267,7 +266,7 @@ public sealed class PgpSecretKey : IDisposable
     {
         if (_external is not null)
         {
-            throw new PgpException(PgpFailure.KeyCannotPerform, "The private key is held elsewhere; its values are not available.");
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The secret key lives outside this process; its material cannot be read.");
         }
 
         var parts = new List<byte[]>();
@@ -410,7 +409,7 @@ public sealed class PgpSecretKey : IDisposable
     /// Creates a signing key over the platform's (or the library's) primitives. The result is owned by this object and disposed with it.
     /// </summary>
     /// <exception cref="PgpException">The algorithm cannot sign here, or the secret is not a valid key (<see cref="PgpFailure.KeyCannotPerform"/>).</exception>
-    public ISigningKey SigningKey => _external is not null ? _external as ISigningKey ?? throw new PgpException(PgpFailure.KeyCannotPerform, "The external key does not sign.") : _signer ??= CreateSigner();
+    public ISigningKey SigningKey => _signer ??= CreateSigner();
 
     private ISigningKey CreateSigner()
     {
@@ -510,7 +509,11 @@ public sealed class PgpSecretKey : IDisposable
     public void Dispose()
     {
         CryptographicOperations.ZeroMemory(_plain);
-        _signer?.Dispose();
+        if (_external is null)
+        {
+            _signer?.Dispose();
+        }
+
         _signer = null;
     }
 

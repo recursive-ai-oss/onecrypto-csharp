@@ -7,7 +7,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - PKCS #11 in `.Keys` (`RecursiveAI.OneCrypto.Keys.Pkcs11`): `Pkcs11Module`, `Pkcs11Slot`, `Pkcs11Session` and the token keys `Pkcs11RsaKey` (`IRsaKey`: PKCS #1 v1.5, PSS, OAEP), `Pkcs11EcKey` (ECDSA and ECDH) and `Pkcs11EdKey` (Ed25519, Ed448). Modules load by path; PINs are passed through and wiped; failures are typed (`Pkcs11ModuleException`, `Pkcs11PinException`, `Pkcs11PinLockedException`, `Pkcs11TokenException`, `Pkcs11KeyException`, `Pkcs11MechanismException`). 64-bit macOS and Linux. Tested against SoftHSM2 (docs/keys.md).
-- `PgpSecretKey.FromExternal` and `PgpReadOptions.ExternalKeys` (`.OpenPgp`): OpenPGP signing and RSA/NIST-ECDH decryption with a key that lives behind a key interface, such as a token.
+- Agent key backends in `RecursiveAI.OneCrypto.Keys.Agents` (`.Keys`, new, not yet released): `GpgAgentClient` talks to gpg-agent over Assuan (socket discovery as GnuPG names it, keys by keygrip, RSA / ECDSA / EdDSA signing, RSA decryption and ECDH / X25519 agreement; the passphrase prompt is the agent's own) and `SshAgentClient` to an ssh-agent (RSA with SHA-256/512, ECDSA, Ed25519; SSH signature blobs for SSHSIG). Keys are `ISigningKey`, `IDecryptionKey` and `IAgreementKey`; the private key never leaves the agent, replies are bounded and checked, and every failure is a typed `AgentException`. See `docs/keys.md`.
+- `PgpSecretKey.FromExternalKey` and `PgpReadOptions.ExternalKeys` (`.OpenPgp`): decrypt OpenPGP messages with a key that lives in an agent or another backend. `SignatureSpec.VerifyDigest` (core): check a signature over a digest computed by the caller.
+- `RecursiveAI.OneCrypto.Online.Csc`: a client for the Cloud Signature Consortium API v2.2 (`CscClient`: `info`, `credentials/list`, `credentials/info`, `credentials/authorize`, `signatures/signHash`) over the guarded transport, and `CscSigningKey`, a remote credential as an `ISigningKey` (RSA PKCS #1 v1.5, RSA-PSS, ECDSA; SAD bound to the digests; every signature checked against the credential's certificate). Tokens come from an `ICscTokenSource`, with a client-credentials source provided. See `docs/online.md`.
+- `SignatureSpec.VerifyDigest`: checks a signature over a digest the caller already computed.
+- `FetchRequest.Idempotent`, `FetchRequest.MaxRedirects` and `FetchRequest.KeepErrorBody`.
+
+### Fixed
+
+- An OCSP query over POST no longer fails when the responder closed the pooled connection after its last answer: the client repeats the request once on a fresh connection, and the reason of a transport failure now says what the peer did.
 
 ## [0.3.0-preview.1] - 2026-11-02
 

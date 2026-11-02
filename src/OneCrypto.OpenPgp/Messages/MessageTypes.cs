@@ -152,8 +152,8 @@ public sealed class PgpReadOptions
     public IReadOnlyList<PgpCertificate> SecretKeys { get; init; } = [];
 
     /// <summary>
-    /// Keys whose private operation runs elsewhere (a token, an agent), made with <see cref="PgpSecretKey.FromExternal"/>. They are tried for public-key
-    /// encrypted data like <see cref="SecretKeys"/>, but nothing is unlocked. The caller keeps ownership and disposes them.
+    /// Keys that live elsewhere (<see cref="PgpSecretKey.FromExternalKey"/>: an agent, a token, a service) used to open public-key encrypted data. Each is tried for every
+    /// public-key encrypted session key addressed to it; the caller owns them and keeps them alive for the call. Their prompts, refusals and errors surface as the backend's own exceptions.
     /// </summary>
     public IReadOnlyList<PgpSecretKey> ExternalKeys { get; init; } = [];
 

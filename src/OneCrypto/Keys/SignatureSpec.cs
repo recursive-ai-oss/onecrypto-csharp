@@ -212,6 +212,19 @@ public sealed class SignatureSpec : IEquatable<SignatureSpec>
         return SignatureGlue.Verify(this, key, data, signature);
     }
 
+    /// <summary>
+    /// Checks a signature over a digest the caller computed with this spec's hash (RSA and ECDSA only), for backends that sign digests on the far side of a
+    /// connection and want to refuse a wrong answer before using it. Never throws for bad input; the result says what was wrong.
+    /// </summary>
+    /// <param name="key">The signer's public key.</param>
+    /// <param name="digest">The digest that was signed.</param>
+    /// <param name="signature">The signature in this spec's encoding.</param>
+    public SignatureVerification VerifyDigest(PublicKeyInfo key, ReadOnlySpan<byte> digest, ReadOnlySpan<byte> signature)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return SignatureGlue.VerifyDigest(this, key, digest, signature);
+    }
+
     /// <inheritdoc/>
     public bool Equals(SignatureSpec? other) =>
         other is not null && Kind == other.Kind && Hash == other.Hash && Format == other.Format && _context.AsSpan().SequenceEqual(other._context);

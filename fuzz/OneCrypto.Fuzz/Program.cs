@@ -49,6 +49,8 @@ internal static class Program
         ["autocrypt"] = AutocryptTarget.Run,
         ["hkpindex"] = DiscoveryTarget.Run,
         ["pkcs11attrs"] = Pkcs11AttributeTarget.Run,
+        ["agents"] = AgentsTarget.Run,
+        ["csc"] = CscTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -81,6 +83,8 @@ internal static class Program
         "autocrypt" => AutocryptTarget.Seeds(),
         "hkpindex" => DiscoveryTarget.Seeds(),
         "pkcs11attrs" => Pkcs11AttributeTarget.Seeds(),
+        "agents" => AgentsTarget.Seeds(),
+        "csc" => CscTarget.Seeds(),
         _ => [],
     };
 

@@ -207,6 +207,7 @@ public sealed class OcspClient
                 Origin = origin,
                 Headers = [new("Content-Type", "application/ocsp-request"), new("Accept", "application/ocsp-response")],
                 Cache = cache ? FetchCacheMode.Content : FetchCacheMode.None,
+                Idempotent = true,
                 IsReusable = reusable,
                 MaxResponseBytes = options.MaxResponseBytes,
             }, cancellationToken).ConfigureAwait(false);

@@ -160,7 +160,7 @@ public class Pkcs11PgpTests
         using (session)
         {
             Pkcs11Key token = Open(session, imp, run, 0);
-            using PgpSecretKey signer = PgpSecretKey.FromExternal(imp.Public.Primary, token);
+            using PgpSecretKey signer = PgpSecretKey.FromExternalKey(imp.Public.Primary, token);
             using var data = new MemoryStream(Data);
             using var sig = new MemoryStream();
             PgpMessageWriter.SignDetached(data, sig, new PgpWriteOptions { Now = Now, Signers = [signer], Armor = true });
@@ -187,11 +187,11 @@ public class Pkcs11PgpTests
         using (module)
         using (session)
         {
-            using PgpSecretKey signer = PgpSecretKey.FromExternal(imp.Public.Primary, Open(session, imp, run, 0));
+            using PgpSecretKey signer = PgpSecretKey.FromExternalKey(imp.Public.Primary, Open(session, imp, run, 0));
             using var enc = new MemoryStream();
             PgpMessageWriter.Write(new MemoryStream(Data), enc, new PgpWriteOptions { Now = Now, Signers = [signer], Recipients = [imp.Public] });
 
-            using PgpSecretKey decryptor = PgpSecretKey.FromExternal(imp.Public.Keys[1], Open(session, imp, run, 1));
+            using PgpSecretKey decryptor = PgpSecretKey.FromExternalKey(imp.Public.Keys[1], Open(session, imp, run, 1));
             using var plain = new MemoryStream();
             PgpReadResult r = PgpMessageReader.Read(new MemoryStream(enc.ToArray()), plain, new PgpReadOptions { Now = Now.AddMinutes(1), Certificates = [imp.Public], ExternalKeys = [decryptor] });
             Assert.Equal(Data, plain.ToArray());
@@ -214,7 +214,7 @@ public class Pkcs11PgpTests
         {
             PgpKey subkey = imp.Secret.Keys[1];
             Pkcs11Key token = Open(session, imp, run, 1);
-            using PgpSecretKey ext = PgpSecretKey.FromExternal(imp.Public.Keys[1], token);
+            using PgpSecretKey ext = PgpSecretKey.FromExternalKey(imp.Public.Keys[1], token);
             var options = new PgpReadOptions { Now = Now.AddMinutes(1), ExternalKeys = [ext] };
 
             // Written by this library.

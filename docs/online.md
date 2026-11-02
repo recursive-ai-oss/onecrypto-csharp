@@ -13,6 +13,7 @@ Normative behaviour of `RecursiveAI.OneCrypto.Online`. The package references on
 | `NetworkGuard`, `IAddressResolver` | Which addresses may be reached. |
 | `IFetchCache`, `MemoryFetchCache`, `CacheControl` | RFC 9111 storage. |
 | `TsaClient`, `OcspClient`, `CrlClient`, `AiaClient` | The protocols. Each has a public static `Interpret` that turns a `FetchResult` into its result type, for callers with their own transport. |
+| `CscClient`, `CscSigningKey` | Remote signing over the Cloud Signature Consortium API: see its section below. |
 | `WkdClient`, `HkpClient`, `VksClient` | Certificate discovery: the Web Key Directory, the HTTP Keyserver Protocol and the keys.openpgp.org VKS interface. They return the response bytes (`KeyFetchResult`); the OpenPGP package filters them. |
 | `OnlineCertificateSource`, `OnlineRevocationSource` | `ICertificateSource` and `IRevocationSource` for `PathValidator.ValidateAsync`. |
 
@@ -34,6 +35,7 @@ On by default; each failure is a `FetchOutcome` with a reason, never a hang.
 | A body shorter than its declared length, or a connection that breaks while reading | `TruncatedBody` |
 | One time limit (default 20 s) from the start of the request to the last body byte | `Timeout` (distinct from the caller's cancellation) |
 | Name resolution, connection and TLS failures | `NetworkError` |
+| A connection failure before any answer (typically a pooled connection the peer had already closed) is repeated once on a fresh connection, for GET and for requests the caller marks `FetchRequest.Idempotent` (the OCSP POST); every other POST is sent once. The reason of a failure carries the transport's own explanation, for example that the connection was closed | `NetworkError` |
 | Non-2xx answers | `HttpStatus` |
 
 ### Blocked addresses
@@ -93,6 +95,41 @@ Three clients find OpenPGP certificates over HTTP. They live here because they f
 
 **VKS** (keys.openpgp.org API documentation, `VksClient`). `ByFingerprintAsync` (40 or 64 hex digits, any case, sent upper case), `ByKeyIdAsync` (16), `ByEmailAsync` (escaped into the path so it cannot change the route); invalid input is `InvalidQuery` and sends nothing. `UploadAsync` posts `{"keytext": ...}` and `RequestVerifyAsync` posts the token, addresses (at most 32) and locales; both return a `VksUploadResult` with the fingerprint, the token and the per-address `VksEmailStatus`. The service rate-limits (five lookups per second by fingerprint or key ID, one per minute by email address, per its documentation): a 429 is `RateLimited`. Non-2xx answers do not carry their body through the fetcher, so the server's JSON `error` text is not reported.
 
+## Remote signing: the Cloud Signature Consortium API
+
+`CscClient` speaks the Cloud Signature Consortium API v2.2 (cited; its text is CC BY-SA and is not copied): `info`, `credentials/list`, `credentials/info`, `credentials/authorize` and `signatures/signHash`. `CscSigningKey` turns a credential into an `ISigningKey`. Nothing is fetched until a method is called; constructing a client does no I/O.
+
+| Type | Role |
+|---|---|
+| `CscClient` | One method per API call, each returning `CscResult<T>` (an `Outcome`, a `Reason`, the service's `Error` code, the HTTP status and the `FetchResult`). `OpenSigningKeyAsync` describes a credential and opens it as a key. |
+| `CscSigningKey` | `ISigningKey` over a credential. RSA PKCS #1 v1.5, RSA-PSS and ECDSA with SHA-1/2. `SignDigestsAsync` signs several digests under one authorization. |
+| `ICscTokenSource` | Where access tokens come from; the caller supplies it. `CscStaticTokenSource`, `CscDelegateTokenSource` and `CscClientCredentialsTokenSource` (RFC 6749 §4.4 against `oauth2/token`, cached until 30 s before expiry) are provided. The authorization-code flow needs a browser and a person, so it is a delegate the caller writes. |
+| `CscKeyOptions` | `AuthDataProvider`: collects the PIN or OTP of an explicit credential at the moment of signing (an interactive prompt goes here). |
+
+### What is sent, and what is bound to what
+
+All requests are POSTs of a JSON object (`Content-Type: application/json`) to the service base URL with the method name appended; `info` carries no `Authorization` header, every other call carries `Authorization: Bearer <service token>`. A signature is made in this order, and the digests in the first two calls are the same array:
+
+1. **Authorization.** An *explicit* credential (`auth/mode` = `explicit`): `credentials/authorize` with `credentialID`, `numSignatures`, `hashes` (Base64 digests), `hashAlgorithmOID` and the `authData` the key's provider returned. The digests are sent whatever the credential's SCAL, so the Signature Activation Data (SAD) is bound to what is signed; for SCAL 2 the API requires it (§11.8) and a SAD is then useless for any other digest. An *OAuth 2.0* credential (`oauth2code`): the token source gets a `CscCredentialTokenRequest` (credential, digests, hash OID, count; `ToAuthorizeParameters()` gives the `oauth2/authorize` parameters, the hashes as comma-separated base64url) and returns the credential-scope access token. A 202 answer is reported as `AuthorizationPending` with the handle; polling `credentials/authorizeCheck` is not implemented.
+2. **Signing.** `signatures/signHash` with `credentialID`, the SAD (or credential token) in `SAD`, `hashes`, `hashAlgorithmOID`, `signAlgo` and, for RSASSA-PSS, `signAlgoParams` (the DER of the RFC 4055 parameters, Base64, salt length = digest length). `signAlgo` is the hash-specific identifier (sha256WithRSAEncryption, ecdsa-with-SHA256, id-RSASSA-PSS); when the credential or `info` lists only `rsaEncryption`, that is sent for PKCS #1 v1.5 together with the always-present `hashAlgorithmOID`.
+3. **Check.** Each returned signature must verify against the public key of the credential's end-entity certificate under the requested scheme, or `CscSigningException` (`BadSignature`) is thrown and nothing is released. The count of signatures must equal the count of hashes.
+
+ECDSA: the API does not say whether a service returns DER or fixed-width `r || s`. A signature of exactly twice the field size is taken as `r || s` (a DER signature is always longer) and anything else must parse as strict DER; the result is converted to the encoding of the `SignatureSpec`.
+
+EdDSA, ML-DSA and any scheme that signs the message cannot be offered: the API signs digests. `Supports` is false for them.
+
+### Tokens, expiry and errors
+
+The service token is asked for before each authenticated call. A token whose `ExpiresAt` is within 10 s is not sent: the source is asked for a fresh one (`forceRefresh: true`); if none comes, the outcome is `TokenUnavailable` and nothing is sent. A 401, `invalid_token` or `expired_token` answer gets exactly one retry with a forced refresh; a second refusal is `TokenRejected`. Other error answers (HTTP 400 with `error` and `error_description`, as in §10 and the per-method tables) are `ServiceError` with the code in `Error`; the first 64 KiB of an error body is read, the rest ignored. An unusable answer (not a JSON object, a missing or mistyped member, nesting deeper than 16, more than 256 items, a string that is not UTF-8, an undecodable certificate, a certificate key that cannot sign a digest, SCAL other than 1 or 2, `multisign` below 1) is `MalformedResponse` or `CredentialUnusable`, never an exception.
+
+### Guards
+
+The fetcher's guards apply to CSC URLs, with two stricter settings: **no redirect is ever followed** (every request carries a bearer token or activation data; `FetchRequest.MaxRedirects = 0`), and the response limit defaults to 4 MiB (`CscClientOptions.MaxResponseBytes`). The service URL is `UrlOrigin.Caller` by default (the application's own configuration, as for a TSA); set `CscClientOptions.Origin` to `UrlOrigin.Certificate` for a URL that arrived from outside, and loopback, link-local and private addresses are refused. Only absolute `http`/`https` URLs without user information are accepted, otherwise the constructor throws `ArgumentException`. Time limits, `Content-Length` checks and the `TransportException` mapping are the fetcher's. Requests are never retried: a SAD may be single-use.
+
+### No credential in output
+
+An access token, a SAD, an authentication value and a client secret are never part of a `Reason`, an `Error`, an exception message, or `ToString()` of `CscAccessToken`, `CscAuthObject` and `CscAuthorization`; text a service sends back (`error_description`) has the secrets of that call replaced by `[redacted]`, control characters dropped and its length capped. `RecordingTransport` records no request headers (so no bearer token or client secret); a recording of an authorization answer still contains the SAD, so replace its value before committing it (the fixtures here do).
+
 ## The validator's sources
 
 `OnlineRevocationSource` implements `IRevocationSource` and `OnlineCertificateSource` implements `ICertificateSource`; pass them in `ValidationOptions` and call `PathValidator.ValidateAsync`. Core's interfaces are unchanged. The revocation source gets no clock from the validator, so give it the validation's reference time (`OnlineRevocationOptions.ReferenceTime`) for the cache decisions; null uses the fetcher's clock. `OcspThenCrl` (default) asks OCSP first and falls back to the CRLs when OCSP gave no usable answer (a failed fetch, an error status, or the status "unknown"); `CrlThenOcsp` and `Both` are the other orders. Every request carries the address guard. Failures are not exceptions: the validator finds no data and reports the certificate's revocation as unknown, and `Attempts` lists each location tried, whether it worked and why not. Offline, or with every fetch failing, revocation is therefore unknown and never good.
@@ -108,4 +145,6 @@ Three clients find OpenPGP certificates over HTTP. They live here because they f
 - OpenSSL as a black box, in both directions, over HTTP on the loopback interface: `openssl ocsp -port` answering our client (GET, POST, nonce), `openssl ts -reply` behind a small HTTP shim answering our client, and `openssl ocsp -url` and `openssl ts -verify` checking our responder and authority handlers served by a test host.
 - Discovery: the draft's URL examples, recordings of a domain that publishes by both WKD methods, of a missing policy, of a 404, and of keys.openpgp.org's HKP and VKS answers for one published key; hand-made exchanges for redirects off the host, to http, to private addresses, a 401, name-resolution versus connect failure, oversize answers and rate limits; the live scenarios run against the services only with `ONECRYPTO_ONLINE_LIVE=1` (never in CI). Fuzz targets `hkpindex` and `autocrypt`.
 - A fuzz target (`online`) for the response handling: statuses, header blocks, lying or cut-short lengths, failing streams, the fetcher with its cache, each client's interpretation of what it returns, and the Cache-Control, HTTP-date and exchange-file parsers.
+- Remote signing: a test service written from the CSC API (`tests/OneCrypto.Online.Tests/Csc/`) that signs with in-memory keys, binds activation data to hashes, expires tokens and SADs and answers the documented errors. Covered: RSA PKCS #1 v1.5 and PSS and ECDSA (DER and fixed-width), SCAL 1 and 2, explicit and OAuth 2.0 authorization, token refresh, expiry and revocation, hash-binding refusals, hostile answers, the guards, absence of credentials from reasons and recordings, recorded exchanges in `testdata/online/csc-*.exchanges.json`, CMS signatures verified by OpenSSL, a prepared signature signed in another process, a PAdES B-LTA signature made through it and validated by the bridge and by `pdfsig`, and a fuzz target (`csc`).
+- Connection reuse: a server that answers a request on a kept-alive connection and drops the next one is simulated deterministically; an OCSP query (a repeatable POST) must still be answered, and a POST not marked repeatable must fail with a reason.
 - The NativeAOT smoke app replays a fetch through the fetcher, the cache and the guard.

@@ -24,6 +24,7 @@
     <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
     <!-- The second and third processes of the two-phase tests. -->
     <ProjectReference Include="../Pkcs11TwoPhase/OneCrypto.Pkcs11TwoPhase.csproj" />
+    <ProjectReference Include="../AgentSigner/OneCrypto.AgentSigner.csproj" />
   </ItemGroup>
 
 </Project>
