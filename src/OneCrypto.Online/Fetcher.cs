@@ -86,6 +86,12 @@ public sealed class FetchRequest
     /// <summary>Overrides <see cref="FetchOptions.MaxResponseBytes"/> for this request.</summary>
     public long? MaxResponseBytes { get; init; }
 
+    /// <summary>Keep the body (at most 64 KiB) of a non-2xx answer in <see cref="FetchResult.Body"/> (default false).</summary>
+    public bool KeepErrorBody { get; init; }
+
+    /// <summary>Overrides <see cref="FetchOptions.MaxRedirects"/> for this request; zero refuses every redirect (for requests that carry a body or a credential).</summary>
+    public int? MaxRedirects { get; init; }
+
     /// <summary>Overrides <see cref="FetchOptions.Timeout"/> for this request.</summary>
     public TimeSpan? Timeout { get; init; }
 
@@ -94,6 +100,12 @@ public sealed class FetchRequest
     /// an OCSP client the same for the single response. Null accepts any stored body.
     /// </summary>
     public Func<ReadOnlyMemory<byte>, bool>? IsReusable { get; init; }
+
+    /// <summary>
+    /// True when sending this request twice does no harm (an OCSP query, for example). A connection failure before any answer then costs one automatic retry on a fresh
+    /// connection. GET requests are always retried once; other POSTs never are (default false).
+    /// </summary>
+    public bool Idempotent { get; init; }
 
     /// <summary>When the network fails and a stored body that <see cref="IsReusable"/> accepts exists, return it marked <see cref="FetchResult.Stale"/> (default false).</summary>
     public bool ServeStaleOnError { get; init; }
@@ -322,7 +334,16 @@ public sealed class Fetcher
             TransportResponse response;
             try
             {
-                response = await _transport.SendAsync(tr, token).ConfigureAwait(false);
+                try
+                {
+                    response = await _transport.SendAsync(tr, token).ConfigureAwait(false);
+                }
+                catch (TransportException first) when (first.Failure is TransportFailure.Network or TransportFailure.Connect && (method == "GET" || request.Idempotent))
+                {
+                    // A pooled connection the peer closed after its last answer fails on first use, and the request may or may not have reached it.
+                    // Asking once more opens a fresh connection (the dead one has left the pool); only requests that are safe to repeat get this.
+                    response = await _transport.SendAsync(tr, token).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -348,9 +369,9 @@ public sealed class Fetcher
                 if (response.StatusCode is 301 or 302 or 303 or 307 or 308)
                 {
                     string? location = response.Header("Location");
-                    if (hop >= Options.MaxRedirects)
+                    if (hop >= (request.MaxRedirects ?? Options.MaxRedirects))
                     {
-                        return Done(result, FetchOutcome.TooManyRedirects, $"more than {Options.MaxRedirects} redirects", redirects);
+                        return Done(result, FetchOutcome.TooManyRedirects, $"more than {request.MaxRedirects ?? Options.MaxRedirects} redirects", redirects);
                     }
 
                     if (location is null || location.Length > 8192 || !Uri.TryCreate(current, location, out Uri? next))
@@ -415,6 +436,23 @@ public sealed class Fetcher
 
                 if (response.StatusCode is < 200 or > 299)
                 {
+                    if (request.KeepErrorBody)
+                    {
+                        // An API that explains its errors in the body (a JSON error object) needs it; a short one is kept, a long or broken one is dropped.
+                        try
+                        {
+                            byte[]? errorBody = await ReadBodyAsync(response.Body, Math.Min(maxBytes, 64 * 1024), token).ConfigureAwait(false);
+                            if (errorBody is not null)
+                            {
+                                result.Body = errorBody;
+                            }
+                        }
+                        catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException or NotSupportedException or OperationCanceledException)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+                    }
+
                     return Fail(result, FetchOutcome.HttpStatus, $"the server answered {response.StatusCode}", redirects, request, cacheKey, useCache && response.StatusCode >= 500);
                 }
 

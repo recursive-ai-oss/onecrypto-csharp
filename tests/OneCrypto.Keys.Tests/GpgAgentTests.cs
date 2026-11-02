@@ -190,7 +190,7 @@ public class GpgAgentTests : IClassFixture<GpgAgentFixture>
     [Fact]
     public void AnEd448KeySignsAndAnX448KeyAgreesWhereTheGpgIsNewEnough()
     {
-        KeyEntry? e = _f.Keys.FirstOrDefault(k => k.Name == "ed448");
+        GpgAgentFixture.KeyEntry? e = _f.Keys.FirstOrDefault(k => k.Name == "ed448");
         Assert.SkipWhen(e is null, "this gpg cannot generate Ed448 keys");
         using GpgAgentKey ed = Client().GetKey(e!.SignGrip);
         byte[] data = RandomNumberGenerator.GetBytes(300);
