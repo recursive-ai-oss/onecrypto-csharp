@@ -4,8 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `RecursiveAI.OneCrypto.Keys` is a package: PKCS #11 tokens (`Keys.Pkcs11`), gpg-agent and ssh-agent (`Keys.Agents`) behind the key interfaces, with two-phase signing across processes. Its first release is a preview and carries no API baseline. Tested against SoftHSM2 2.6.1 and 2.7.0, GnuPG 2.4 and 2.5 agents and OpenSSH agents; there is no hardware token in the test set and no live Cloud Signature Consortium provider (see `docs/conformance.md`).
+
 ### Changed
 
+- **Preview:** the key-backend glue (PKCS #11, gpg-agent and ssh-agent in `.Keys`; the Cloud Signature Consortium client in `.Online.Csc`) had an internal review (`docs/key-backend-review.md`); it has not been independently audited. This replaces the earlier "not yet reviewed" note.
+- PKCS #11 signatures are checked against the key's public key before release; every length a PKCS #11 module reports is bounded (a module answering with more objects than the buffer holds is a typed error, not an overrun); external-key decryption failures are uniform; non-canonical two-phase state is refused (`docs/key-backend-review.md`, K1 to K8).
 - `PgpSecretKey.FromExternalKey` refuses an external key whose public key is not the key packet's (different algorithm, curve or key material) with the new `PgpFailure.KeyMismatch`, instead of failing later at the verifier.
 - gpg-agent, ssh-agent, PKCS #11 and Cloud Signature Consortium keys refuse a signature with `AlgorithmNotSupportedException` when the platform cannot verify its scheme, instead of releasing it unchecked. `AllowUncheckedSignatures` (`GpgAgentOptions`, `SshAgentOptions`, `Pkcs11Session`, `CscKeyOptions`) opts out and weakens the check.
 
