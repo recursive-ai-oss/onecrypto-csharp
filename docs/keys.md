@@ -110,7 +110,7 @@ SoftHSM2 as a black box (2.6.1 from the distribution package on Linux x64, 2.7.0
 
 ## Not here
 
-gpg-agent, ssh-agent, CSC and the KMS adapters implement these same interfaces in their own packages. The library has no key store and no agent of its own.
+gpg-agent and ssh-agent (below) are in the same package. Cloud Signature Consortium remote signing is `RecursiveAI.OneCrypto.Online.Csc` in `.Online` ([online.md](online.md#remote-signing-the-cloud-signature-consortium-api)). The cloud KMS adapters are not released yet. The library has no key store and no agent of its own.
 
 ## Use in CMS and X.509
 
