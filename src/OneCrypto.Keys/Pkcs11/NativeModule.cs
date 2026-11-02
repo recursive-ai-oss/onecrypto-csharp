@@ -54,6 +54,17 @@ internal sealed unsafe class NativeModule : IDisposable
         _ownsInitialize = ownsInitialize;
     }
 
+    /// <summary>A module made of the given function table, for tests that play a misbehaving module. The caller keeps the pointers valid.</summary>
+    internal static NativeModule ForFunctions(nint[] functions) => new("test", 0, functions, false) { _references = 1 };
+
+    /// <summary>The slot of a function in the table (the order of CK_FUNCTION_LIST), so a test can fill it.</summary>
+    internal static class Slots
+    {
+        public const int GetSlotList = NativeModule.GetSlotList, GetAttributeValue = NativeModule.GetAttributeValue, FindObjectsInit = NativeModule.FindObjectsInit,
+            FindObjects = NativeModule.FindObjects, FindObjectsFinal = NativeModule.FindObjectsFinal, SignInit = NativeModule.SignInit, Sign = NativeModule.Sign,
+            DeriveKey = NativeModule.DeriveKey, DestroyObject = NativeModule.DestroyObject, Count = NativeModule.FunctionCount;
+    }
+
     /// <summary>Serialises every call into this module (see the remarks of <see cref="Pkcs11Session"/>).</summary>
     internal object CallGate { get; } = new();
 

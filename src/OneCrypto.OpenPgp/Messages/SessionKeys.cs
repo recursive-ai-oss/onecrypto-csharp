@@ -52,8 +52,11 @@ internal static class SessionKeys
                     return null;
             }
         }
-        catch (CryptographicException)
+        catch (CryptographicException e) when (key.External is null || e.GetType() == typeof(CryptographicException))
         {
+            // A key that lives elsewhere reports a ciphertext it could not use as a plain CryptographicException (see IDecryptionKey and IAgreementKey).
+            // Its other failures (a locked or removed token, an unsupported mechanism) do not depend on the message, so they are no oracle and
+            // pass through: folding them would blame the message for a problem with the key.
             return null;
         }
         catch (ArgumentException)
@@ -63,14 +66,30 @@ internal static class SessionKeys
     }
 
     /// <summary>Has an external key derive the shared secret with a peer point: the raw u-coordinate for X25519 and X448, a SEC 1 uncompressed point for the NIST and Brainpool curves.</summary>
-    private static byte[] ExternalAgree(IAgreementKey agent, ReadOnlySpan<byte> point)
+    internal static byte[] ExternalAgree(IAgreementKey agent, ReadOnlySpan<byte> point)
     {
         PublicKeyInfo mine = agent.PublicKey;
         byte[] bits = DerWriter.Tlv(0x03, [0, .. point]);
         byte[] spki = mine.KeyAlgorithm is KeyAlgorithm.X25519 or KeyAlgorithm.X448
             ? DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(mine.Algorithm.Oid)), bits)
             : DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(KnownOids.EcPublicKey), DerWriter.Oid(mine.CurveOid ?? throw new CryptographicException("The external key has no curve."))), bits);
-        return agent.Agree(PublicKeyInfo.Parse(spki));
+        byte[] shared = agent.Agree(PublicKeyInfo.Parse(spki));
+        // RFC 7748 §6.1: a peer point of small order gives an all-zero result, which the in-memory path refuses; a key elsewhere may not.
+        if (mine.KeyAlgorithm is KeyAlgorithm.X25519 or KeyAlgorithm.X448)
+        {
+            int zero = 0;
+            foreach (byte b in shared)
+            {
+                zero |= b;
+            }
+
+            if (zero == 0)
+            {
+                throw new CryptographicException("The key agreement produced an all-zero secret.");
+            }
+        }
+
+        return shared;
     }
 
     private static Recovered? DecryptRsa(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p)

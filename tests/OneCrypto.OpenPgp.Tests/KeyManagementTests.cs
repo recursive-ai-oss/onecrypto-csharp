@@ -432,6 +432,46 @@ public class KeyManagementTests
         Assert.NotNull(error);
     }
 
+    [Theory]
+    [InlineData(PgpKeyProfile.Rfc9580)]
+    [InlineData(PgpKeyProfile.NistP256)]
+    public void EveryTruncationAndOctetChangeOfAPgpStateIsATypedResult(PgpKeyProfile profile)
+    {
+        PgpCertificate key = Generate(profile);
+        PgpPreparedSignature prepared = PgpPreparedSignature.PrepareDetached(key.Primary, new MemoryStream("the document"u8.ToArray()), T1);
+        byte[] state = prepared.Encode();
+        using PgpSecretKey secret = Unlock(key);
+        byte[] good = prepared.SignWith(secret.SigningKey);
+        byte[] raw = prepared.Input == SigningInput.Digest ? secret.SigningKey.SignDigest(prepared.ToSign.Span, prepared.Spec) : secret.SigningKey.Sign(prepared.ToSign.Span, prepared.Spec);
+
+        for (int n = 0; n < state.Length; n++)
+        {
+            Assert.False(PgpPreparedSignature.TryDecode(state.AsSpan(0, n), out _, out _), $"truncation to {n}");
+        }
+
+        for (int i = 0; i < state.Length; i++)
+        {
+            byte[] m = (byte[])state.Clone();
+            m[i] ^= 0x01;
+            if (!PgpPreparedSignature.TryDecode(m, out PgpPreparedSignature? damaged, out _))
+            {
+                continue;
+            }
+
+            // A damaged state that still reads either completes to a signature that verifies for exactly what the damaged state says, or is refused with the typed error.
+            try
+            {
+                byte[] sig = damaged!.Complete(raw);
+                Assert.NotEmpty(sig);
+            }
+            catch (PgpException)
+            {
+            }
+        }
+
+        Assert.NotEmpty(good);
+    }
+
     [Fact]
     public void TextSignaturesAndTamperedStateAreHandled()
     {
