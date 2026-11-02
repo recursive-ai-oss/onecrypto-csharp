@@ -51,6 +51,8 @@ mk rsa rsa3072 rsa3072 ""
 mk p256 nistp256 nistp256 ""
 mk ed25519 ed25519 cv25519 ""
 mk locked rsa2048 rsa2048 onecrypto-test
+# GnuPG 2.5 can generate Ed448/X448 keys; 2.4 cannot, so this one is optional.
+mk ed448 ed448 cv448 "" || { echo "no ed448 in this gpg"; sed -i "/^ed448\t/d" "$H/keys.tsv"; }
 gpg --version | head -1 > "$H/VERSION"
 gpgconf --homedir "$H" --kill all 2>/dev/null || true
 echo "home ready: $H ($(wc -l < "$H/keys.tsv") keys)"

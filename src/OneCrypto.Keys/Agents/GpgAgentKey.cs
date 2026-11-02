@@ -145,7 +145,10 @@ public abstract class GpgAgentKey : IKey
         return DerWriter.Tlv(0x03, withUnused);
     }
 
-    internal static bool IsNoKey(AgentRefusedException e) => e.Code is 17 or 32849;
+    // 17 and 32849 are the no-secret-key answers; gpg-agent 2.4.4 answers READKEY/PKSIGN for
+    // an unknown but well-formed keygrip with 261 (invalid value passed to IPC), while a
+    // malformed grip gets a distinct parameter error, so 261 means not found here.
+    internal static bool IsNoKey(AgentRefusedException e) => e.Code is 17 or 32849 or 261;
 
     // ---- shared protocol steps ----
 

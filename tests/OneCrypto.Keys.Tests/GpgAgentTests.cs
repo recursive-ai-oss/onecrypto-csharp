@@ -188,6 +188,25 @@ public class GpgAgentTests : IClassFixture<GpgAgentFixture>
     }
 
     [Fact]
+    public void AnEd448KeySignsAndAnX448KeyAgreesWhereTheGpgIsNewEnough()
+    {
+        KeyEntry? e = _f.Keys.FirstOrDefault(k => k.Name == "ed448");
+        Assert.SkipWhen(e is null, "this gpg cannot generate Ed448 keys");
+        using GpgAgentKey ed = Client().GetKey(e!.SignGrip);
+        byte[] data = RandomNumberGenerator.GetBytes(300);
+        byte[] sig = ((ISigningKey)ed).Sign(data, SignatureSpec.Ed448());
+        Assert.Equal(114, sig.Length);
+        Assert.True(Ed448.Verify(ed.PublicKey.KeyBits.Span, data, default, sig));
+
+        using var x = (GpgAgentMontgomeryKey)Client().GetKey(e.EncryptGrip);
+        byte[] scalar = RandomNumberGenerator.GetBytes(56), u = new byte[56], expected = new byte[56];
+        X448.DerivePublicKey(scalar, u);
+        X448.ScalarMult(scalar, x.PublicKey.KeyBits.Span, expected);
+        PublicKeyInfo peer = PublicKeyInfo.Parse(DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(KnownOids.X448)), DerWriter.Tlv(0x03, [0, .. u])));
+        Assert.Equal(expected, x.Agree(peer));
+    }
+
+    [Fact]
     public void AKeyTheAgentDoesNotHaveIsATypedNotFound()
     {
         Assert.Throws<AgentKeyNotFoundException>(() => Client().GetKey("ABCDEF0123456789ABCDEF0123456789ABCDEF01"));

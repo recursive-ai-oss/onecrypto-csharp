@@ -135,10 +135,20 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
             },
             X509Signer.FromKey(key, spec));
 
+    private static bool OpenSslAtLeast35()
+    {
+        (int code, byte[] o, _) = Tools.Run(OpenSsl, ["version"], OpenSslEnv);
+        string[] t = Tools.Text(o).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (code != 0 || t.Length < 2 || !Version.TryParse(t[1].Split('-')[0].TrimEnd('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'), out Version? v)) return false;
+        return v >= new Version(3, 5);
+    }
+
     [Theory]
     [MemberData(nameof(Keys))]
     public void ACmsSignatureMadeThroughTheAgentVerifiesUnderOpenSsl(string name)
     {
+        // OpenSSL older than 3.5 cannot verify EdDSA CMS signatures made without signed attributes.
+        Assert.SkipWhen(name == "ed25519" && !OpenSslAtLeast35(), "system OpenSSL cannot verify Ed25519 CMS");
         using GpgAgentKey agentKey = Client().GetKey(_f.Key(name).SignGrip);
         var key = (ISigningKey)agentKey;
         SignatureSpec spec = key.DefaultSpec;
