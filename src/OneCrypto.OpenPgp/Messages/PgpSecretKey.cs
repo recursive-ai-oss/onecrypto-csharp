@@ -15,6 +15,7 @@ public sealed class PgpSecretKey : IDisposable
     private readonly byte[] _plain;
     private readonly int _length;
     private ISigningKey? _signer;
+    private IKey? _external;
 
     private PgpSecretKey(PgpKey key, byte[] plain, int length)
     {
@@ -25,6 +26,23 @@ public sealed class PgpSecretKey : IDisposable
 
     /// <summary>The public side: the key packet and its certificate.</summary>
     public PgpKey Key { get; }
+
+    /// <summary>
+    /// Wraps a key that lives elsewhere (an agent, a token, a service) so it can sign and decrypt for this OpenPGP key. Nothing is unlocked and no secret is held here:
+    /// signing goes to <see cref="ISigningKey"/>, RSA decryption to <see cref="IDecryptionKey"/> and ECDH or X25519 decryption to <see cref="IAgreementKey"/>. The caller
+    /// keeps ownership of <paramref name="external"/>; disposing this object does not dispose it. The caller is responsible for the key being the private half of <paramref name="key"/>.
+    /// </summary>
+    /// <param name="key">The public key packet the external key belongs to.</param>
+    /// <param name="external">The external key; an <see cref="ISigningKey"/> and/or <see cref="IDecryptionKey"/> or <see cref="IAgreementKey"/> as the algorithm needs.</param>
+    public static PgpSecretKey FromExternalKey(PgpKey key, IKey external)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(external);
+        return new PgpSecretKey(key, [], 0) { _external = external, _signer = external as ISigningKey };
+    }
+
+    /// <summary>The external key this object wraps, or null for an unlocked local key.</summary>
+    internal IKey? External => _external;
 
     /// <summary>
     /// Unlocks a secret key packet. Tries each password in turn when the packet is protected (RFC 9580 §5.5.3); an unprotected packet needs none.
@@ -246,6 +264,11 @@ public sealed class PgpSecretKey : IDisposable
     // Splits the algorithm-specific secret octets into their values (RFC 9580 §5.5.5): MPIs for the classic algorithms, fixed-size octet strings for the native ones.
     private List<byte[]> Parts()
     {
+        if (_external is not null)
+        {
+            throw new PgpException(PgpFailure.KeyCannotPerform, "The secret key lives outside this process; its material cannot be read.");
+        }
+
         var parts = new List<byte[]>();
         ReadOnlySpan<byte> m = _plain.AsSpan(0, _length);
         PublicKeyAlgorithm alg = Key.Algorithm;
@@ -486,7 +509,11 @@ public sealed class PgpSecretKey : IDisposable
     public void Dispose()
     {
         CryptographicOperations.ZeroMemory(_plain);
-        _signer?.Dispose();
+        if (_external is null)
+        {
+            _signer?.Dispose();
+        }
+
         _signer = null;
     }
 
