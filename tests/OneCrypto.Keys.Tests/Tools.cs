@@ -9,6 +9,24 @@ internal static class Tools
 
     internal static string? Sqop => Environment.GetEnvironmentVariable("ONECRYPTO_SQOP") is { Length: > 0 } p && File.Exists(p) ? p : null;
 
+    /// <summary>True when the openssl found is at least this version. OpenSSL before 3.5 cannot verify an EdDSA CMS signature that carries no signed attributes.</summary>
+    internal static bool OpenSslAtLeast(int major, int minor)
+    {
+        if (OpenSsl is null)
+        {
+            return false;
+        }
+
+        string v = System.Text.Encoding.ASCII.GetString(Run(OpenSsl, null, "version").Out); // "OpenSSL 3.5.9 ..."
+        string[] parts = v.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || !Version.TryParse(parts[1].Split('-')[0], out Version? ver))
+        {
+            return false;
+        }
+
+        return ver.Major > major || (ver.Major == major && ver.Minor >= minor);
+    }
+
     internal static void RequireOpenSsl() => Assert.SkipUnless(OpenSsl is not null, "openssl is not installed");
 
     internal static void RequireSqop() => Assert.SkipUnless(Sqop is not null, "sqop is not installed (ONECRYPTO_SQOP)");

@@ -65,6 +65,11 @@ public class Pkcs11CmsTests
                     args = [.. args, "-content", Path.Combine(dir, "content.bin")];
                 }
 
+                if (kind == "ed25519" && !Tools.OpenSslAtLeast(3, 5))
+                {
+                    continue; // OpenSSL before 3.5 refuses EdDSA without signed attributes
+                }
+
                 var r = Tools.Run(Tools.OpenSsl!, null, args);
                 Assert.True(r.Code == 0, $"{kind} detached={detached}: openssl cms -verify: {r.Error}");
                 Assert.Equal(Doc, File.ReadAllBytes(Path.Combine(dir, "out.bin")));

@@ -94,7 +94,7 @@ public class Pkcs11TwoPhaseTests
             Assert.True(sd.Verify(Data).IsValid);
             Assert.False(sd.Verify("other"u8).IsValid);
 
-            if (Tools.OpenSsl is not null)
+            if (Tools.OpenSsl is not null && (kind != "ed25519" || Tools.OpenSslAtLeast(3, 5)))
             {
                 var r = Tools.Run(Tools.OpenSsl, null, "cms", "-verify", "-inform", "DER", "-in", output, "-content", dataFile, "-noverify", "-binary", "-out", Path.Combine(dir, "o.bin"));
                 Assert.True(r.Code == 0, "openssl cms -verify: " + r.Error);

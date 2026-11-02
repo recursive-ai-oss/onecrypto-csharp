@@ -53,6 +53,34 @@ internal static class SoftHsm
         }
 
         string dir = Path.GetDirectoryName(conf)!;
+
+        // A second run on the same configuration would find the first run's tokens (every label twice) and its output files, so a store left in the scratch area is emptied first.
+        if (Path.GetFullPath(dir).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.Ordinal))
+        {
+            foreach (string old in Directory.GetFileSystemEntries(dir))
+            {
+                if (Path.GetFileName(old) is not ("softhsm2.conf" or "tokens"))
+                {
+                    if (Directory.Exists(old))
+                    {
+                        Directory.Delete(old, true);
+                    }
+                    else
+                    {
+                        File.Delete(old);
+                    }
+                }
+            }
+
+            if (Directory.Exists(Path.Combine(dir, "tokens")))
+            {
+                foreach (string old in Directory.GetDirectories(Path.Combine(dir, "tokens")))
+                {
+                    Directory.Delete(old, true);
+                }
+            }
+        }
+
         foreach (string label in new[] { MainToken, AuthToken, "u-import" })
         {
             Util_(["--init-token", "--free", "--label", label, "--so-pin", SoPin, "--pin", UserPin]);
