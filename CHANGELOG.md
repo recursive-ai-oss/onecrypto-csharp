@@ -6,6 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Agent key backends in `RecursiveAI.OneCrypto.Keys.Agents` (`.Keys`, new, not yet released): `GpgAgentClient` talks to gpg-agent over Assuan (socket discovery as GnuPG names it, keys by keygrip, RSA / ECDSA / EdDSA signing, RSA decryption and ECDH / X25519 agreement; the passphrase prompt is the agent's own) and `SshAgentClient` to an ssh-agent (RSA with SHA-256/512, ECDSA, Ed25519; SSH signature blobs for SSHSIG). Keys are `ISigningKey`, `IDecryptionKey` and `IAgreementKey`; the private key never leaves the agent, replies are bounded and checked, and every failure is a typed `AgentException`. See `docs/keys.md`.
+- `PgpSecretKey.FromExternalKey` and `PgpReadOptions.ExternalKeys` (`.OpenPgp`): decrypt OpenPGP messages with a key that lives in an agent or another backend. `SignatureSpec.VerifyDigest` (core): check a signature over a digest computed by the caller.
 - `RecursiveAI.OneCrypto.Online.Csc`: a client for the Cloud Signature Consortium API v2.2 (`CscClient`: `info`, `credentials/list`, `credentials/info`, `credentials/authorize`, `signatures/signHash`) over the guarded transport, and `CscSigningKey`, a remote credential as an `ISigningKey` (RSA PKCS #1 v1.5, RSA-PSS, ECDSA; SAD bound to the digests; every signature checked against the credential's certificate). Tokens come from an `ICscTokenSource`, with a client-credentials source provided. See `docs/online.md`.
 - `SignatureSpec.VerifyDigest`: checks a signature over a digest the caller already computed.
 - `FetchRequest.Idempotent`, `FetchRequest.MaxRedirects` and `FetchRequest.KeepErrorBody`.
