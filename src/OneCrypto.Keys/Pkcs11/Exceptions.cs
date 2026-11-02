@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 namespace RecursiveAI.OneCrypto.Keys.Pkcs11;
 
 /// <summary>
-/// The return values (CK_RV) a module reports, PKCS #11 v3.1 §5.1.4 (Table 5.1.4) and §5.1.5 (the list of values). Only the values the library
+/// The return values (CK_RV) a module reports, PKCS #11 v3.1 §5.1. Only the values the library
 /// reacts to are named; any other value a module returns is carried as its number in <see cref="Pkcs11Exception.ReturnCode"/>.
 /// </summary>
 public enum Pkcs11Result : uint

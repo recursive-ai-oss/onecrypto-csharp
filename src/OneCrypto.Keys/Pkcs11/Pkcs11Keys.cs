@@ -169,7 +169,7 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
         int k = (PublicKey.KeySizeBits + 7) / 8;
         if (spec.Kind == SignatureKind.RsaPkcs1)
         {
-            // RFC 8017 §9.2: the token pads the DigestInfo (CKM_RSA_PKCS signs what it is given, §6.1.6), so the DigestInfo is built here.
+            // RFC 8017 §9.2: the token pads the DigestInfo (CKM_RSA_PKCS signs what it is given, §6.1.14), so the DigestInfo is built here.
             if (!Session.HasMechanism(RsaPkcs))
             {
                 throw Unsupported("RSASSA-PKCS1-v1_5", RsaPkcs);
@@ -184,7 +184,7 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
             throw Unsupported("RSASSA-PSS", RsaPkcsPss);
         }
 
-        // §6.1.11 CK_RSA_PKCS_PSS_PARAMS: hashAlg, mgf, sLen. The salt is as long as the digest (RFC 8017 §9.1, RFC 4055 §3.1).
+        // §6.1.9 CK_RSA_PKCS_PSS_PARAMS: hashAlg, mgf, sLen. The salt is as long as the digest (RFC 8017 §9.1, RFC 4055 §3.1).
         byte[] param = new byte[3 * nuint.Size];
         WriteNative(param, 0, h.Mechanism);
         WriteNative(param, 8, h.Mgf);
@@ -219,7 +219,7 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
         ulong mech = RsaPkcs;
         if (spec.Kind == DecryptionKind.RsaOaep)
         {
-            // §6.1.8 CK_RSA_PKCS_OAEP_PARAMS: hashAlg, mgf, source (CKZ_DATA_SPECIFIED), pSourceData, ulSourceDataLen; the label is empty (RFC 8017 §7.1).
+            // §6.1.7 CK_RSA_PKCS_OAEP_PARAMS: hashAlg, mgf, source (CKZ_DATA_SPECIFIED), pSourceData, ulSourceDataLen; the label is empty (RFC 8017 §7.1).
             HashInfo h = HashInfo.Of(spec.Hash)!;
             mech = RsaPkcsOaep;
             param = new byte[5 * nuint.Size];
@@ -313,7 +313,7 @@ public sealed class Pkcs11EcKey : Pkcs11Key, ISigningKey, IAgreementKey
         RequireNoReauthentication();
         int size = (PublicKey.KeySizeBits + 7) / 8;
         byte[] d = digest.ToArray();
-        // §6.3.1 CKM_ECDSA: the token signs the digest as given and returns r || s, each as wide as the curve's order (RFC 4754 / IEEE P1363).
+        // §6.3.12 CKM_ECDSA: the token signs the digest as given and returns r || s, each as wide as the curve's order (RFC 4754 / IEEE P1363).
         byte[] raw = Session.Run(() => Raw.Sign(Session.Module, Session.Handle, (nuint)Handle, (nuint)Ecdsa, null, d, 2 * size));
         if (raw.Length != 2 * size)
         {
@@ -351,7 +351,7 @@ public sealed class Pkcs11EcKey : Pkcs11Key, ISigningKey, IAgreementKey
 
         RequireNoReauthentication();
         byte[] p = point.ToArray();
-        // §6.3.13: with CKD_NULL the derived value is the x-coordinate. v3.1 takes the peer's point raw (uncompressed) or as a DER OCTET STRING.
+        // §6.3.17: with CKD_NULL the derived value is the x-coordinate. v3.1 takes the peer's point raw (uncompressed) or as a DER OCTET STRING.
         // Modules that only read the older DER form refuse the raw one with a parameter error; that case is retried once.
         try
         {

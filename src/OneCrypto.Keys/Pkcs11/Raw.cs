@@ -74,7 +74,7 @@ internal static unsafe class Raw
         }
     }
 
-    /// <summary>Reads one attribute; null when the object does not have it or the token will not reveal it (§5.1.4 on C_GetAttributeValue).</summary>
+    /// <summary>Reads one attribute; null when the object does not have it or the token will not reveal it (C_GetAttributeValue, §5.7.5).</summary>
     internal static byte[]? GetAttribute(NativeModule m, nuint session, nuint obj, nuint type)
     {
         var a = new CkAttribute { Type = type };
@@ -106,7 +106,7 @@ internal static unsafe class Raw
         return value;
     }
 
-    /// <summary>Changes one boolean attribute of an object (C_SetAttributeValue, §5.7); the token decides whether the object may be modified.</summary>
+    /// <summary>Changes one boolean attribute of an object (C_SetAttributeValue, §5.7.6); the token decides whether the object may be modified.</summary>
     internal static void SetBool(NativeModule m, nuint session, nuint obj, nuint type, bool value)
     {
         var t = new Template().Bool(type, value);
@@ -161,15 +161,15 @@ internal static unsafe class Raw
         return h;
     }
 
-    /// <summary>A one-shot signature (C_SignInit then C_Sign, §5.2.5 and §5.13).</summary>
+    /// <summary>A one-shot signature (C_SignInit then C_Sign, §5.13).</summary>
     internal static byte[] Sign(NativeModule m, nuint session, nuint key, nuint mechanism, byte[]? parameter, ReadOnlySpan<byte> data, int expected) =>
         OneShot(m, session, key, mechanism, parameter, data, expected, sign: true);
 
-    /// <summary>A one-shot decryption (C_DecryptInit then C_Decrypt, §5.2.5 and §5.8). The result is plaintext: the caller wipes it.</summary>
+    /// <summary>A one-shot decryption (C_DecryptInit then C_Decrypt, §5.10). The result is plaintext: the caller wipes it.</summary>
     internal static byte[] Decrypt(NativeModule m, nuint session, nuint key, nuint mechanism, byte[]? parameter, ReadOnlySpan<byte> data, int expected) =>
         OneShot(m, session, key, mechanism, parameter, data, expected, sign: false);
 
-    // Both one-shot calls follow §5.2.1's buffer rule: a too-small buffer answers CKR_BUFFER_TOO_SMALL with the length needed and keeps the operation active.
+    // Both one-shot calls follow the buffer rule of §5.2: a too-small buffer answers CKR_BUFFER_TOO_SMALL with the length needed and keeps the operation active.
     private static byte[] OneShot(NativeModule m, nuint session, nuint key, nuint mechanism, byte[]? parameter, ReadOnlySpan<byte> data, int expected, bool sign)
     {
         fixed (byte* pp = parameter)
@@ -215,7 +215,7 @@ internal static unsafe class Raw
     }
 
     /// <summary>
-    /// CKM_EDDSA (v3.1 §6.3.5): CK_EDDSA_PARAMS is {phFlag (CK_BBOOL), ulContextDataLen, pContextData}; pure EdDSA has phFlag false. Ed25519 with no
+    /// CKM_EDDSA (v3.1 §6.3.14): CK_EDDSA_PARAMS is {phFlag (CK_BBOOL), ulContextDataLen, pContextData}; pure EdDSA has phFlag false. Ed25519 with no
     /// context takes no parameters at all; Ed448 always gets them.
     /// </summary>
     internal static byte[] SignEddsa(NativeModule m, nuint session, nuint key, ReadOnlySpan<byte> data, ReadOnlySpan<byte> context, bool withParameters, int expected)
@@ -234,7 +234,7 @@ internal static unsafe class Raw
     }
 
     /// <summary>
-    /// CKM_ECDH1_DERIVE with no key derivation function (v3.1 §6.3.13): the secret is the x-coordinate. The peer's public point goes in as the raw
+    /// CKM_ECDH1_DERIVE with no key derivation function (v3.1 §6.3.17): the secret is the x-coordinate. The peer's public point goes in as the raw
     /// uncompressed point, or as its DER OCTET STRING when <paramref name="point"/> says so. The derived object is a session-only generic secret the
     /// token lets us read; it is read and destroyed here.
     /// </summary>
@@ -270,7 +270,7 @@ internal static unsafe class Raw
         }
     }
 
-    /// <summary>C_DeriveKey (§5.18.2): returns the handle of the new object.</summary>
+    /// <summary>C_DeriveKey (§5.18.5): returns the handle of the new object.</summary>
     internal static nuint Derive(NativeModule m, nuint session, nuint baseKey, nuint mechanism, byte[] parameter, Template t)
     {
         fixed (byte* pp = parameter)
@@ -283,7 +283,7 @@ internal static unsafe class Raw
         }
     }
 
-    /// <summary>C_GenerateKeyPair (§5.18.4).</summary>
+    /// <summary>C_GenerateKeyPair (§5.18.2).</summary>
     internal static (nuint Public, nuint Private) GenerateKeyPair(NativeModule m, nuint session, nuint mechanism, Template pub, Template priv)
     {
         fixed (CkAttribute* pa = pub.Native())
@@ -401,7 +401,7 @@ internal static unsafe class Raw
         return info;
     }
 
-    /// <summary>C_Login (§5.6.1). A null PIN uses the token's protected authentication path.</summary>
+    /// <summary>C_Login (§5.6.8). A null PIN uses the token's protected authentication path.</summary>
     internal static nuint Login(NativeModule m, nuint session, nuint userType, byte[]? pin)
     {
         fixed (byte* p = pin)

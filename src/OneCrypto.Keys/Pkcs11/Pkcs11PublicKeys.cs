@@ -4,7 +4,7 @@ using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.Keys.Pkcs11;
 
-/// <summary>Builds <see cref="PublicKeyInfo"/> values from the attributes of PKCS #11 public key objects (v3.1 §6.3.3 for RSA, §6.3.4 for EC and EdDSA).</summary>
+/// <summary>Builds <see cref="PublicKeyInfo"/> values from the attributes of PKCS #11 public key objects (v3.1 §6.1.2 for RSA, §6.3.3 for EC, §6.3.5 for EdDSA).</summary>
 internal static class Pkcs11PublicKeys
 {
     private const string EcPublicKey = "1.2.840.10045.2.1";
@@ -42,7 +42,7 @@ internal static class Pkcs11PublicKeys
         }
     }
 
-    /// <summary>The field size in octets and dotted identifier of a named curve given as CKA_EC_PARAMS (an encoded OID, §6.3.4), or null.</summary>
+    /// <summary>The field size in octets and dotted identifier of a named curve given as CKA_EC_PARAMS (an encoded OID, §6.3.3), or null.</summary>
     internal static (string Oid, int FieldBytes)? CurveOf(byte[] ecParams)
     {
         var r = new Asn1Reader(ecParams, Asn1Rules.Ber);
@@ -63,7 +63,7 @@ internal static class Pkcs11PublicKeys
         };
     }
 
-    // Ed25519 and Ed448 parameters come as the curve OID or, in v3.0, as a PrintableString curve name (§6.3.4: "edwards25519", "edwards448").
+    // Ed25519 and Ed448 parameters come as the curve OID or, in v3.0, as a PrintableString curve name (§6.3.5: "edwards25519", "edwards448").
     private static string? EdwardsOid(byte[] ecParams)
     {
         if (ecParams.AsSpan().SequenceEqual(new byte[] { 0x06, 0x03, 0x2B, 0x65, 0x70 }))
@@ -88,7 +88,7 @@ internal static class Pkcs11PublicKeys
         return null;
     }
 
-    // CKA_EC_POINT is the point as a DER OCTET STRING (§6.3.4); some modules return the bare point. The expected length tells the two apart
+    // CKA_EC_POINT is the point as a DER OCTET STRING (§6.3.3); some modules return the bare point. The expected length tells the two apart
     // (a bare point starting 0x04 could otherwise be read as a short OCTET STRING).
     private static byte[]? Point(byte[] value, int expected)
     {

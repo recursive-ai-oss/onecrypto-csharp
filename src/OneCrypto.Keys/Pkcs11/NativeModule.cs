@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace RecursiveAI.OneCrypto.Keys.Pkcs11;
 
-/// <summary>CK_ATTRIBUTE (PKCS #11 v3.1 §4.1): type, value pointer, value length.</summary>
+/// <summary>CK_ATTRIBUTE (PKCS #11 v3.1): type, value pointer, value length.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal unsafe struct CkAttribute
 {
@@ -11,7 +11,7 @@ internal unsafe struct CkAttribute
     public nuint Length;
 }
 
-/// <summary>CK_MECHANISM (§5.2.1): type, parameter pointer, parameter length.</summary>
+/// <summary>CK_MECHANISM: type, parameter pointer, parameter length.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal unsafe struct CkMechanism
 {
@@ -21,7 +21,7 @@ internal unsafe struct CkMechanism
 }
 
 /// <summary>
-/// One loaded PKCS #11 module: the library handle and the function table from <c>C_GetFunctionList</c> (§5.1.1, §5.1.2). Calls go through function
+/// One loaded PKCS #11 module: the library handle and the function table from <c>C_GetFunctionList</c>. Calls go through function
 /// pointers of the C calling convention, so no interface marshalling is generated and nothing needs reflection. CK_ULONG is the platform's
 /// <c>unsigned long</c>, which is <see cref="nuint"/> on every 64-bit Unix platform; other platforms are refused at load (Windows uses a 32-bit
 /// CK_ULONG and byte-packed structures, which this backend does not do).
@@ -29,7 +29,7 @@ internal unsafe struct CkMechanism
 /// </summary>
 internal sealed unsafe class NativeModule : IDisposable
 {
-    // The order of the function list (§5.1.2, CK_FUNCTION_LIST): the version, then one pointer per function.
+    // The order of the function list (CK_FUNCTION_LIST): the version, then one pointer per function.
     private const int Initialize = 0, Finalize = 1, GetInfo = 2, GetSlotList = 4, GetSlotInfo = 5, GetTokenInfo = 6, GetMechanismList = 7,
         GetMechanismInfo = 8, OpenSession = 12, CloseSession = 13, CloseAllSessions = 14, GetSessionInfo = 15, Login = 18, Logout = 19,
         CreateObject = 20, DestroyObject = 22, GetAttributeValue = 24, SetAttributeValue = 25, FindObjectsInit = 26, FindObjects = 27, FindObjectsFinal = 28,
@@ -114,7 +114,7 @@ internal sealed unsafe class NativeModule : IDisposable
                     throw new Pkcs11ModuleException($"'{path}' does not provide the functions this backend needs.", modulePath: path);
                 }
 
-                // §5.1.1: with CKF_OS_LOCKING_THREADS the module locks with the operating system's primitives, so several threads may call it.
+                // §5.4.1 (C_Initialize): with CKF_OS_LOCKING_THREADS the module locks with the operating system's primitives, so several threads may call it.
                 byte* args = stackalloc byte[48]; // CK_C_INITIALIZE_ARGS: four mutex pointers, flags, reserved: 6 x 8 octets
                 new Span<byte>(args, 48).Clear();
                 *(nuint*)(args + 32) = 0x2;

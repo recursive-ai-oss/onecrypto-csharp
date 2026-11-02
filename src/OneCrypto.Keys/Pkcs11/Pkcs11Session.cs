@@ -4,7 +4,7 @@ using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.Keys.Pkcs11;
 
-/// <summary>The family of a private key object (CKA_KEY_TYPE, PKCS #11 v3.1 §6.1 onwards).</summary>
+/// <summary>The family of a private key object (CKA_KEY_TYPE, PKCS #11 v3.1 §6).</summary>
 public enum Pkcs11KeyType
 {
     /// <summary>A key type the library does not use (DSA, DH, symmetric and so on).</summary>
@@ -70,8 +70,8 @@ public sealed class Pkcs11KeyPairSpec
 }
 
 /// <summary>
-/// A session with a token (C_OpenSession, PKCS #11 v3.1 §5.6): login, object lookup and the private-key operations. Sessions serve any number of
-/// threads: calls into one module are serialised, because a session holds one operation at a time (§5.2) and because modules do not all stand up to
+/// A session with a token (C_OpenSession, PKCS #11 v3.1 §5.6.1): login, object lookup and the private-key operations. Sessions serve any number of
+/// threads: calls into one module are serialised, because a session runs one operation at a time per kind and because modules do not all stand up to
 /// calls from several sessions at once (SoftHSM2 failed key generation with CKR_GENERAL_ERROR when sessions ran in parallel). A token is one device with one
 /// pipe in any case; the cost is that two threads never sign at the same moment.
 /// </summary>
@@ -102,7 +102,7 @@ public sealed class Pkcs11Session : IDisposable
     public bool ReadWrite { get; }
 
     /// <summary>
-    /// True while the user is logged in on the token (C_GetSessionInfo, §5.6: the login state belongs to the token, so a login or logout in any
+    /// True while the user is logged in on the token (C_GetSessionInfo, §5.6.4: the login state belongs to the token, so a login or logout in any
     /// session of this application shows in all of them).
     /// </summary>
     public bool IsLoggedIn
@@ -127,7 +127,7 @@ public sealed class Pkcs11Session : IDisposable
 
     internal static Pkcs11Session Open(Pkcs11Slot slot, bool readWrite)
     {
-        // CKF_SERIAL_SESSION is required (§5.6); CKF_RW_SESSION asks for write access.
+        // CKF_SERIAL_SESSION is required (§5.6.1); CKF_RW_SESSION asks for write access.
         nuint h = Raw.OpenSession(slot.Module.Native, (nuint)slot.Id, readWrite ? (nuint)6 : 4);
         var s = new Pkcs11Session(slot, h, readWrite);
         slot.Module.Register(s);
@@ -135,7 +135,7 @@ public sealed class Pkcs11Session : IDisposable
     }
 
     /// <summary>
-    /// Logs the user in (C_Login with CKU_USER, §5.6). The PIN is sent as UTF-8 and the library's copy is wiped. A wrong PIN is a
+    /// Logs the user in (C_Login with CKU_USER, §5.6.8). The PIN is sent as UTF-8 and the library's copy is wiped. A wrong PIN is a
     /// <see cref="Pkcs11PinException"/>; a locked token a <see cref="Pkcs11PinLockedException"/>. Logging in twice is not an error.
     /// </summary>
     /// <param name="pin">The user PIN; not empty (an empty value would ask for the protected authentication path, which has its own method).</param>
@@ -170,7 +170,7 @@ public sealed class Pkcs11Session : IDisposable
     }
 
     /// <summary>
-    /// Logs the user in through the token's own PIN entry (C_Login with no PIN, §5.6, for tokens with CKF_PROTECTED_AUTHENTICATION_PATH): a pad or a
+    /// Logs the user in through the token's own PIN entry (C_Login with no PIN, §5.6.8, for tokens with CKF_PROTECTED_AUTHENTICATION_PATH): a pad or a
     /// prompt of the module's own. The call blocks until the user answers.
     /// </summary>
     /// <exception cref="Pkcs11PinException">The token has no protected authentication path, or the user did not enter a valid PIN.</exception>
@@ -212,7 +212,7 @@ public sealed class Pkcs11Session : IDisposable
         }
     }
 
-    /// <summary>Lists the private keys that match the label and ID (C_FindObjects, §5.7). Without a login, tokens that guard their private objects list none.</summary>
+    /// <summary>Lists the private keys that match the label and ID (C_FindObjects, §5.7.8). Without a login, tokens that guard their private objects list none.</summary>
     /// <param name="label">CKA_LABEL to match, or null for any.</param>
     /// <param name="id">CKA_ID to match, or empty for any.</param>
     public IReadOnlyList<Pkcs11KeyInfo> FindPrivateKeys(string? label = null, ReadOnlySpan<byte> id = default)
@@ -302,7 +302,7 @@ public sealed class Pkcs11Session : IDisposable
     }
 
     /// <summary>
-    /// Makes a key pair on the token (C_GenerateKeyPair, §5.18). The private key stays on the token: sensitive, not extractable, usable for signing
+    /// Makes a key pair on the token (C_GenerateKeyPair, §5.18.2). The private key stays on the token: sensitive, not extractable, usable for signing
     /// (and decryption for RSA, derivation for EC). Needs a read/write session and a login.
     /// </summary>
     /// <param name="spec">What to make.</param>
@@ -349,7 +349,7 @@ public sealed class Pkcs11Session : IDisposable
         return OpenKey(label, id);
     }
 
-    /// <summary>Stores a certificate on the token (C_CreateObject, §5.7), with the same ID as the key it belongs to. Needs a read/write session.</summary>
+    /// <summary>Stores a certificate on the token (C_CreateObject, §5.7.1), with the same ID as the key it belongs to. Needs a read/write session.</summary>
     /// <param name="certificate">The certificate.</param>
     /// <param name="label">CKA_LABEL.</param>
     /// <param name="id">CKA_ID; matches the key's.</param>
@@ -366,7 +366,7 @@ public sealed class Pkcs11Session : IDisposable
         }
     }
 
-    /// <summary>Removes a key's objects from the token: the private key, and the public key and certificate that share its ID (C_DestroyObject, §5.7). Needs a read/write session.</summary>
+    /// <summary>Removes a key's objects from the token: the private key, and the public key and certificate that share its ID (C_DestroyObject, §5.7.3). Needs a read/write session.</summary>
     /// <param name="key">The key to remove. Its handle is invalid afterwards.</param>
     public void Destroy(Pkcs11Key key)
     {

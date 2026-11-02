@@ -81,7 +81,7 @@ public sealed class Pkcs11Module : IDisposable
         }
     }
 
-    /// <summary>The slots of the module (C_GetSlotList, §5.5).</summary>
+    /// <summary>The slots of the module (C_GetSlotList, §5.5.1).</summary>
     /// <param name="tokenPresentOnly">True (the default) to list only slots that hold a token.</param>
     /// <exception cref="Pkcs11Exception">The module reported an error.</exception>
     public IReadOnlyList<Pkcs11Slot> GetSlots(bool tokenPresentOnly = true)
@@ -137,7 +137,7 @@ public sealed class Pkcs11Module : IDisposable
     }
 }
 
-/// <summary>A slot of a module (CK_SLOT_INFO, §5.5): a reader or a token position, with or without a token in it.</summary>
+/// <summary>A slot of a module (CK_SLOT_INFO, §5.5.2): a reader or a token position, with or without a token in it.</summary>
 public sealed class Pkcs11Slot
 {
     private HashSet<ulong>? _mechanisms;
@@ -172,11 +172,11 @@ public sealed class Pkcs11Slot
     /// <summary>True when the token can be removed (CKF_REMOVABLE_DEVICE).</summary>
     public bool Removable { get; }
 
-    /// <summary>The token in the slot (C_GetTokenInfo, §5.6).</summary>
+    /// <summary>The token in the slot (C_GetTokenInfo, §5.5.3).</summary>
     /// <exception cref="Pkcs11TokenException">No token is present, or it is not recognised.</exception>
     public Pkcs11TokenInfo GetTokenInfo() => new(Raw.GetTokenInfo(Module.Native, (nuint)Id));
 
-    /// <summary>The mechanisms the token offers (C_GetMechanismList, §5.6), as CKM_ numbers. Read once and kept.</summary>
+    /// <summary>The mechanisms the token offers (C_GetMechanismList, §5.5.5), as CKM_ numbers. Read once and kept.</summary>
     /// <exception cref="Pkcs11TokenException">No token is present.</exception>
     public IReadOnlySet<ulong> GetMechanisms()
     {
@@ -194,13 +194,13 @@ public sealed class Pkcs11Slot
         return _mechanisms;
     }
 
-    /// <summary>Opens a session on the token (C_OpenSession, §5.6). Read-only sessions cannot create or destroy objects.</summary>
+    /// <summary>Opens a session on the token (C_OpenSession, §5.6.1). Read-only sessions cannot create or destroy objects.</summary>
     /// <param name="readWrite">True for a read/write session.</param>
     /// <exception cref="Pkcs11TokenException">No token is present, or the module refused another session.</exception>
     public Pkcs11Session OpenSession(bool readWrite = false) => Pkcs11Session.Open(this, readWrite);
 }
 
-/// <summary>What a token reports about itself (CK_TOKEN_INFO, §5.6).</summary>
+/// <summary>What a token reports about itself (CK_TOKEN_INFO, §5.5.3).</summary>
 public sealed class Pkcs11TokenInfo
 {
     internal Pkcs11TokenInfo(byte[] info)
