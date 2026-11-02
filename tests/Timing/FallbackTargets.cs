@@ -26,6 +26,29 @@ internal static class FallbackTargets
         byte[] message = RandomNumberGenerator.GetBytes(1000);
         yield return new KeyTarget("encrypt-key-1000B", false, key => Seal(key, nonce, message, aad));
         yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "encrypt-data-1000B", 1000, plain => Seal(fixedKey, nonce, plain, aad));
+        yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "control-encrypt-data-1000B", 1000, plain => Seal(fixedKey, nonce, plain, aad), control: true);
+        yield return TimingTarget.FromBytes("ChaCha20-Poly1305", "pair-encrypt-data-1000B", 1000, plain => Seal(fixedKey, nonce, plain, aad), pair: true);
+        // The same plaintext through Poly1305 alone, to tell the authenticator from the stream XOR and the block function.
+        foreach (bool pair in new[] { false, true })
+        {
+            yield return TimingTarget.FromBytes("ChaCha20-Poly1305", (pair ? "pair-" : "") + "poly1305-data-1000B", 1000, plain => s_sink += ChaCha20Poly1305Managed.Poly1305Mac(fixedKey, plain)[0], pair: pair);
+        }
+
+        // The stream XOR alone (block function included) on the plaintext.
+        foreach (bool pair in new[] { false, true })
+        {
+            yield return TimingTarget.FromBytes("ChaCha20-Poly1305", (pair ? "pair-" : "") + "xor-data-1000B", 1000, plain => XorOnly(fixedKey, nonce, plain), pair: pair);
+        }
+
+        // Harness controls on secret data of the same size, with nothing of ours in them: the platform's SHA-256, and a plain managed
+        // byte loop. A flag here comes from the machine or the harness.
+        foreach (bool pair in new[] { false, true })
+        {
+            string kind = pair ? "pair-" : "";
+            yield return TimingTarget.FromBytes("HarnessData", kind + "sha256-1000B", 1000, plain => HashSink(plain), pair: pair);
+            yield return TimingTarget.FromBytes("HarnessData", kind + "xor-loop-1000B", 1000, plain => XorSink(fixedKey, plain), pair: pair);
+        }
+
         yield return new KeyTarget("encrypt-key-17B", false, key => Seal(key, nonce, message.AsSpan(0, 17), aad));
         yield return new KeyTarget("decrypt-wrong-tag-key-100B", false, key => Open(key, nonce, message.AsSpan(0, 100), aad));
         // A/A controls: both classes use fresh random keys.
@@ -50,6 +73,31 @@ internal static class FallbackTargets
         public override void Before(int index) => FillKey(_key, _fixedKey, _classes[index], control);
 
         public override void Run(int index) => run(_key);
+    }
+
+    private static void XorOnly(byte[] key, byte[] nonce, byte[] plain)
+    {
+        Span<byte> ct = stackalloc byte[1000]; // fixed size
+        ChaCha20Poly1305Managed.Xor(key, nonce, plain, ct);
+        s_sink += ct[0];
+    }
+
+    private static void HashSink(byte[] plain)
+    {
+        Span<byte> digest = stackalloc byte[32]; // fixed size
+        SHA256.HashData(plain, digest);
+        s_sink += digest[0];
+    }
+
+    private static void XorSink(byte[] key, byte[] plain)
+    {
+        Span<byte> output = stackalloc byte[1000]; // fixed size
+        for (int i = 0; i < output.Length; i++)
+        {
+            output[i] = (byte)(plain[i] ^ key[i & 31]);
+        }
+
+        s_sink += output[0];
     }
 
     private static void Sha3(int rate, int size, byte[] secret)

@@ -121,6 +121,48 @@ isolated. Twofish key setup therefore carries **no constant-time claim on x64** 
 
 Machines: x64 AMD Ryzen 9 7950X3D, .NET 10.0.402; arm64 Apple M2, .NET 10.0.403. The first x64 run used the earlier key-setup harness (Twofish-128 decrypt-key 1.39, key-setup 2.56, control 1.62; Twofish-256 1.49, 3.93, 2.19, all passing). One Ed448 sign flag (6.18) on arm64, taken while other jobs loaded the machine, did not repeat in two quiet runs (1.50, 1.35).
 
+## x64 follow-up: causes of the five release-run flags (indicative)
+
+Five targets flagged on x64 only in the 0.3 release runs. Each was repeated on x64 (AMD Ryzen 9 7950X3D, 2 reserved cores, .NET 10.0.402,
+N = 1,000,000 per run, indicative heavy jobs) and on arm64 (Apple M2). What each one turned out to be:
+
+- **Key setup of Camellia-128 and Twofish (the lowbits, pair and pair-swapped controls): the platform's wipe, not the key schedule.**
+  The timed call used to build the key object and dispose it, and disposing zeroes key-derived words with `CryptographicOperations.ZeroMemory`.
+  A controlled bisection (skipping parts of the schedule, the decrypt-key derivation, the vector tables and the wipe in turn, 6 to 8 runs each)
+  removed the Camellia-128 lowbits flag (|t| 4 to 7 in 6 of 6 runs) only when the wipe was skipped (1.35 to 2.50, 6 of 6 pass). A target with no
+  cipher in it, `Wipe/zero-416B-lowbits` (the platform's zeroing of a 416-byte pinned buffer filled with 0/1 bytes against uniform bytes),
+  flagged on x64 in 8 of 8 runs (3.41 to 15.20) and the same with uniform bytes in both classes never did (max 2.00); on arm64 it
+  does not flag in 6 runs. Controls without any cipher (a SHA-256 of the key, and a vector-instruction mix with a masked GF(2^8) multiply) passed
+  everything (|t| < 3.4 over 8 and 6 runs), so the key-setup instructions are not what differs. The harness now disposes the previous
+  object in the untimed `Before` hook, so the timed call is the key schedule alone. After the change, over 8 runs: Camellia-128 key-setup,
+  pair, pair-swapped and lowbits max |t| 3.25, 3.07, 2.71 and 2.88; Twofish-128 and Twofish-256 key-setup, pair, pair-swapped and lowbits max 3.86;
+  arm64 (6 runs) max 3.50. The wipe's own timing on x64 depends on the bytes it overwrites; that is a property of the platform's memset on this
+  processor, reported by the `Wipe/*` targets (flags expected on x64, not claimed) and not something the library can change while it
+  still has to zero its key material.
+- **ChaCha20-Poly1305 encrypt data (managed fallback): ours, fixed.** Bisected by timing the stream XOR and Poly1305 alone (each passed, 12 of 12),
+  then together. The cipher wrote its keystream and ciphertext with byte stores that the authenticator then read back with overlapping
+  4-byte loads at odd offsets, and on this processor the cost of those partly-forwarded loads depended on the data. Before: 8 of 20
+  runs of `encrypt-data-1000B` flagged on x64 (up to 10.74), and the fixed-against-fixed `pair` control flagged in 4 of 12 (up to 34.54), so it was value-dependent but with
+  no secret-dependent branch or index. Now the keystream and ciphertext are written as 8-byte words, and Poly1305 reads each block as two 8-byte loads. Output is
+  unchanged (RFC 8439 and Wycheproof vector tests, 8 of 8). After, over 12 runs: encrypt-data 3.69 max, pair 2.67, control 2.84, 0 of 12 flagged
+  in each. Key-secret ChaCha targets pass as before (max 3.04 on arm64, 4.52 in one x64 group run that was not repeated; see below). arm64 is unchanged (6 runs, max 2.49).
+- **IDEA decrypt data: not the cipher.** Over 30 + 20 + 12 x64 runs, `decrypt-data` flagged 5 times (up to 8.40); the A/A control `control-decrypt-data`
+  never in 80 runs (max 3.07). The same cipher on sixteen times as many blocks per call (`decrypt-data-x16`), where a data-dependent time would add up, flagged 0 of 20 (max 3.31) and its control
+  0 of 20, and the `pair-decrypt-data` (two fixed inputs) flagged twice in 70 (max 8.42, one repeated in both halves), so an input value does not decide it either. The
+  differences are 0.1 ns in 340 ns and do not grow with the work. The Mul is masked arithmetic (JIT output has no data-dependent jump). The flag is an effect of repeating one input that
+  the fixed class does, not the cipher; the claim target for IDEA data on x64 is `decrypt-data-x16`. arm64: 0 of 6 flagged (max 2.28) for each IDEA data target.
+- **Twofish key setup on x64:** same cause as Camellia (the wipe); the `pair-swapped` control (the pair test with the keys' roles exchanged) flagged where the
+  pair did not (up to 6.87) before the change, which showed the flag followed the class, not the key.
+
+What changed in the harness: the key-setup targets dispose in the untimed hook; `FromBytes` and the data targets blend the fixed value in with a byte mask, as
+the key targets do, so both classes run the same instructions before the timed call; new controls `pair-swapped-key-setup`, `pair-*-data`,
+`control-*-data`, the `Wipe/*` targets, and the cipher-free `HashControl`, `VectorControl` and `CamelliaNoAes-128` key setups and `HarnessData`
+(SHA-256 and XOR loop) for telling the machine from the code. Every result now also carries the same statistic on each half of the run
+(`halves=a/b`), and `replicated` when both halves reach 3.2 (the half-run equivalent of 4.5 for a steady difference); the verdict itself is unchanged (|t| < 4.5
+passes). A single flagged run in about a hundred targets is expected from chance: a group run of 102 targets showed three (4.52, 4.83, 5.10; only one replicated within
+its run), of which ChaCha `decrypt-wrong-tag-key-100B` and `OpenPgpSecretKeyUnlock` are key-secret targets that were clean in the other runs of this unit. `selfcheck` is unchanged:
+leaky 8713 (both halves above 6000) and `FixedTimeEquals` 1.40.
+
 ## Results: 0.3 release runs (publishable)
 
 Every group of `tools/timing-groups.sh` ran as an exclusive benchmark job that passed the publishability check. x64: AMD Ryzen 9 7950X3D, Linux, .NET 10.0.402, mean CPU busy 3.3–3.5% during each run. arm64: Apple M2, macOS, .NET 10.0.403, at least 95.9% idle before each run. Values are the maximum |t| over the uncropped data and 100 crops; the threshold is 4.5, and **bold** marks a run over it. Blowfish targets ran as two halves of 500,000 (shown a / b), and both must pass. The `small-and-glue` group was run twice more on x64 after its first run flagged; a target is claimed on a machine only when every publishable run of it passes there.

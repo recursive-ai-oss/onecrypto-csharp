@@ -60,6 +60,21 @@ public abstract class TimingTarget
         }
     }
 
+    /// <summary>
+    /// Fills <paramref name="value"/> for a pair test: the first fixed value for the Fixed class, the second for the Random class, blended
+    /// by a byte mask so both classes run the same instructions. Each class repeats one value, as the fixed class does in the leak test, so
+    /// an effect of seeing the same bytes again and again is in both classes and cancels; a difference that remains is a difference between
+    /// the two values.
+    /// </summary>
+    protected static void FillPair(Span<byte> value, ReadOnlySpan<byte> first, ReadOnlySpan<byte> second, TimingClass cls)
+    {
+        byte mask = (byte)(((int)cls - 1) & 0xFF); // Fixed (0) -> 0xFF, Random (1) -> 0x00
+        for (int i = 0; i < value.Length; i++)
+        {
+            value[i] = (byte)((first[i] & mask) | (second[i] & ~mask));
+        }
+    }
+
     /// <summary>Runs the operation on the input prepared for index <paramref name="index"/>. This is the timed call.</summary>
     public abstract void Run(int index);
 
@@ -68,12 +83,13 @@ public abstract class TimingTarget
     /// value for the whole run (or <paramref name="fixedSecret"/>, when the operation needs the fixed class to hit a particular value,
     /// such as a compare against a known reference); the random class draws a new one per call. <paramref name="run"/> receives the secret.
     /// </summary>
-    public static TimingTarget FromBytes(string primitive, string operation, int secretLength, Action<byte[]> run, byte[]? fixedSecret = null) =>
-        new BytesTarget(primitive, operation, secretLength, run, fixedSecret);
+    public static TimingTarget FromBytes(string primitive, string operation, int secretLength, Action<byte[]> run, byte[]? fixedSecret = null, bool control = false, bool pair = false) =>
+        new BytesTarget(primitive, operation, secretLength, run, fixedSecret, control, pair);
 
-    private sealed class BytesTarget(string primitive, string operation, int length, Action<byte[]> run, byte[]? fixedSecret) : TimingTarget
+    private sealed class BytesTarget(string primitive, string operation, int length, Action<byte[]> run, byte[]? fixedSecret, bool control, bool pair) : TimingTarget
     {
         private readonly byte[] _fixed = fixedSecret ?? RandomNumberGenerator.GetBytes(length);
+        private readonly byte[] _other = RandomNumberGenerator.GetBytes(length);
         private byte[][] _inputs = [];
 
         public override string Primitive => primitive;
@@ -91,15 +107,18 @@ public abstract class TimingTarget
                 }
             }
 
+            // Both classes run the same instructions: fresh random bytes, then the fixed value blended in by a byte mask. A class-dependent
+            // copy-or-fill would leave the two classes' inputs in different cache and predictor states before the timed call. The control
+            // (mask zero) makes both classes random.
             for (int i = 0; i < classes.Length; i++)
             {
-                if (classes[i] == TimingClass.Fixed)
+                if (pair)
                 {
-                    _fixed.CopyTo(_inputs[i], 0);
+                    FillPair(_inputs[i], _fixed, _other, classes[i]);
                 }
                 else
                 {
-                    RandomNumberGenerator.Fill(_inputs[i]);
+                    FillKey(_inputs[i], _fixed, classes[i], control);
                 }
             }
         }
