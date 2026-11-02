@@ -4,6 +4,8 @@ using RecursiveAI.OneCrypto.Cli.Sop;
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
 /// <summary>The help text of <c>sop</c> and the optional JSON field on VERIFICATIONS lines (draft §7.10.1).</summary>
+// The sop commands spool through the temp directory, which DecryptionReviewTests redirects process-wide; run them in the same serial collection.
+[Collection("ProcessMemory")]
 public class SopHelpAndVerificationsTests
 {
     private sealed record Result(int Code, string Out, string Err);
