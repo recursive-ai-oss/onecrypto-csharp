@@ -55,7 +55,7 @@ checks first.
   bounds check that leads to a throw helper; none depends on key, nonce or data. Statistical timing tests for both are in
   `tests/Timing/FallbackTargets.cs` (see [timing.md](timing.md)).
 - What the measurements support is stated only in [conformance.md](conformance.md#constant-time): ChaCha20-Poly1305 is claimed
-  with secret keys on x64 and arm64 and with secret data on arm64 only (an x64 measurement is under investigation). SHA-3 and
+  on arm64 only, with secret keys and secret data; the x64 key-secret claim is withdrawn after flags in a publishable run (under investigation). SHA-3 and
   SHAKE have no timing claim yet. The design above is not, by itself, a claim.
 - The verify-only RSA and ECDSA code uses `BigInteger` and handles only public values (keys, digests, signatures). It makes no
   constant-time claim and has no timing test.

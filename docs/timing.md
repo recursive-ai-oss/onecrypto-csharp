@@ -145,7 +145,7 @@ N = 1,000,000 per run, indicative heavy jobs) and on arm64 (Apple M2). What each
   runs of `encrypt-data-1000B` flagged on x64 (up to 10.74), and the fixed-against-fixed `pair` control flagged in 4 of 12 (up to 34.54), so it was value-dependent but with
   no secret-dependent branch or index. Now the keystream and ciphertext are written as 8-byte words, and Poly1305 reads each block as two 8-byte loads. Output is
   unchanged (RFC 8439 and Wycheproof vector tests, 8 of 8). After, over 12 runs: encrypt-data 3.69 max, pair 2.67, control 2.84, 0 of 12 flagged
-  in each. Key-secret ChaCha targets pass as before (max 3.04 on arm64, 4.52 in one x64 group run that was not repeated; see below). arm64 is unchanged (6 runs, max 2.49).
+  in each. Key-secret ChaCha targets passed in these runs (max 3.04 on arm64, 4.52 in one x64 group run), but the later publishable x64 run flagged two of them and the x64 key-secret claim is withdrawn (see below). arm64 is unchanged (6 runs, max 2.49).
 - **IDEA decrypt data: not the cipher.** Over 30 + 20 + 12 x64 runs, `decrypt-data` flagged 5 times (up to 8.40); the A/A control `control-decrypt-data`
   never in 80 runs (max 3.07). The same cipher on sixteen times as many blocks per call (`decrypt-data-x16`), where a data-dependent time would add up, flagged 0 of 20 (max 3.31) and its control
   0 of 20, and the `pair-decrypt-data` (two fixed inputs) flagged twice in 70 (max 8.42, one repeated in both halves), so an input value does not decide it either. The

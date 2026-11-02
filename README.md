@@ -2,7 +2,7 @@
 
 Cryptography (not cryptocurrency) for .NET: message formats, certificates and the primitives the platform lacks, written from the specifications on the base class library alone. OneCrypto is unaffiliated with other products named OneCrypto.
 
-**Status: preview (0.3), not yet independently audited.** The API may still change between previews. What is tested, against what, and where the library deviates is in [docs/conformance.md](docs/conformance.md); behaviour is specified in [docs/](docs/README.md).
+**Status: preview (0.4), not yet independently audited.** The API may still change between previews. What is tested, against what, and where the library deviates is in [docs/conformance.md](docs/conformance.md); behaviour is specified in [docs/](docs/README.md).
 
 ```csharp
 using RecursiveAI.OneCrypto;

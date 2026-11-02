@@ -14,8 +14,7 @@ provider fact that decided it, such as the loaded OpenSSL version) and the reaso
 ## Which fallbacks exist, and why only those
 
 - **SHA-3 and SHAKE** (FIPS 202) and **ChaCha20-Poly1305** (RFC 8439): written with no secret-dependent branch or memory index (measured timing claims are in
-  [conformance.md](conformance.md#constant-time): ChaCha20-Poly1305 with secret keys on x64 and arm64, with secret data on arm64
-  only; no timing claim yet for SHA-3/SHAKE). The platform has no
+  [conformance.md](conformance.md#constant-time): ChaCha20-Poly1305 is claimed on arm64 only, with secret keys and secret data; the x64 key claim is withdrawn; no timing claim yet for SHA-3/SHAKE). The platform has no
   SHA3-224 anywhere, so SHA3-224 is always the managed Keccak.
 - **RSA verification** (PKCS#1 v1.5 and PSS, RFC 8017 section 8) and **ECDSA verification** (P-256, P-384, P-521 and the
   brainpoolP256r1, P384r1, P512r1 curves of RFC 5639; FIPS 186-5 section 6.4.2): public-key operations on public data only. The
