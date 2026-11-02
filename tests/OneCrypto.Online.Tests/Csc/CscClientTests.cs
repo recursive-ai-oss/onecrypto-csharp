@@ -212,14 +212,17 @@ public class CscClientTests
     }
 
     [Fact]
-    public async Task AScal2ServiceRefusesAnAuthorizationWithoutHashes()
+    public async Task TheTestServiceHoldsScal2ToItsRule()
     {
+        // The service the other tests rely on must itself refuse what the API forbids, or its acceptance would prove nothing (CSC API §11.8).
         var rig = new CscRig();
         rig.Server.Add(CscRig.Credential("C1", "rsa", scal: 2));
-        // The client always sends the hashes; this checks the service side of the rule through the lower-level call with a wrong count.
-        CscResult<CscAuthorization> r = await rig.Client.AuthorizeAsync("C1", [new byte[32]], KnownOids.Sha256, [new CscAuthObject("PIN", CscRig.Pin)]);
-        Assert.True(r.IsSuccess);
-        Assert.Equal(CscOutcome.ServiceError, (await rig.Client.AuthorizeAsync("C1", [new byte[32]], KnownOids.Sha256, [new CscAuthObject("PIN", "000000")])).Outcome);
+        string bearer = "Bearer " + rig.Token;
+        (int status, byte[] body) = rig.Server.Handle("credentials/authorize", bearer, "{\"credentialID\":\"C1\",\"numSignatures\":1,\"authData\":[{\"id\":\"PIN\",\"value\":\"123456\"}]}"u8.ToArray());
+        Assert.Equal(400, status);
+        Assert.Contains("invalid_request", Encoding.UTF8.GetString(body), StringComparison.Ordinal);
+        CscResult<CscAuthorization> wrongPin = await rig.Client.AuthorizeAsync("C1", [new byte[32]], KnownOids.Sha256, [new CscAuthObject("PIN", "000000")]);
+        Assert.Equal("invalid_authentication_data", wrongPin.Error);
     }
 
     [Fact]
