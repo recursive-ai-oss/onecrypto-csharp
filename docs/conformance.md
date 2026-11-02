@@ -139,7 +139,7 @@ Secret-handling code is written without secret-dependent branches, memory indice
 
 - **Release runs (0.3, publishable):** every group ran at 1,000,000 measurements per class (Blowfish as two halves of 500,000) in exclusive benchmark jobs on x64 and arm64. Results per target are in [timing.md](timing.md#results-03-release-runs-publishable).
   - **Claimed on both machines:** Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the ChaCha20-Poly1305 key targets, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check, with secret data and secret keys.
-  - **Claimed on arm64 only; x64 investigation open:** Twofish and Camellia-128 key setup, ChaCha20-Poly1305 and IDEA with secret data. Each flagged in at least one x64 run, by 0.1–15 ns.
+  - **Claimed on arm64 only; x64 pending a publishable run:** Twofish and Camellia-128 key setup, ChaCha20-Poly1305 and IDEA with secret data. Each flagged in at least one 0.3 x64 run, by 0.1–15 ns. The causes were found for 0.4 (the platform's zeroing inside the timed key-setup call, a store-to-load pattern in the ChaCha20-Poly1305 fallback that is now fixed, and a harness effect for IDEA), and the 0.4 arm64 run passes everywhere; the 0.4 x64 runs were not publishable ([timing.md](timing.md#results-04-release-runs)).
   - **No claim:** the RSA PKCS #1 session-key path, which has a residual in the platform's RSA decryption.
   - **Argon2i** keeps its claim from the 0.1 runs on both machines; it is not part of the release groups.
 - **Argon2id** uses data-dependent memory access after its first half-pass by design (RFC 9106 §3.4); only Argon2i is data-independent.

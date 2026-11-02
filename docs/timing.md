@@ -163,6 +163,21 @@ passes). A single flagged run in about a hundred targets is expected from chance
 its run), of which ChaCha `decrypt-wrong-tag-key-100B` and `OpenPgpSecretKeyUnlock` are key-secret targets that were clean in the other runs of this unit. `selfcheck` is unchanged:
 leaky 8713 (both halves above 6000) and `FixedTimeEquals` 1.40.
 
+## Results: 0.4 release runs
+
+The `small-and-glue` group (102 targets, N = 1,000,000) was re-run after the changes above as exclusive benchmark jobs.
+
+- **arm64** (Apple M2, .NET 10.0.403, 96.5% idle before the run, publishable): every target passes, max |t| 3.92. Camellia-128 key setup and its
+  pair, pair-swapped and lowbits controls 1.66 to 2.01; Twofish-128/256 key setup and controls 1.38 to 2.09; ChaCha20-Poly1305 `encrypt-data-1000B` 1.43;
+  IDEA `decrypt-data-x16` 1.83.
+- **x64** (AMD Ryzen 9 7950X3D, .NET 10.0.402): three runs, **none publishable**. Each had one 5-second sample above the 15% limit (59.7%, 47.6%,
+  58.6%; mean busy 5.8%, 4.0%, 5.6%), in each case a full-core compiler process outside the run. Indicatively, every target touched by the changes
+  passed in all three runs (Camellia-128 key setup and controls 1.32 to 2.93, Twofish key setup and controls 1.32 to 3.01, ChaCha20-Poly1305
+  `encrypt-data-1000B` 1.29 to 2.36, IDEA `decrypt-data-x16` 2.41 to 3.72). Each run also flagged one or two other targets, a different one each time:
+  IDEA `decrypt-data` 6.85 (the target replaced by `decrypt-data-x16`), Twofish-128 `pair-decrypt-data` 18.34, and ChaCha20-Poly1305
+  `decrypt-wrong-tag-key-100B` 9.46 and `encrypt-key-1000B` 8.67. These runs are not evidence under the publishability rule, so no claim
+  changes on x64; the sporadic flags are kept open for the next quiet publishable runs.
+
 ## Results: 0.3 release runs (publishable)
 
 Every group of `tools/timing-groups.sh` ran as an exclusive benchmark job that passed the publishability check. x64: AMD Ryzen 9 7950X3D, Linux, .NET 10.0.402, mean CPU busy 3.3–3.5% during each run. arm64: Apple M2, macOS, .NET 10.0.403, at least 95.9% idle before each run. Values are the maximum |t| over the uncropped data and 100 crops; the threshold is 4.5, and **bold** marks a run over it. Blowfish targets ran as two halves of 500,000 (shown a / b), and both must pass. The `small-and-glue` group was run twice more on x64 after its first run flagged; a target is claimed on a machine only when every publishable run of it passes there.
@@ -170,13 +185,13 @@ Every group of `tools/timing-groups.sh` ran as an exclusive benchmark job that p
 Outcome:
 
 - **Claimed on x64 and arm64:** every target below that is not listed next. This covers Ed25519/Ed448 signing, X25519/X448, Camellia-256, CAST5, Blowfish, Twofish decryption, AES-OCB/EAX/KW, the ChaCha20-Poly1305 key targets, the OpenPGP session-key checksum glue, OpenPGP secret-key unlock and the CMS CBC padding check.
-- **Claimed on arm64 only; x64 investigation open:**
+- **Claimed on arm64 only; x64 pending a publishable run** (causes found and fixed or isolated, see "x64 follow-up"; the 0.4 x64 runs were not publishable):
   - Twofish-128 and -256 key setup (see above);
   - Camellia-128 key setup: the low-bits key control flags in all three x64 runs, with a 5–15 ns difference in about 700 ns, while the fixed-against-random target passes;
   - ChaCha20-Poly1305 encryption with secret data: flags in two of three x64 runs, with a mean difference of at most 1.1 ns in 3 µs;
   - IDEA decryption with secret data: flags in one of three x64 runs, with a 0.1 ns difference.
 
-  None of these code paths has a secret-dependent branch or index. Until the x64 cause is known, no claim is made there.
+  None of these code paths has a secret-dependent branch or index. No claim is made on x64 until a publishable x64 run passes.
 - **No claim:** the RSA PKCS #1 session-key path (`pkesk-rsa`), a residual in the platform's RSA decryption (below).
 
 | Target | N | x64 | x64 re-runs | arm64 |

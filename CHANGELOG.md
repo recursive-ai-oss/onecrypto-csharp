@@ -4,11 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.4.0-preview.1] - 2026-11-02
+
 ### Added
 
 - `RecursiveAI.OneCrypto.Keys` is a package: PKCS #11 tokens (`Keys.Pkcs11`), gpg-agent and ssh-agent (`Keys.Agents`) behind the key interfaces, with two-phase signing across processes. Its first release is a preview and carries no API baseline. Tested against SoftHSM2 2.6.1 and 2.7.0, GnuPG 2.4 and 2.5 agents and OpenSSH agents; there is no hardware token in the test set and no live Cloud Signature Consortium provider (see `docs/conformance.md`).
 
 ### Changed
+- The managed ChaCha20-Poly1305 fallback writes its keystream and ciphertext as 8-byte words and reads each Poly1305 block as two 8-byte loads, removing a data-dependent store-to-load timing effect seen on x64; output is unchanged. Timing targets now build and wipe key objects outside the timed call, with more controls ([docs/timing.md](docs/timing.md)).
 
 - **Preview:** the key-backend glue (PKCS #11, gpg-agent and ssh-agent in `.Keys`; the Cloud Signature Consortium client in `.Online.Csc`) had an internal review (`docs/key-backend-review.md`); it has not been independently audited. This replaces the earlier "not yet reviewed" note.
 - PKCS #11 signatures are checked against the key's public key before release; every length a PKCS #11 module reports is bounded (a module answering with more objects than the buffer holds is a typed error, not an overrun); external-key decryption failures are uniform; non-canonical two-phase state is refused (`docs/key-backend-review.md`, K1 to K8).
@@ -159,7 +162,8 @@ First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stabl
 - Platform gaps in AES-GCM, AES-CCM, named curves (for example Brainpool on macOS) and ML-KEM/ML-DSA keys now surface as `AlgorithmNotSupportedException` naming the algorithm and platform, never the platform's own `PlatformNotSupportedException`; the availability table lists AES-GCM and AES-CCM (macOS has no AES-CCM; AuthEnvelopedData defaults to AES-256-GCM and writes CCM only when asked).
 - Package metadata, package validation, NativeAOT and browser-wasm smoke apps, fuzz targets for every parser, and benchmarks against the managed libraries this one replaces.
 
-[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.2...HEAD
+[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.4.0-preview.1...HEAD
+[0.4.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.2...v0.4.0-preview.1
 [0.3.0-preview.2]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.1...v0.3.0-preview.2
 [0.3.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.2.0-preview.1...v0.3.0-preview.1
 [0.2.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.1.0-preview.1...v0.2.0-preview.1
