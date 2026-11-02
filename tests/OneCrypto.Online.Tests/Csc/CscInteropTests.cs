@@ -35,7 +35,7 @@ public class CscInteropTests
         using CscSigningKey key = await rig.Open(CscRig.Credential("C-" + specName, kind, scal, ecdsaDer: specName.EndsWith("384", StringComparison.Ordinal)));
         SignatureSpec spec = CscRig.Spec(specName);
 
-        SignedData cms = SignedData.Create(Doc, [new CmsSignerSpec { Certificate = key.Certificate, Key = key, SignatureSpec = spec }]);
+        SignedData cms = SignedData.Create(Doc, [new CmsSignerSpec { Certificate = key.Certificate, Key = key, SignatureSpec = spec }], new SignedDataOptions { Certificates = [Certificate.Parse(key.Credential.Certificates[1])] });
 
         Assert.True(cms.Verify().IsValid);
         // The service signed exactly one digest, the one of the signed attributes: the document itself never went over the wire.
@@ -48,10 +48,9 @@ public class CscInteropTests
         Assert.True(code == 0, "openssl cms -verify: " + output);
         Assert.Equal(Doc, File.ReadAllBytes(Path.Combine(dir, "o.bin")));
 
-        // And against the chain the service gave: the signer certificate, its intermediate and the root.
-        File.WriteAllText(Path.Combine(dir, "root.pem"), key.Credential.Certificates.Count == 3 ? Certificate.Parse(key.Credential.Certificates[2]).ToPem() : string.Empty);
-        File.WriteAllText(Path.Combine(dir, "inter.pem"), Certificate.Parse(key.Credential.Certificates[1]).ToPem());
-        (int chained, string chainOut) = OpenSslTool.RunIn(dir, "cms", "-verify", "-inform", "DER", "-in", "m.der", "-CAfile", "root.pem", "-certfile", "inter.pem", "-purpose", "smimesign", "-no_check_time", "-binary", "-out", "o2.bin");
+        // And against the chain the service gave: the intermediate rides in the message, the root is the anchor.
+        File.WriteAllText(Path.Combine(dir, "root.pem"), Certificate.Parse(key.Credential.Certificates[2]).ToPem());
+        (int chained, string chainOut) = OpenSslTool.RunIn(dir, "cms", "-verify", "-inform", "DER", "-in", "m.der", "-CAfile", "root.pem", "-purpose", "smimesign", "-no_check_time", "-binary", "-out", "o2.bin");
         Assert.True(chained == 0, "openssl cms -verify with the chain: " + chainOut);
     }
 
