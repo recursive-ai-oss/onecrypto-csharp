@@ -115,7 +115,7 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpKeyGenerator`, `PgpKeyEditor`, `P
 | `NistP256`, `NistP384`, `NistP521` | 4 | ECDSA / ECDH |
 | `Rfc9980Pqc`, `Rfc9980PqcHigh` | 6 | ML-DSA-65+Ed25519 / ML-KEM-768+X25519, ML-DSA-87+Ed448 / ML-KEM-1024+X448; `AlgorithmNotSupportedException` where the platform lacks ML-DSA or ML-KEM |
 
-**Which profile is the default** [Agent default]. `Pgp.GenerateKey(userId, password)` and `sop generate-key` make version 4 EdDSA/ECDH Curve25519 keys (`Rfc4880Curve25519`, sop name `draft-koch-eddsa-for-openpgp-00`, alias `default`, the name and default Sequoia's `sqop` also uses), because every implementation we test reads them; ask for `Pgp.GenerateKey(userId, PgpKeyProfile.Rfc9580)` (`--profile=rfc9580`) for a version 6 key. Evidence, `tools/oracles/profile-interop.sh` (a certificate and a detached signature of ours imported or verified, a message encrypted to it and decrypted by us):
+**Which profile is the default.** `Pgp.GenerateKey(userId, password)` and `sop generate-key` make version 4 EdDSA/ECDH Curve25519 keys (`Rfc4880Curve25519`, sop name `draft-koch-eddsa-for-openpgp-00`, alias `default`, the name and default Sequoia's `sqop` also uses), because every implementation we test reads them; ask for `Pgp.GenerateKey(userId, PgpKeyProfile.Rfc9580)` (`--profile=rfc9580`) for a version 6 key. Evidence, `tools/oracles/profile-interop.sh` (a certificate and a detached signature of ours imported or verified, a message encrypted to it and decrypted by us):
 
 | Oracle | v6 Ed25519/X25519 | v4 native Ed25519/X25519 | v4 EdDSA legacy / Cv25519 |
 |---|---|---|---|
