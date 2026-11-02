@@ -202,6 +202,62 @@ public class Pkcs11PgpTests
 
     // ---- decryption ----
 
+    /// <summary>Every change inside the session-key packet, and a change in the body, ends in the one failure with the one text, as for a key in memory.</summary>
+    [Theory]
+    [InlineData(PgpKeyProfile.Rfc4880Rsa)]
+    [InlineData(PgpKeyProfile.NistP256)]
+    public void ATamperedSessionKeyPacketIsTheSameFailureThroughTheToken(PgpKeyProfile profile)
+    {
+        Imported imp = Import(profile, out string run);
+        (Pkcs11Module module, Pkcs11Session session) = SoftHsm.Open("u-import");
+        using (module)
+        using (session)
+        {
+            using PgpSecretKey ext = PgpSecretKey.FromExternalKey(imp.Public.Keys[1], Open(session, imp, run, 1));
+            var options = new PgpReadOptions { Now = Now.AddMinutes(1), ExternalKeys = [ext] };
+            using var enc = new MemoryStream();
+            PgpMessageWriter.Write(new MemoryStream(Data), enc, new PgpWriteOptions { Now = Now, Recipients = [imp.Public] });
+            byte[] message = enc.ToArray();
+
+            // The first packet is the session-key packet: skip its header, its version, the key ID and the algorithm.
+            int header = (message[0] & 0x40) != 0 ? (message[1] < 192 ? 2 : 3) : (message[0] & 3) + 2;
+            int bodyLength = (message[0] & 0x40) != 0 ? (message[1] < 192 ? message[1] : ((message[1] - 192) << 8) + message[2] + 192) : message[1];
+            int first = header + 1 + 8 + 1;
+
+            byte[] badBody = (byte[])message.Clone();
+            badBody[^1] ^= 1;
+            PgpException expected = Assert.Throws<PgpException>(() => PgpMessageReader.Read(new MemoryStream(badBody), new MemoryStream(), options));
+            Assert.Equal(PgpFailure.CannotDecrypt, expected.Failure);
+
+            int tried = 0;
+            for (int i = first; i < header + bodyLength; i += 3)
+            {
+                byte[] m = (byte[])message.Clone();
+                m[i] ^= 0x04;
+                var plain = new MemoryStream();
+                try
+                {
+                    PgpMessageReader.Read(new MemoryStream(m), plain, options);
+                    Assert.Fail($"octet {i} changed and the message still opened");
+                }
+                catch (OpenPgpParseException)
+                {
+                    // A change to a length inside the packet makes it a malformed packet, which says nothing about the key.
+                }
+                catch (PgpException e)
+                {
+                    Assert.Equal(PgpFailure.CannotDecrypt, e.Failure);
+                    Assert.Equal(expected.Message, e.Message);
+                }
+
+                Assert.Equal(0, plain.Length);
+                tried++;
+            }
+
+            Assert.True(tried > 10);
+        }
+    }
+
     [Theory]
     [InlineData(PgpKeyProfile.Rfc4880Rsa)]
     [InlineData(PgpKeyProfile.NistP256)]

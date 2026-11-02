@@ -277,7 +277,8 @@ public sealed class SignatureSpec : IEquatable<SignatureSpec>
 
         // One canonical encoding per spec: fields that do not apply to a scheme must be empty, so a state re-encodes to the octets it was read from.
         if (!Enum.IsDefined(kind) || !Enum.IsDefined(format) || ctx.Length > 255
-            || (format != EcdsaSignatureFormat.Der && kind != SignatureKind.Ecdsa) || (ctx.Length != 0 && !contextKind) || (hash.Length == 0) == digestKind)
+            || (format != EcdsaSignatureFormat.Der && kind != SignatureKind.Ecdsa) || (ctx.Length != 0 && !contextKind) || (hash.Length == 0) == digestKind
+            || (digestKind && hash is not ("SHA1" or "SHA256" or "SHA384" or "SHA512")))
         {
             throw new ArgumentException("The signature spec is not valid.");
         }

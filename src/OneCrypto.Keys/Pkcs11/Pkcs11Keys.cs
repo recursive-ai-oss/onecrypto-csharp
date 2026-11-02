@@ -64,6 +64,22 @@ public abstract class Pkcs11Key : IKey
         }
     }
 
+    /// <summary>
+    /// Checks a signature the token made against the key's public key before it is released. A token that is faulty, attacked (a fault during an RSA private
+    /// operation can leak the key) or hostile, or a public key that is not the token key's, would otherwise put a bad signature into a certificate or message.
+    /// A platform that cannot check the scheme at all (<see cref="SignatureStatus.AlgorithmNotSupported"/>) lets the signature through unchecked.
+    /// </summary>
+    internal byte[] Checked(SignatureSpec spec, ReadOnlySpan<byte> signed, bool isDigest, byte[] signature)
+    {
+        SignatureVerification v = isDigest ? spec.VerifyDigest(PublicKey, signed, signature) : spec.Verify(PublicKey, signed, signature);
+        if (v.Status is SignatureStatus.Valid or SignatureStatus.AlgorithmNotSupported)
+        {
+            return signature;
+        }
+
+        throw new Pkcs11Exception("The signature the token returned does not verify against the key's public key: " + v.Reason, "C_Sign");
+    }
+
     internal string Describe() => $"token '{Session.Slot.GetTokenInfo().Label}' of module {Session.Slot.Module.Path}";
 
     internal AlgorithmNotSupportedException Unsupported(string what, ulong mechanism) =>
@@ -176,7 +192,8 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
             }
 
             byte[] input = [.. h.DigestInfoPrefix, .. digest];
-            return Session.Run(() => Raw.Sign(Session.Module, Session.Handle, (nuint)Handle, (nuint)RsaPkcs, null, input, k));
+            byte[] pkcs1 = Session.Run(() => Raw.Sign(Session.Module, Session.Handle, (nuint)Handle, (nuint)RsaPkcs, null, input, k));
+            return Checked(spec, digest, true, pkcs1);
         }
 
         if (!Session.HasMechanism(RsaPkcsPss))
@@ -191,7 +208,8 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
         WriteNative(param, 16, (ulong)h.Size);
 
         byte[] digestCopy = digest.ToArray();
-        return Session.Run(() => Raw.Sign(Session.Module, Session.Handle, (nuint)Handle, (nuint)RsaPkcsPss, param, digestCopy, k));
+        byte[] pss = Session.Run(() => Raw.Sign(Session.Module, Session.Handle, (nuint)Handle, (nuint)RsaPkcsPss, param, digestCopy, k));
+        return Checked(spec, digest, true, pss);
     }
 
     /// <inheritdoc/>
@@ -231,7 +249,15 @@ public sealed class Pkcs11RsaKey : Pkcs11Key, IRsaKey
         byte[] ct = ciphertext.ToArray();
         try
         {
-            return Session.Run(() => Raw.Decrypt(Session.Module, Session.Handle, (nuint)Handle, (nuint)mech, param, ct, k));
+            byte[] plain = Session.Run(() => Raw.Decrypt(Session.Module, Session.Handle, (nuint)Handle, (nuint)mech, param, ct, k));
+            // RFC 8017 §7.2.2 / §7.1.2: the message is shorter than the modulus. A longer result is not an RSA decryption.
+            if (plain.Length >= k)
+            {
+                CryptographicOperations.ZeroMemory(plain);
+                throw new CryptographicException("The ciphertext did not decrypt.");
+            }
+
+            return plain;
         }
         catch (Pkcs11Exception e) when (e.Function == "C_Decrypt" && e is not (Pkcs11TokenException or Pkcs11PinException or Pkcs11KeyException))
         {
@@ -320,7 +346,8 @@ public sealed class Pkcs11EcKey : Pkcs11Key, ISigningKey, IAgreementKey
             throw new Pkcs11Exception($"The token returned an ECDSA signature of {raw.Length} octets; {2 * size} were expected.", "C_Sign");
         }
 
-        return spec.Format == EcdsaSignatureFormat.Rfc4754 ? raw : DerWriter.Sequence(DerWriter.UnsignedInteger(raw.AsSpan(0, size)), DerWriter.UnsignedInteger(raw.AsSpan(size)));
+        byte[] encoded = spec.Format == EcdsaSignatureFormat.Rfc4754 ? raw : DerWriter.Sequence(DerWriter.UnsignedInteger(raw.AsSpan(0, size)), DerWriter.UnsignedInteger(raw.AsSpan(size)));
+        return Checked(spec, digest, true, encoded);
     }
 
     /// <inheritdoc/>
@@ -355,12 +382,21 @@ public sealed class Pkcs11EcKey : Pkcs11Key, ISigningKey, IAgreementKey
         // Modules that only read the older DER form refuse the raw one with a parameter error; that case is retried once.
         try
         {
-            return Session.Run(() => Raw.DeriveEcdh(Session.Module, Session.Handle, (nuint)Handle, p, size));
+            try
+            {
+                return Session.Run(() => Raw.DeriveEcdh(Session.Module, Session.Handle, (nuint)Handle, p, size));
+            }
+            catch (Pkcs11Exception e) when (e.Result is Pkcs11Result.MechanismParamInvalid or Pkcs11Result.ArgumentsBad or Pkcs11Result.FunctionFailed)
+            {
+                byte[] der = DerWriter.OctetString(p);
+                return Session.Run(() => Raw.DeriveEcdh(Session.Module, Session.Handle, (nuint)Handle, der, size));
+            }
         }
-        catch (Pkcs11Exception e) when (e.Result is Pkcs11Result.MechanismParamInvalid or Pkcs11Result.ArgumentsBad or Pkcs11Result.FunctionFailed)
+        catch (Pkcs11Exception e) when (e.Function == "C_DeriveKey" && e is not (Pkcs11TokenException or Pkcs11PinException or Pkcs11KeyException))
         {
-            byte[] der = DerWriter.OctetString(p);
-            return Session.Run(() => Raw.DeriveEcdh(Session.Module, Session.Handle, (nuint)Handle, der, size));
+            // The peer's point is the only input the caller does not control, so a refusal here (not about the token, PIN or key) is a bad point:
+            // one plain failure whatever the module's code, as for RSA decryption (RFC 8017 §7.2.2).
+            throw new CryptographicException("The key agreement failed.");
         }
     }
 }
@@ -407,7 +443,8 @@ public sealed class Pkcs11EdKey : Pkcs11Key, ISigningKey
         byte[] context = spec.Context.ToArray();
         bool parameters = spec.Kind == SignatureKind.Ed448; // RFC 8032 §5.2: Ed448 always has a context, possibly empty
         int size = spec.Kind == SignatureKind.Ed25519 ? 64 : 114;
-        return Session.Run(() => Raw.SignEddsa(Session.Module, Session.Handle, (nuint)Handle, m, context, parameters, size));
+        byte[] edSig = Session.Run(() => Raw.SignEddsa(Session.Module, Session.Handle, (nuint)Handle, m, context, parameters, size));
+        return Checked(spec, data, false, edSig);
     }
 
     /// <inheritdoc/>

@@ -102,15 +102,21 @@ public sealed class PgpPreparedSignature
             throw new PgpException(PgpFailure.MalformedMessage, "The signature has the wrong length for this key.");
         }
 
-        SignaturePacket packet = _pending.Assemble(material);
+        SignaturePacket packet;
         bool ok;
         try
         {
+            packet = _pending.Assemble(material);
             ok = SignatureEngine.VerifyDigest(_pending.Key, packet, _pending.Digest);
         }
         catch (CryptographicException)
         {
-            ok = false;
+            throw new PgpException(PgpFailure.MalformedMessage, "The signature does not verify against the signer's public key.");
+        }
+        catch (OpenPgpParseException)
+        {
+            // A state whose signed header was damaged in storage decodes (its parts fit each other) but does not assemble into a packet.
+            throw new PgpException(PgpFailure.MalformedMessage, "The prepared signature's header is damaged.");
         }
 
         return ok ? packet.ToArray() : throw new PgpException(PgpFailure.MalformedMessage, "The signature does not verify against the signer's public key.");

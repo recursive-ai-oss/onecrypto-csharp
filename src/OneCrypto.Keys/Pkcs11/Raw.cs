@@ -66,6 +66,23 @@ internal static unsafe class Raw
 {
     internal static readonly nuint UnavailableInformation = nuint.MaxValue; // CK_UNAVAILABLE_INFORMATION
 
+    // Bounds on what a module may announce. Everything it reports is untrusted: lengths and counts are checked before use.
+    internal const int MaxAttributeBytes = 1 << 20;
+    internal const int MaxListEntries = 1 << 16;
+    internal const int MaxFoundObjects = 1 << 12;
+    internal const int FindBatch = 64;
+
+    /// <summary>A count a module announced, as an array size: not above <see cref="MaxListEntries"/> and, on the second call, not above what was allocated.</summary>
+    internal static int BoundedCount(string function, nuint count, int allocated = MaxListEntries)
+    {
+        if (count > (nuint)Math.Min(allocated, MaxListEntries))
+        {
+            throw new Pkcs11Exception($"The module announced {count} entries; at most {Math.Min(allocated, MaxListEntries)} are accepted.", function);
+        }
+
+        return (int)count;
+    }
+
     internal static void Check(string function, nuint rv)
     {
         if (rv != 0)
@@ -88,6 +105,12 @@ internal static unsafe class Raw
         if (a.Length == UnavailableInformation)
         {
             return null;
+        }
+
+        // A module chooses this length, so it is bounded before anything is allocated (the largest attribute we read is an RSA modulus or a certificate).
+        if (a.Length > MaxAttributeBytes)
+        {
+            throw new Pkcs11Exception($"The module reported an attribute of {a.Length} octets; at most {MaxAttributeBytes} are accepted.", "C_GetAttributeValue");
         }
 
         byte[] value = new byte[(int)a.Length];
@@ -126,17 +149,28 @@ internal static unsafe class Raw
 
         try
         {
-            nuint* batch = stackalloc nuint[64]; // a fixed small buffer: at most 64 handles per call
+            nuint* batch = stackalloc nuint[FindBatch]; // a fixed small buffer: at most FindBatch handles per call
             while (true)
             {
                 nuint n;
-                Check("C_FindObjects", m.C_FindObjects(session, batch, 64, &n));
+                Check("C_FindObjects", m.C_FindObjects(session, batch, FindBatch, &n));
+                // §5.15.3: the module returns at most the count asked for. A larger number would read past the buffer, so it is a protocol error.
+                if (n > FindBatch)
+                {
+                    throw new Pkcs11Exception($"The module returned {n} handles for a request of {FindBatch}.", "C_FindObjects");
+                }
+
                 for (nuint i = 0; i < n; i++)
                 {
                     found.Add(batch[i]);
                 }
 
-                if (n < 64)
+                if (found.Count > MaxFoundObjects)
+                {
+                    throw new Pkcs11Exception($"The module returned more than {MaxFoundObjects} matching objects.", "C_FindObjects");
+                }
+
+                if (n < FindBatch)
                 {
                     break;
                 }
@@ -185,6 +219,7 @@ internal static unsafe class Raw
     {
         {
             byte[] buffer = new byte[Math.Max(expected, 1)];
+            bool retried = false;
             while (true)
             {
                 nuint length = (nuint)buffer.Length;
@@ -194,8 +229,10 @@ internal static unsafe class Raw
                     rv = sign ? m.C_Sign(session, pd, dataLength, po, &length) : m.C_Decrypt(session, pd, dataLength, po, &length);
                 }
 
-                if (rv == (nuint)Pkcs11Result.BufferTooSmall && (int)length > buffer.Length && length < 1 << 20)
+                // §5.2: the module names the size it needs once; asking again with that size must work, so a second refusal is the module's fault.
+                if (rv == (nuint)Pkcs11Result.BufferTooSmall && !retried && length > (nuint)buffer.Length && length < MaxAttributeBytes)
                 {
+                    retried = true;
                     System.Security.Cryptography.CryptographicOperations.ZeroMemory(buffer);
                     buffer = new byte[(int)length];
                     continue;
@@ -204,6 +241,12 @@ internal static unsafe class Raw
                 try
                 {
                     Check(sign ? "C_Sign" : "C_Decrypt", rv);
+                    // The reported length is the module's claim about what it wrote into our buffer; one longer than the buffer cannot be believed.
+                    if (length > (nuint)buffer.Length)
+                    {
+                        throw new Pkcs11Exception($"The module reported {length} octets of output for a buffer of {buffer.Length}.", sign ? "C_Sign" : "C_Decrypt");
+                    }
+
                     return buffer.AsSpan(0, (int)length).ToArray();
                 }
                 finally
@@ -262,7 +305,15 @@ internal static unsafe class Raw
 
         try
         {
-            return GetAttribute(m, session, handle, 0x11) ?? throw new Pkcs11KeyException("The token would not reveal the derived secret.", "C_GetAttributeValue");
+            byte[] secret = GetAttribute(m, session, handle, 0x11) ?? throw new Pkcs11KeyException("The token would not reveal the derived secret.", "C_GetAttributeValue");
+            // CKA_VALUE_LEN asked for exactly the field size (the x-coordinate); anything else is not an ECDH result for this curve.
+            if (secret.Length != secretLength)
+            {
+                System.Security.Cryptography.CryptographicOperations.ZeroMemory(secret);
+                throw new Pkcs11Exception($"The token derived a secret of {secret.Length} octets; {secretLength} were expected.", "C_DeriveKey");
+            }
+
+            return secret;
         }
         finally
         {
@@ -321,13 +372,13 @@ internal static unsafe class Raw
                 return [];
             }
 
-            nuint[] slots = new nuint[(int)count];
+            nuint[] slots = new nuint[BoundedCount("C_GetSlotList", count)];
             fixed (nuint* p = slots)
             {
                 Check("C_GetSlotList", m.C_GetSlotList(tokenPresent, p, &count));
             }
 
-            return slots.AsSpan(0, (int)count).ToArray();
+            return slots.AsSpan(0, BoundedCount("C_GetSlotList", count, slots.Length)).ToArray();
         }
     }
 
@@ -370,13 +421,13 @@ internal static unsafe class Raw
                 return [];
             }
 
-            nuint[] list = new nuint[(int)count];
+            nuint[] list = new nuint[BoundedCount("C_GetMechanismList", count)];
             fixed (nuint* p = list)
             {
                 Check("C_GetMechanismList", m.C_GetMechanismList(slot, p, &count));
             }
 
-            return list.AsSpan(0, (int)count).ToArray();
+            return list.AsSpan(0, BoundedCount("C_GetMechanismList", count, list.Length)).ToArray();
         }
     }
 
