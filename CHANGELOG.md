@@ -4,10 +4,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-### Fixed
-
-- An EC public key whose point is not on its curve is a typed failure on Windows too: CNG reports it as `PlatformNotSupportedException`, which escaped OpenPGP signature checks and ECDH session-key handling. It is now a `CryptographicException` (malformed key) when the platform has the curve and stays `AlgorithmNotSupportedException` when it lacks it.
-
 ## [0.4.0-preview.1] - 2026-11-02
 
 ### Added
@@ -24,6 +20,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `onecrypto --help`, `onecrypto sop --help` and the per-subcommand help wrap at 80 columns.
 - `PgpSecretKey.FromExternalKey` refuses an external key whose public key is not the key packet's (different algorithm, curve or key material) with the new `PgpFailure.KeyMismatch`, instead of failing later at the verifier.
 - gpg-agent, ssh-agent, PKCS #11 and Cloud Signature Consortium keys refuse a signature with `AlgorithmNotSupportedException` when the platform cannot verify its scheme, instead of releasing it unchecked. `AllowUncheckedSignatures` (`GpgAgentOptions`, `SshAgentOptions`, `Pkcs11Session`, `CscKeyOptions`) opts out and weakens the check.
+
+### Fixed
+
+- An EC public key whose point is not on its curve is a typed failure on Windows too: CNG reports it as `PlatformNotSupportedException`, which escaped OpenPGP signature checks and ECDH session-key handling. It is now a `CryptographicException` (malformed key) when the platform has the curve and stays `AlgorithmNotSupportedException` when it lacks it.
 
 ## [0.3.0-preview.2] - 2026-11-02
 
