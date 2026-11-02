@@ -34,6 +34,29 @@ public class SopHelpAndVerificationsTests
     }
 
     [Fact]
+    public void EveryHelpTextFitsEightyColumns()
+    {
+        var texts = new List<string> { SopHelp.ForTool(), SopHelp.ForSop([], sopv: false), SopHelp.ForSop([], sopv: true) };
+        foreach (string name in new[] { "version", "list-profiles", "generate-key", "change-key-password", "revoke-key", "extract-cert", "update-key", "merge-certs", "certify-userid", "validate-userid", "sign", "verify", "encrypt", "decrypt", "inline-sign", "inline-verify", "inline-detach", "armor", "dearmor" })
+        {
+            texts.Add(SopHelp.ForSop([name, "--help"], sopv: false));
+            texts.Add(SopHelp.ForSop([name, "--help"], sopv: true));
+        }
+
+        foreach (string text in texts)
+        {
+            foreach (string line in text.Split('\n'))
+            {
+                Assert.True(line.Length <= SopHelp.MaxWidth, $"{line.Length} columns: {line}");
+            }
+        }
+
+        // A wrapped option list keeps every option and indents the continuation.
+        string update = SopHelp.ForSop(["update-key", "--help"], sopv: false);
+        Assert.Contains("--merge-certs=CERT...", update, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void HelpForOneSubcommandShowsItsOptions()
     {
         Result r = Sop([], "generate-key", "--help");

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <PackageValidationBaselineVersion>0.3.0-preview.1</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.3.0-preview.2</PackageValidationBaselineVersion>
     <Description>Network clients for OneCrypto behind a pluggable, guarded transport: timestamp, OCSP, CRL and issuer-certificate fetching, remote signing (Cloud Signature Consortium API), OpenPGP certificate discovery (Web Key Directory, HKP, VKS), with a record/replay transport for tests. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
     <PackageTags>cryptography;wkd;hkp;openpgp;rfc3161;timestamp;ocsp;crl;x509;aia;revocation;csc;remote-signing;nativeaot;trimmable</PackageTags>
   </PropertyGroup>

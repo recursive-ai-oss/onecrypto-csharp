@@ -45,15 +45,15 @@ internal static class SopHelp
             {
                 if (Name == name)
                 {
-                    return $"Usage: onecrypto {(sopv ? "sopv" : "sop")} {Name} {Usage}\n\n{Summary}.\n";
+                    return Wrap($"Usage: onecrypto {(sopv ? "sopv" : "sop")} {Name} {Usage}", 4) + $"\n\n{Wrap(Summary + ".", 0)}\n";
                 }
             }
         }
 
         var sb = new StringBuilder();
         sb.Append(sopv ? "Usage: onecrypto sopv <subcommand> [options] [arguments]\n\n" : "Usage: onecrypto sop <subcommand> [options] [arguments]\n\n");
-        sb.Append("The Stateless OpenPGP command line (draft-dkg-openpgp-stateless-cli). Data goes in on standard input and out on standard output;\n");
-        sb.Append("keys, certificates, signatures and passwords are given as file names. Exit codes are the draft's.\n\nSubcommands:\n");
+        sb.Append(Wrap("The Stateless OpenPGP command line (draft-dkg-openpgp-stateless-cli). Data goes in on standard input and out on standard output; keys, certificates, signatures and passwords are given as file names. Exit codes are the draft's.", 0));
+        sb.Append("\n\nSubcommands:\n");
         foreach ((string Name, string Usage, string Summary) in Subcommands)
         {
             if (sopv && Name is not ("version" or "verify" or "inline-verify" or "validate-userid"))
@@ -61,10 +61,61 @@ internal static class SopHelp
                 continue;
             }
 
-            sb.Append("  ").Append(Name.PadRight(20)).Append(Summary).Append('\n');
+            sb.Append(Wrap("  " + Name.PadRight(20) + Summary, 22)).Append('\n');
         }
 
         sb.Append("\n`onecrypto sop <subcommand> --help` shows a subcommand's options.\n");
+        return sb.ToString();
+    }
+
+    /// <summary>The widest line any help text has, so it reads in an 80-column terminal.</summary>
+    internal const int MaxWidth = 80;
+
+    /// <summary>Breaks <paramref name="line"/> at spaces so no line is longer than <see cref="MaxWidth"/>; continuation lines are indented by <paramref name="hang"/> columns. A word longer than the room stays whole.</summary>
+    internal static string Wrap(string line, int hang)
+    {
+        int lead = 0;
+        while (lead < line.Length && line[lead] == ' ')
+        {
+            lead++;
+        }
+
+        var sb = new StringBuilder(line.Length + 16);
+        sb.Append(' ', lead);
+        int col = lead;
+        bool atLineStart = true;
+        foreach (string word in line[lead..].Split(' '))
+        {
+            // An empty word is one of several spaces in a row, which a list uses as a column gap: keep it.
+            if (word.Length == 0)
+            {
+                sb.Append(' ');
+                col++;
+                continue;
+            }
+
+            if (!atLineStart && col + word.Length > MaxWidth)
+            {
+                while (sb[^1] == ' ')
+                {
+                    sb.Length--;
+                }
+
+                sb.Append('\n').Append(' ', hang);
+                col = hang;
+                atLineStart = true;
+            }
+            else if (!atLineStart && sb[^1] != ' ')
+            {
+                sb.Append(' ');
+                col++;
+            }
+
+            sb.Append(word);
+            col += word.Length;
+            atLineStart = false;
+        }
+
         return sb.ToString();
     }
 
@@ -72,8 +123,8 @@ internal static class SopHelp
     public static string ForTool() =>
         "Usage: onecrypto <command> [arguments]\n\n"
         + "Commands:\n"
-        + "  sop <subcommand>       the Stateless OpenPGP command line: sign, verify, encrypt, decrypt, generate-key and the rest\n"
-        + "  sopv <subcommand>      the verification-only subset of sop (version, verify, inline-verify, validate-userid)\n"
-        + "  pgp authenticate       judge how well a User ID is authenticated by the web of trust\n\n"
+        + Wrap("  sop <subcommand>       the Stateless OpenPGP command line: sign, verify, encrypt, decrypt, generate-key and the rest", 25) + "\n"
+        + Wrap("  sopv <subcommand>      the verification-only subset of sop (version, verify, inline-verify, validate-userid)", 25) + "\n"
+        + Wrap("  pgp authenticate       judge how well a User ID is authenticated by the web of trust", 25) + "\n\n"
         + "`onecrypto sop --help` lists the sop subcommands.\n";
 }

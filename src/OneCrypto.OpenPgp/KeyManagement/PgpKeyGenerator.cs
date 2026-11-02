@@ -10,7 +10,7 @@ public enum PgpKeyProfile
 {
     /// <summary>
     /// Version 6 Ed25519 primary key and X25519 encryption subkey (RFC 9580). Sequoia, OpenPGP.js and GopenPGP read it; GnuPG (2.4 and 2.5) and RNP do not.
-    /// This is the default of <see cref="PgpKeyGenerationOptions"/>; <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/> uses <see cref="Rfc4880Curve25519"/> instead.
+    /// Not the default: <see cref="PgpKeyGenerationOptions"/> and <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/> use <see cref="Rfc4880Curve25519"/>, so ask for this profile to get a version 6 key.
     /// </summary>
     Rfc9580 = 0,
 
@@ -57,8 +57,8 @@ public sealed class PgpKeyGenerationOptions
     /// <summary>User IDs to bind to the key (UTF-8 text, certified as written). The first is the primary User ID. Default none.</summary>
     public IReadOnlyList<string> UserIds { get; init; } = [];
 
-    /// <summary>Which algorithms and key version. Default <see cref="PgpKeyProfile.Rfc9580"/> here; the <see cref="Pgp"/> happy path defaults to <see cref="PgpKeyProfile.Rfc4880Curve25519"/>.</summary>
-    public PgpKeyProfile Profile { get; init; } = PgpKeyProfile.Rfc9580;
+    /// <summary>Which algorithms and key version. Default <see cref="PgpKeyProfile.Rfc4880Curve25519"/>, as for <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/>: a version 4 key that every OpenPGP implementation reads. Ask for <see cref="PgpKeyProfile.Rfc9580"/> for version 6.</summary>
+    public PgpKeyProfile Profile { get; init; } = PgpKeyProfile.Rfc4880Curve25519;
 
     /// <summary>True to leave out the encryption subkey, so the key can certify and sign but not decrypt. Default false.</summary>
     public bool SigningOnly { get; init; }
