@@ -110,7 +110,7 @@ SoftHSM2 as a black box (2.6.1 from the distribution package on Linux x64, 2.7.0
 
 ## Not here
 
-gpg-agent, ssh-agent, CSC and the KMS adapters implement these same interfaces in their own packages. The library has no key store and no agent of its own.
+gpg-agent and ssh-agent (below) are in the same package. Cloud Signature Consortium remote signing is `RecursiveAI.OneCrypto.Online.Csc` in `.Online` ([online.md](online.md#remote-signing-the-cloud-signature-consortium-api)). The cloud KMS adapters are not released yet. The library has no key store and no agent of its own.
 
 ## Use in CMS and X.509
 
@@ -118,7 +118,7 @@ CMS signers (`CmsSignerSpec.Key`), CMS recipients (`CmsDecryptionKey.FromKey`) a
 
 ## gpg-agent
 
-> **Preview, not yet reviewed.** This backend has had no security review yet and its behaviour may still change. Do not rely on it for anything that matters until a review has been done and this note is removed.
+> **Preview.** The key-backend glue had an internal review (`key-backend-review.md`); it has not been independently audited and the behaviour may still change.
 
 `GpgAgentClient` (`RecursiveAI.OneCrypto.Keys.Agents`, package `.Keys`) talks to GnuPG's key agent over its local Assuan socket. The private key never leaves the agent: the client lists keys, reads their public parts and asks the agent to sign, decrypt or agree. Passphrase prompts, caching and smartcards are the agent's own (its pinentry runs where the user is: `GPG_TTY`, `TERM`, `DISPLAY` and `XAUTHORITY` are forwarded unless `ForwardEnvironment` is off). Nothing is started or fetched; no agent on the socket is an `AgentUnavailableException`.
 
@@ -141,7 +141,7 @@ CMS signers (`CmsSignerSpec.Key`), CMS recipients (`CmsDecryptionKey.FromKey`) a
 
 ## ssh-agent
 
-> **Preview, not yet reviewed.** This backend has had no security review yet and its behaviour may still change. Do not rely on it for anything that matters until a review has been done and this note is removed.
+> **Preview.** The key-backend glue had an internal review (`key-backend-review.md`); it has not been independently audited and the behaviour may still change.
 
 `SshAgentClient` speaks the SSH agent protocol (draft-ietf-sshm-ssh-agent; OpenSSH `PROTOCOL.agent`) over the socket in `SSH_AUTH_SOCK` or `SshAgentOptions.SocketPath`. `ListIdentities` is `SSH_AGENTC_REQUEST_IDENTITIES`; `GetKey(sshPublicKey)` returns an `SshAgentKey` (an `ISigningKey`) for a key the agent offers, `FindKey(publicKeyInfo)` the same by X.509 public key.
 

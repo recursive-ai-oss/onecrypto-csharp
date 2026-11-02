@@ -15,7 +15,7 @@ Normative, language-neutral notes on behaviour: verification semantics, policy p
 - [decryption-review.md](decryption-review.md): the internal review of every decryption path (CMS, key wrap, PKCS#8, OpenPGP): findings, decisions and fixes.
 - [kdf.md](kdf.md): Argon2, scrypt and bcrypt-pbkdf: behaviour, limits, side channels, tests.
 - [gnupg-home.md](gnupg-home.md): reading a GnuPG home (keybox, keyrings, private-keys-v1.d, trust database) and the cert-d certificate directory: layout as settled, gaps, limits, checks.
-- [keys.md](keys.md): key interfaces, signature specs, operating-system keys and two-phase signing (with the serialised state).
+- [keys.md](keys.md): key interfaces, signature specs, two-phase signing (with the serialised state), and the key backends of the `.Keys` package: PKCS #11 tokens, gpg-agent and ssh-agent.
 - [openpgp.md](openpgp.md): the OpenPGP packet layer: what is read and preserved, armor, transferable keys, limits, streaming.
 - [openpgp-trust.md](openpgp-trust.md): the flow-based web of trust and the classic GnuPG trust model: rules, settled behaviour, limits and checks.
 - [pdf.md](pdf.md): the PDF bridge: PAdES signing from B-B to B-LTA, augmentation, two-step signing, the verifier's rules and time model, and how Adobe Reader treats the files.

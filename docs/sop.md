@@ -35,7 +35,7 @@ An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL with
 
 ## The scoreboard
 
-The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every test has a producer and a consumer role that both go through sop. Every test has two roles, so a round-trip case can use our `generate-key` as the producer as well as the consumer of what Sequoia, GopenPGP and the test data produced.
+The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every test has a producer and a consumer role and both go through sop, so a round-trip case can use our `generate-key` as the producer as well as the consumer of what Sequoia, GopenPGP and the test data produced.
 
 Run it (on a machine with the oracles installed):
 

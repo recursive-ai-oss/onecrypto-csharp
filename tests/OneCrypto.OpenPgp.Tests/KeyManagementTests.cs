@@ -116,6 +116,15 @@ public class KeyManagementTests
     }
 
     [Fact]
+    public void TheGeneratorAndTheHappyPathMakeTheSameKeyVersionByDefault()
+    {
+        Assert.Equal(PgpKeyProfile.Rfc4880Curve25519, new PgpKeyGenerationOptions { Now = T0 }.Profile);
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["A"] });
+        Assert.Equal(4, key.Primary.Packet.Version);
+        Assert.Equal(4, Pgp.GenerateKey("A").Primary.Packet.Version);
+    }
+
+    [Fact]
     public void SigningOnlyKeyHasNoEncryptionSubkeyAndNoUserIdKeyStillBinds()
     {
         PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, SigningOnly = true });
@@ -129,7 +138,7 @@ public class KeyManagementTests
     [Fact]
     public void GeneratedKeysCarryExpiryAndPreferences()
     {
-        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["A"], ValidFor = TimeSpan.FromDays(30) });
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, Profile = PgpKeyProfile.Rfc9580, UserIds = ["A"], ValidFor = TimeSpan.FromDays(30) });
         Assert.Equal(T0.AddDays(30), key.Primary.StateAt(T1).ExpiresAt);
         Assert.False(key.Primary.StateAt(T0.AddDays(31)).IsValid);
         Assert.False(key.Keys[1].StateAt(T0.AddDays(31)).IsValid);
@@ -388,7 +397,7 @@ public class KeyManagementTests
     [Fact]
     public void RefreshRemovesWeakPreferencesAndAddsAnEncryptionSubkey()
     {
-        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["Old"], SigningOnly = true });
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, Profile = PgpKeyProfile.Rfc9580, UserIds = ["Old"], SigningOnly = true });
         using PgpSecretKey primary = Unlock(key);
         PgpCertificate weak = PgpKeyEditor.SetPreferences(key, primary, new PgpKeyPreferences { Hash = [PgpHashAlgorithm.Sha1, PgpHashAlgorithm.Sha256] }, T0.AddDays(1));
         PgpCertificate fresh = PgpKeyEditor.Refresh(weak, primary, T1, signingOnly: false, noAddedCapabilities: false);
