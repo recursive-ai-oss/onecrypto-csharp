@@ -13,6 +13,8 @@ Every `*.exchanges.json` file is a list of HTTP exchanges recorded through `Reco
 | `wkd-not-found.exchanges.json` | `openpgpkey.fsfe.org` | 2026-11-01 17:19 UTC | the 404 for a key lookup (`info@fsfe.org`) |
 | `hkp-keys-openpgp-org.exchanges.json` | `keys.openpgp.org` HKP interface | 2026-11-01 17:19 UTC | `op=get` and `op=index` for one published key by fingerprint, `op=vindex` (answered 400), a 404 |
 | `vks-keys-openpgp-org.exchanges.json` | `keys.openpgp.org` VKS interface | 2026-11-01 17:19 UTC | the same key by fingerprint, key ID and email, and a 404 |
+| `csc-explicit-scal2-rsa.exchanges.json` | the CSC test service of `tests/OneCrypto.Online.Tests/Csc/` (written from the API specification; no provider) | 2026-11-01 | `info`, `credentials/list`, `credentials/info`, `credentials/authorize` (the activation value replaced by a placeholder) and `signatures/signHash` for an RSA credential at SCAL 2 |
+| `csc-oauth2code-ecdsa.exchanges.json` | the same test service | 2026-11-01 | `info`-less: `credentials/info` and `signatures/signHash` for an ECDSA credential authorized through OAuth 2.0 |
 
 `globalsign-leaf.pem` is the public TLS certificate served by `www.globalsign.com` at that time; `globalsign-root-r46.pem` is GlobalSign Root R46 from the system trust store (SHA-256 `4FA3126D8D3A11D1C4855A4F807CBAD6CF919D3A5A88B03BEA2C6372D93C40C9`), used as the trust anchor.
 

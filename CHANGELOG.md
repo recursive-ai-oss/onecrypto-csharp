@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `RecursiveAI.OneCrypto.Online.Csc`: a client for the Cloud Signature Consortium API v2.2 (`CscClient`: `info`, `credentials/list`, `credentials/info`, `credentials/authorize`, `signatures/signHash`) over the guarded transport, and `CscSigningKey`, a remote credential as an `ISigningKey` (RSA PKCS #1 v1.5, RSA-PSS, ECDSA; SAD bound to the digests; every signature checked against the credential's certificate). Tokens come from an `ICscTokenSource`, with a client-credentials source provided. See `docs/online.md`.
+- `SignatureSpec.VerifyDigest`: checks a signature over a digest the caller already computed.
+- `FetchRequest.Idempotent`, `FetchRequest.MaxRedirects` and `FetchRequest.KeepErrorBody`.
+
+### Fixed
+
+- An OCSP query over POST no longer fails when the responder closed the pooled connection after its last answer: the client repeats the request once on a fresh connection, and the reason of a transport failure now says what the peer did.
+
 ## [0.3.0-preview.1] - 2026-11-02
 
 Third preview. Adds OpenPGP in a new package, `RecursiveAI.OneCrypto.OpenPgp`: RFC 9580 version 6 and 4, the post-quantum algorithms of RFC 9980, LibrePGP read and written only for recipients that need it, version 3 read, key management, GnuPG home and cert-d, two trust models, WKD, HKP, VKS and Autocrypt. It also adds the `onecrypto` tool with `sop`. Decryption paths in CMS and OpenPGP have had an internal review, and its findings are fixed. The API is not stable yet. This library has not been independently audited. Interop results, timing evidence and the documented deviations are in [docs/conformance.md](docs/conformance.md).

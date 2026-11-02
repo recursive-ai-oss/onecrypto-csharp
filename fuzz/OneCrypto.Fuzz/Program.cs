@@ -48,6 +48,7 @@ internal static class Program
         ["trust"] = TrustTarget.Run,
         ["autocrypt"] = AutocryptTarget.Run,
         ["hkpindex"] = DiscoveryTarget.Run,
+        ["csc"] = CscTarget.Run,
     };
 
     private static IEnumerable<byte[]> SeedsFor(string target) => target switch
@@ -79,6 +80,7 @@ internal static class Program
         "trust" => TrustTarget.Seeds(),
         "autocrypt" => AutocryptTarget.Seeds(),
         "hkpindex" => DiscoveryTarget.Seeds(),
+        "csc" => CscTarget.Seeds(),
         _ => [],
     };
 

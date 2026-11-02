@@ -27,6 +27,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
     <ProjectReference Include="../TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
+    <!-- The other process of the remote-signing two-phase test. -->
+    <ProjectReference Include="../CscSigner/OneCrypto.CscSigner.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using RecursiveAI.OneCrypto;
 using RecursiveAI.OneCrypto.Online;
+using RecursiveAI.OneCrypto.Online.Csc;
 using RecursiveAI.OneCrypto.Validation;
 
 namespace OneCrypto.Smoke;
@@ -39,8 +40,23 @@ internal static class OnlineSmoke
         });
 
         FetchResult blocked = await fetcher.FetchAsync(new FetchRequest { Uri = new Uri("http://10.0.0.1/ca.crt"), Origin = UrlOrigin.Certificate });
-        bool good = found.Count == 1 && again.Count == 1 && replay.Requests.Count == 1 && report.IsValid && blocked.Outcome == FetchOutcome.AddressBlocked;
-        Console.WriteLine($"online: replayed {replay.Requests.Count} request(s), issuer found {found.Count}, validation {report.Verdict}, private address {blocked.Outcome}");
+
+        // The remote-signing client reads its JSON without reflection: one replayed info call.
+        var cscLog = new ExchangeLog();
+        cscLog.Exchanges.Add(new RecordedExchange
+        {
+            Method = "POST",
+            Uri = "https://csc.smoke.test/v2/info",
+            Status = 200,
+            Headers = [new RecordedHeader { Name = "Content-Type", Value = "application/json" }],
+            Body = System.Text.Encoding.UTF8.GetBytes("{\"specs\":\"2.2.0.0\",\"name\":\"smoke\",\"authType\":[\"oauth2client\"],\"methods\":[\"signatures/signHash\"]}"),
+        });
+        var csc = new CscClient(new Fetcher(new ReplayTransport(cscLog, new ReplayOptions { MatchBody = false })), new Uri("https://csc.smoke.test/v2/"));
+        CscResult<CscServiceInfo> cscInfo = await csc.InfoAsync();
+        bool cscGood = cscInfo.IsSuccess && cscInfo.Value!.Specs == "2.2.0.0" && cscInfo.Value.SupportsMethod("signatures/signHash") && !cscInfo.Value.SupportsMethod("credentials/list");
+
+        bool good = cscGood && found.Count == 1 && again.Count == 1 && replay.Requests.Count == 1 && report.IsValid && blocked.Outcome == FetchOutcome.AddressBlocked;
+        Console.WriteLine($"online: replayed {replay.Requests.Count} request(s), issuer found {found.Count}, validation {report.Verdict}, private address {blocked.Outcome}, csc info {cscInfo.Outcome}");
         return good;
     }
 }
