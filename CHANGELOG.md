@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- An EC public key whose point is not on its curve is a typed failure on Windows too: CNG reports it as `PlatformNotSupportedException`, which escaped OpenPGP signature checks and ECDH session-key handling. It is now a `CryptographicException` (malformed key) when the platform has the curve and stays `AlgorithmNotSupportedException` when it lacks it.
+
 ## [0.4.0-preview.1] - 2026-11-02
 
 ### Added

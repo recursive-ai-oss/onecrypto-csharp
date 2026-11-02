@@ -204,7 +204,7 @@ internal static class SignatureEngine
                         return false;
                     }
 
-                    using var ec = ECDsa.Create(new ECParameters { Curve = curve, Q = new ECPoint { X = q.Slice(1, size).ToArray(), Y = q.Slice(1 + size, size).ToArray() } });
+                    using var ec = RecursiveAI.OneCrypto.Internal.Platform.CreateEcdsa(new ECParameters { Curve = curve, Q = new ECPoint { X = q.Slice(1, size).ToArray(), Y = q.Slice(1 + size, size).ToArray() } }, "OpenPGP ECDSA public key import");
                     if (sv[0].Length > size || sv[1].Length > size)
                     {
                         return false;
