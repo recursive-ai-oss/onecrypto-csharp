@@ -125,6 +125,17 @@ public class CscGuardTests
     }
 
     [Theory]
+    [InlineData("{\"credentialIDs\":[],\"credentialInfos\":[1]}")]
+    [InlineData("{\"credentialInfos\":[\"x\",null,[]]}")]
+    [InlineData("{\"credentialIDs\":{}}")]
+    public async Task ACredentialListWithTheWrongShapeIsMalformed(string body)
+    {
+        // The first form was found by the fuzz target: an element that is not an object.
+        var net = new FakeNetwork(_ => Json(body));
+        Assert.Equal(CscOutcome.MalformedResponse, (await Client(net).ListCredentialsAsync()).Outcome);
+    }
+
+    [Theory]
     [InlineData("{\"key\":{\"status\":\"enabled\",\"algo\":[],\"len\":2048},\"auth\":{\"mode\":\"telepathy\"}}")]
     [InlineData("{\"key\":{\"status\":\"enabled\",\"algo\":[],\"len\":2048},\"cert\":{\"certificates\":[\"!!notbase64!!\"]},\"auth\":{\"mode\":\"explicit\"}}")]
     [InlineData("{\"key\":{\"status\":\"enabled\",\"algo\":[],\"len\":2048},\"auth\":{\"mode\":\"explicit\"},\"SCAL\":\"3\"}")]

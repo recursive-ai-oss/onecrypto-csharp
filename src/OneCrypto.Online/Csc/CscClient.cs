@@ -101,6 +101,11 @@ public sealed class CscClient
 
                 foreach (JsonElement e in arr.EnumerateArray())
                 {
+                    if (e.ValueKind != JsonValueKind.Object)
+                    {
+                        throw new CscFormatException("a credential description is not an object");
+                    }
+
                     infos.Add(CscJson.ParseCredential(e, CscJson.ReqString(e, "credentialID", 1024)));
                 }
             }
@@ -371,9 +376,10 @@ public sealed class CscClient
                 JsonElement root = CscJson.Root(fetch.Body);
                 return CscResult<T>.Ok(parse(root, fetch.StatusCode ?? 200), fetch);
             }
-            catch (CscFormatException ex)
+            catch (Exception ex) when (ex is CscFormatException or InvalidOperationException)
             {
-                return CscResult<T>.Fail(CscOutcome.MalformedResponse, $"{method}: {ex.Message}", fetch);
+                // JsonElement reports a member read as the wrong kind of value with InvalidOperationException; to the caller that is the same malformed answer.
+                return CscResult<T>.Fail(CscOutcome.MalformedResponse, $"{method}: {(ex is CscFormatException ? ex.Message : "a member has an unexpected type")}", fetch);
             }
         }
     }
