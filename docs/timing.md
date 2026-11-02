@@ -75,6 +75,52 @@ The current design keeps everything but the key value equal:
 `TIMING_PRIMITIVES` chooses primitives, or `Primitive/operation` entries. Blowfish builds its key object in 0.5 to 1.3 ms, so each of
 its targets takes 15 to 25 minutes at N = 1,000,000 and runs as its own job.
 
+## Groups for stage-close runs
+
+`tools/timing-groups.sh run <group> <outdir> [N]` runs one group of key-secret and glue targets through the queue (an indicative heavy
+job; `PERF_CLASS=bench` for a publishable exclusive run, 20 minute limit). `list` prints the groups. Every group fits a 20 minute slot
+on both reference machines; N is 1,000,000 calls per target except where noted. Blowfish builds a key object in 0.5 to 1.4 ms, so its four
+targets run as two independent halves of 500,000 calls each (suffix `-1`, `-2`), and both halves must pass. The RSA PKESK target is a
+platform residual with no timing claim and costs 2.7 ms a call on arm64, so it runs at 300,000.
+
+Measured wall time per group (build excluded), indicative heavy jobs on a shared host: x64 Ryzen 9 7950X3D, 1-minute load 7 to 18,
+mean CPU busy 33 to 41%; arm64 Apple M2, 65 to 85% idle at start.
+
+| Group | Members | N | x64 | arm64 |
+|---|---|---|---|---|
+| `small-and-glue` | Camellia-128/256, CAST5, IDEA, Twofish-128/256, AES-OCB/EAX/KW, ChaCha20-Poly1305, OpenPgpSessionKey (five checksum targets), OpenPgpSecretKeyUnlock, CmsCbc | 1M | 6.7 min | 5.2 min |
+| `curves` | Ed25519, Ed448, X25519, X448 | 1M | 9.7 min | 8.5 min |
+| `glue-pkesk-rsa` | OpenPgpSessionKey/pkesk-rsa (no claim) | 300k | 3.3 min | 15.6 min |
+| `blowfish-dk-1`, `-2` | Blowfish decrypt-key | 500k | 4.9, 5.0 min | 11.1, 11.1 min |
+| `blowfish-ck-1`, `-2` | Blowfish control-decrypt-key | 500k | 4.7, 4.8 min | 11.1, 11.1 min |
+| `blowfish-ks-1`, `-2` | Blowfish key-setup | 500k | 5.0, 5.0 min | 10.8, 11.1 min |
+| `blowfish-cks-1`, `-2` | Blowfish control-key-setup, decrypt-data | 500k | 5.0, 5.2 min | 11.2, 11.2 min |
+
+The longest slot is 15.6 min (arm64, RSA PKESK). Running them all end to end takes about 64 min on x64 and 2 h 10 min on arm64.
+
+## Twofish key setup on x64: no constant-time claim, investigation open
+
+The 0.3-close run flagged Twofish-128 key-setup (6.79) and Twofish-256 decrypt-key (12.72) on x64; the other Twofish targets and the
+controls passed. What the follow-up runs show (N = 1,000,000 each; indicative, shared host):
+
+- **Twofish-256 decrypt-key does not reproduce.** Max |t| over eight runs with the current harness is 2.97 (Twofish-128: 3.70) and
+  1.46 to 2.97 in the other runs; the data and control targets also pass everywhere. The single 12.72 was a noisy shared-host run.
+- **Key-setup flags on x64 only, and not consistently.** Fixed key against random keys: Twofish-128 flagged in 2 of 5 and 2 of 8
+  runs (max 9.29), Twofish-256 in 2 of 5 and 0 of 8 (max 5.05). The A/A control (random keys in both classes) never flagged (0 of 26, max 3.30).
+  arm64: 0 of 21 flagged (max 3.54), controls 0 of 21.
+- **The JIT output has nothing key-dependent.** `DOTNET_JitDisasm` of `TwofishEngine..ctor`, `ReedSolomon` and `H` (full opts, x64): every
+  conditional jump tests a loop counter, a span bound or a key length; the GF(2^8) multiply is `shrx`, `neg`, `and`, `xor`.
+- **Two further controls.** `pair-key-setup` times two different keys, each repeated in its own class. On x64 it flagged in 5 of 8 runs
+  for each of Twofish-128 and Twofish-256 (max 15.76), so a repeated constant differs from another repeated constant, not only from random keys. `lowbits-key-setup` times keys
+  with every byte 0 or 1 against uniformly random keys, with no key repeated: 0 of 16 flagged (max 4.08), arm64 0 of 16.
+
+What this settles and what it does not: no flag appears when no key repeats, and the code has no key-dependent branch or index, which
+points at an effect of presenting the same bytes again and again to the timed constructor rather than at the key's value. But the pair
+control shows that effect differs from one constant to another, and a key-dependent time would look the same, so the cause is not
+isolated. Twofish key setup therefore carries **no constant-time claim on x64** until it is resolved. Twofish decrypt (data and key kinds) passes and is claimed as before.
+
+Machines: x64 AMD Ryzen 9 7950X3D, .NET 10.0.402; arm64 Apple M2, .NET 10.0.403. The first x64 run used the earlier key-setup harness (Twofish-128 decrypt-key 1.39, key-setup 2.56, control 1.62; Twofish-256 1.49, 3.93, 2.19, all passing). One Ed448 sign flag (6.18) on arm64, taken while other jobs loaded the machine, did not repeat in two quiet runs (1.50, 1.35).
+
 ## Results (indicative)
 
 N = 1,000,000 calls per target, full-opt JIT, run as shared-host jobs (not exclusive), so every number is indicative. Values are the
