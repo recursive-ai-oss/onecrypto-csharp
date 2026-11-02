@@ -424,6 +424,12 @@ public sealed class PgpCertificate
     /// <summary>The underlying packets.</summary>
     public TransferableKey Transferable { get; }
 
+    /// <summary>
+    /// Subkeys left out of <see cref="Keys"/> because they did not decode or use a key version this library does not know, with the reason for
+    /// each. Their packets stay in <see cref="Transferable"/>, so the certificate writes back unchanged. Empty for a usual certificate.
+    /// </summary>
+    public IReadOnlyList<SkippedSubkeyComponent> SkippedSubkeys => Transferable.SkippedSubkeys;
+
     /// <summary>The primary key.</summary>
     public PgpKey Primary { get; }
 

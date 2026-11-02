@@ -460,4 +460,15 @@ public class KeyManagementTests
         PgpCertificate certified = Pgp.Certify(open.ToPublicCertificate(), "Carol <carol@example.org>", dave);
         Assert.Equal(open.ToPublicCertificate().Transferable.Packets.Count + 1, certified.Transferable.Packets.Count);
     }
+
+    [Fact]
+    public void TheHappyPathDefaultIsTheVersion4FormAndAProfileCanBeChosen()
+    {
+        PgpCertificate def = Pgp.GenerateKey("Erin <erin@example.org>");
+        Assert.Equal(4, def.Primary.Packet.Version);
+        Assert.Equal(PublicKeyAlgorithm.EdDsaLegacy, ((KeyPacket)def.Primary.Packet).Algorithm);
+        PgpCertificate v6 = Pgp.GenerateKey("Erin <erin@example.org>", PgpKeyProfile.Rfc9580);
+        Assert.Equal(6, v6.Primary.Packet.Version);
+        Assert.Equal(PublicKeyAlgorithm.Ed25519, ((KeyPacket)v6.Primary.Packet).Algorithm);
+    }
 }

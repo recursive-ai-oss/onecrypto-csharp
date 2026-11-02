@@ -6,14 +6,25 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `PgpCertificate.SkippedSubkeys`, `TransferableKey.SkippedSubkeys` and `SkippedSubkeyComponent` (`.OpenPgp`): a subkey that does not decode (for example a LibrePGP version 5 Kyber subkey with no key material) or has an unknown key version is skipped with its signatures and the reason, instead of failing the whole certificate (RFC 9580 §10.1). The packets are kept, so the certificate writes back byte for byte; a primary key that does not decode still fails with `OpenPgpParseException`. `UnrecognizedPacket.DecodeFailure` carries the reason.
+- `Pgp.GenerateKey(userId, profile, password, time)`: choose the key profile (version 6 `PgpKeyProfile.Rfc9580`, version 4 `PgpKeyProfile.Rfc4880Curve25519`, ...).
+- `onecrypto --help`, `onecrypto sop --help` and `onecrypto sop <subcommand> --help` list the commands, the sop subcommands and their options.
+- `sop verify`, `inline-verify` and `decrypt --verifications-out` end each VERIFICATIONS line with the optional `{"signers":[...]}` JSON field (draft-dkg-openpgp-stateless-cli §7.10.1). `sop list-profiles generate-key` also lists `rfc9980` (alias of `pqc`).
 - Agent key backends in `RecursiveAI.OneCrypto.Keys.Agents` (`.Keys`, new, not yet released): `GpgAgentClient` talks to gpg-agent over Assuan (socket discovery as GnuPG names it, keys by keygrip, RSA / ECDSA / EdDSA signing, RSA decryption and ECDH / X25519 agreement; the passphrase prompt is the agent's own) and `SshAgentClient` to an ssh-agent (RSA with SHA-256/512, ECDSA, Ed25519; SSH signature blobs for SSHSIG). Keys are `ISigningKey`, `IDecryptionKey` and `IAgreementKey`; the private key never leaves the agent, replies are bounded and checked, and every failure is a typed `AgentException`. See `docs/keys.md`.
 - `PgpSecretKey.FromExternalKey` and `PgpReadOptions.ExternalKeys` (`.OpenPgp`): decrypt OpenPGP messages with a key that lives in an agent or another backend. `SignatureSpec.VerifyDigest` (core): check a signature over a digest computed by the caller.
 - `RecursiveAI.OneCrypto.Online.Csc`: a client for the Cloud Signature Consortium API v2.2 (`CscClient`: `info`, `credentials/list`, `credentials/info`, `credentials/authorize`, `signatures/signHash`) over the guarded transport, and `CscSigningKey`, a remote credential as an `ISigningKey` (RSA PKCS #1 v1.5, RSA-PSS, ECDSA; SAD bound to the digests; every signature checked against the credential's certificate). Tokens come from an `ICscTokenSource`, with a client-credentials source provided. See `docs/online.md`.
 - `SignatureSpec.VerifyDigest`: checks a signature over a digest the caller already computed.
 - `FetchRequest.Idempotent`, `FetchRequest.MaxRedirects` and `FetchRequest.KeepErrorBody`.
 
+### Changed
+
+- `Pgp.GenerateKey(userId, password)` and `sop generate-key` (profile `default`) now make a version 4 EdDSA/ECDH Curve25519 key instead of a version 6 key: GnuPG 2.4 and 2.5 and RNP cannot use version 6 keys, while every implementation tested reads the version 4 form. Ask for `PgpKeyProfile.Rfc9580` or `--profile=rfc9580` for version 6.
+- **Preview, not yet reviewed:** the gpg-agent and ssh-agent backends (`.Keys`) and the Cloud Signature Consortium client (`.Online.Csc`) have had no security review yet; do not rely on them until it is done.
+
 ### Fixed
 
+- A certificate with one unusable subkey is no longer dropped as a whole: `KeyDiscovery` (WKD, HKP and VKS answers) keeps it and `PgpCertificate.Parse` returns it, as GnuPG does.
+- `PadesSignatureReport.Cms` is documented to be null exactly for document time-stamps, sub-filters the bridge does not evaluate, and signatures with no usable CMS.
 - An OCSP query over POST no longer fails when the responder closed the pooled connection after its last answer: the client repeats the request once on a fresh connection, and the reason of a transport failure now says what the peer did.
 
 ## [0.3.0-preview.1] - 2026-11-02

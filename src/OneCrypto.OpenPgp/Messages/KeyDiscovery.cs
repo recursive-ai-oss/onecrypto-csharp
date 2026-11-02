@@ -261,6 +261,14 @@ public static class KeyDiscovery
             packets.AddRange(sk.OtherPackets.Where(p => p is not TrustPacket));
         }
 
+        // Subkeys we cannot use stay in the certificate we hand on, so a discovered key is never narrower than the one the server sent.
+        foreach (SkippedSubkeyComponent sk in key.SkippedSubkeys)
+        {
+            packets.Add(sk.Packet);
+            packets.AddRange(sk.Signatures);
+            packets.AddRange(sk.OtherPackets.Where(p => p is not TrustPacket));
+        }
+
         return TransferableKey.Parse(packets);
     }
 

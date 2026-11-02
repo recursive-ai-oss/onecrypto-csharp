@@ -26,6 +26,11 @@ All packages share one version.
 | `RecursiveAI.OneCrypto.AzureKeyVault`, `.AwsKms`, `.GoogleKms` | cloud key backends | planned |
 | `onecrypto` (dotnet tool, package `RecursiveAI.OneCrypto.Cli`) | `sop` and `sopv` (the Stateless OpenPGP CLI), inspection and convenience verbs | preview |
 
+## Install the tool
+
+    dotnet tool install --global RecursiveAI.OneCrypto.Cli --prerelease
+    onecrypto --help
+
 ## Building
 
 The repository pins its SDK in `global.json` (.NET 10).

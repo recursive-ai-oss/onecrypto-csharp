@@ -85,6 +85,8 @@ CMS signers (`CmsSignerSpec.Key`), CMS recipients (`CmsDecryptionKey.FromKey`) a
 
 ## gpg-agent
 
+> **Preview, not yet reviewed.** This backend has had no security review yet and its behaviour may still change. Do not rely on it for anything that matters until a review has been done and this note is removed.
+
 `GpgAgentClient` (`RecursiveAI.OneCrypto.Keys.Agents`, package `.Keys`) talks to GnuPG's key agent over its local Assuan socket. The private key never leaves the agent: the client lists keys, reads their public parts and asks the agent to sign, decrypt or agree. Passphrase prompts, caching and smartcards are the agent's own (its pinentry runs where the user is: `GPG_TTY`, `TERM`, `DISPLAY` and `XAUTHORITY` are forwarded unless `ForwardEnvironment` is off). Nothing is started or fetched; no agent on the socket is an `AgentUnavailableException`.
 
 - **Finding the socket** (`GpgAgent.LocateSocket`, or `GpgAgentOptions.SocketPath`). For the default home `~/.gnupg` it is `$XDG_RUNTIME_DIR/gnupg/S.gpg-agent`; for any other home (`GNUPGHOME` or `HomeDirectory`) it is `$XDG_RUNTIME_DIR/gnupg/d.<hash>/S.gpg-agent`, where `<hash>` is 24 characters of z-base-32 (alphabet `ybndrfg8ejkmcpqxot1uwisza345h769`) over the first 15 octets of the SHA-1 of the absolute home path, as `gpgconf --list-dirs agent-socket` prints it (checked against gpgconf 2.4 and 2.5). Without `XDG_RUNTIME_DIR` the Linux per-user directory `/run/user/<uid>` is tried, then `S.gpg-agent` inside the home. A socket-redirection file (`%Assuan%` and a `socket=` line) is followed. The Windows redirection form (a TCP port and a nonce) is not supported.
@@ -105,6 +107,8 @@ CMS signers (`CmsSignerSpec.Key`), CMS recipients (`CmsDecryptionKey.FromKey`) a
 - **With OpenPGP and CMS.** `PgpSecretKey.FromExternalKey(pgpKey, agentKey)` wraps an agent key for `PgpReadOptions.ExternalKeys`, so messages encrypted to a key in the agent decrypt through it (RSA, ECDH on the NIST curves, Cv25519); signing takes the agent key as the `ISigningKey` of `PgpPreparedSignature` or `CmsSignerSpec.Key`, and `CmsDecryptionKey.FromKey(agentKey, certificate)` opens CMS messages. The two-phase signing state works across processes: the second phase only needs the socket.
 
 ## ssh-agent
+
+> **Preview, not yet reviewed.** This backend has had no security review yet and its behaviour may still change. Do not rely on it for anything that matters until a review has been done and this note is removed.
 
 `SshAgentClient` speaks the SSH agent protocol (draft-ietf-sshm-ssh-agent; OpenSSH `PROTOCOL.agent`) over the socket in `SSH_AUTH_SOCK` or `SshAgentOptions.SocketPath`. `ListIdentities` is `SSH_AGENTC_REQUEST_IDENTITIES`; `GetKey(sshPublicKey)` returns an `SshAgentKey` (an `ISigningKey`) for a key the agent offers, `FindKey(publicKeyInfo)` the same by X.509 public key.
 
