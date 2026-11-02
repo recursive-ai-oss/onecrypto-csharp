@@ -63,6 +63,40 @@ public class DerMinimalityTests
     }
 
     [Fact]
+    public void RandomOctetsThatLookLikeATagAreNotJudgedAsDer()
+    {
+        // A digest whose first two octets read as a context tag and a length that fits (this exact value failed the repeated-signing test once in
+        // about 25 runs). It is a message digest, not nested DER.
+        byte[] digest = Convert.FromHexString("A21ED3CCEF9439AA17F35A23ACA8A026CD4F6EFD588A910B7DCC6FDC781CEC3D");
+        AssertStrictDer(RecursiveAI.OneCrypto.Asn1.DerWriter.Sequence(RecursiveAI.OneCrypto.Asn1.DerWriter.OctetString(digest)), "digest");
+    }
+
+    [Fact]
+    public void NestedDerWithANonMinimalLengthIsStillReported()
+    {
+        // SEQUENCE { OCTET STRING { SEQUENCE with the length 5 written as 81 05 } }
+        byte[] inner = [0x30, 0x81, 0x05, 0x02, 0x03, 0x01, 0x00, 0x01];
+        byte[] outer = RecursiveAI.OneCrypto.Asn1.DerWriter.Sequence(RecursiveAI.OneCrypto.Asn1.DerWriter.OctetString(inner));
+        Assert.Throws<Xunit.Sdk.XunitException>(() => AssertStrictDer(outer, "nested"));
+    }
+
+    [Fact]
+    public void LengthsAroundEveryOctetCountBoundaryAreMinimal()
+    {
+        foreach (int size in new[] { 0, 1, 126, 127, 128, 129, 254, 255, 256, 257, 65534, 65535, 65536, 65537 })
+        {
+            byte[] content = new byte[size];
+            byte[] viaTlv = RecursiveAI.OneCrypto.Asn1.DerWriter.OctetString(content);
+            AssertStrictDer(viaTlv, $"DerWriter {size}");
+            var w = new RecursiveAI.OneCrypto.Asn1.Asn1Writer(RecursiveAI.OneCrypto.Asn1.Asn1Rules.Der);
+            w.PushSequence();
+            w.WriteOctetString(content);
+            w.Pop();
+            AssertStrictDer(w.Encode(), $"Asn1Writer {size}");
+        }
+    }
+
+    [Fact]
     public void ChecksTheFilesOfADirectory()
     {
         string? dir = Environment.GetEnvironmentVariable("ONECRYPTO_DER_CHECK_DIR");
@@ -220,29 +254,74 @@ public class DerMinimalityTests
         }
     }
 
-    // An octet string or bit string often holds DER of its own (TSTInfo, extension values, subject public keys, ECDSA signatures). Descend when
-    // it parses as one complete value; the nested value is held to the same rules.
+    // An octet string or bit string often holds DER of its own (TSTInfo, extension values, subject public keys, ECDSA signatures), but digests,
+    // nonces, key identifiers and RSA signatures are random bytes that start with a tag-like octet now and then. Descend only when the bytes are,
+    // as a whole, a well-formed tree of definite-length values, accepting any length form (so a genuinely non-minimal nested length is still
+    // reached and reported). Random bytes pass that test with negligible probability; judging them as DER instead made this test fail about one
+    // run in 25.
     private static void TryNested(byte[] bytes, int depth)
     {
-        if (bytes.Length < 2 || bytes[0] is not (0x30 or 0x31 or 0x02 or 0xA0 or 0xA1 or 0xA2 or 0xA3))
-        {
-            return;
-        }
-
-        try
-        {
-            var probe = new AsnReader(bytes, AsnEncodingRules.DER);
-            probe.ReadEncodedValue();
-            if (probe.HasData)
-            {
-                return;
-            }
-        }
-        catch (AsnContentException)
+        if (bytes.Length < 2 || bytes[0] is not (0x30 or 0x31 or 0x02 or 0xA0 or 0xA1 or 0xA2 or 0xA3) || !IsWellFormedValue(bytes))
         {
             return;
         }
 
         Walk(bytes, depth + 1);
+    }
+
+    /// <summary>True when <paramref name="bytes"/> is exactly one value, and every constructed value in it holds only complete values, in any definite length form.</summary>
+    internal static bool IsWellFormedValue(ReadOnlySpan<byte> bytes) => TryReadValue(bytes, out int used, 0) && used == bytes.Length;
+
+    private static bool TryReadValue(ReadOnlySpan<byte> s, out int used, int depth)
+    {
+        used = 0;
+        if (s.Length < 2 || depth > 40 || (s[0] & 0x1F) == 0x1F)
+        {
+            return false;
+        }
+
+        int at = 1;
+        long length = s[at++];
+        if (length == 0x80)
+        {
+            return false;
+        }
+
+        if (length > 0x80)
+        {
+            int n = (int)(length & 0x7F);
+            if (n > 4 || at + n > s.Length)
+            {
+                return false;
+            }
+
+            length = 0;
+            for (int i = 0; i < n; i++)
+            {
+                length = (length << 8) | s[at++];
+            }
+        }
+
+        if (at + length > s.Length)
+        {
+            return false;
+        }
+
+        if ((s[0] & 0x20) != 0)
+        {
+            ReadOnlySpan<byte> inner = s.Slice(at, (int)length);
+            while (!inner.IsEmpty)
+            {
+                if (!TryReadValue(inner, out int m, depth + 1))
+                {
+                    return false;
+                }
+
+                inner = inner[m..];
+            }
+        }
+
+        used = at + (int)length;
+        return true;
     }
 }
