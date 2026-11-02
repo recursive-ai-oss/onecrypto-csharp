@@ -395,7 +395,8 @@ public class HostileAgentTests
         });
         long before = GC.GetTotalAllocatedBytes(true);
         Assert.Throws<AgentProtocolException>(() => Ssh(a).ListIdentities());
-        Assert.True(GC.GetTotalAllocatedBytes(true) - before < 4_000_000, "a huge announced length allocates nothing");
+        // Process-wide count, so tests running in parallel add to it; the bound only has to catch allocating an announced length of up to 4 GiB.
+        Assert.True(GC.GetTotalAllocatedBytes(true) - before < 64_000_000, "a huge announced length allocates nothing");
     }
 
     [Fact]

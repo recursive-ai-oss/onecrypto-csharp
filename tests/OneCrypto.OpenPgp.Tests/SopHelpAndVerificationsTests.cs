@@ -58,7 +58,8 @@ public class SopHelpAndVerificationsTests
     {
         string dir = Path.Combine(Path.GetTempPath(), "sop-ver-" + Environment.ProcessId + "-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        string key = Path.Combine(dir, "alice \"q\".key");
+        // Windows file names cannot contain a double quote.
+        string key = Path.Combine(dir, OperatingSystem.IsWindows() ? "alice q.key" : "alice \"q\".key");
         byte[] keyBytes = Encoding.UTF8.GetBytes(Sop([], "generate-key", "Alice <alice@example.org>").Out);
         File.WriteAllBytes(key, keyBytes);
         string cert = Path.Combine(dir, "alice.cert");
