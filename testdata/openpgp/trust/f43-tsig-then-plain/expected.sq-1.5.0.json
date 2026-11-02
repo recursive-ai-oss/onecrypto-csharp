@@ -1,0 +1,27 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "C322281DD4C0E02A2DA13532CDA3DD3314563A34",
+    "targetName": "b",
+    "userId": "B <b@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - C322281DD4C0E02A2DA13532CDA3DD3314563A34\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] B <b@example.org>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c C44E234A34A50887AE5A6FF74B38B89B07D21931\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201106 (expiry: 2035\u201102\u201106)\n     \u2502\n     \u2514\u2500\u252c C322281DD4C0E02A2DA13532CDA3DD3314563A34\n       \u2514 B <b@example.org>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c C322281DD4C0E02A2DA13532CDA3DD3314563A34\n     \u2502 \u2514 B <b@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example C322281DD4C0E02A2DA13532CDA3DD3314563A34, run:\n\n  $ sq inspect --cert=C322281DD4C0E02A2DA13532CDA3DD3314563A34\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  },
+  {
+   "query": {
+    "target": "F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E",
+    "targetName": "t",
+    "userId": "T <t@example.org>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [   0/120 ] T <t@example.org>\n\n     Path #1\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c C322281DD4C0E02A2DA13532CDA3DD3314563A34\n     \u2502 \u2514 (B <b@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E\n       \u2514 T <t@example.org>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E\n     \u2502 \u2514 T <t@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E, run:\n\n  $ sq inspect --cert=F03A5BBB3D2EE7FEB11937AB023EDE6F5194558E\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+{
+ "name": "c38-tsig-with-owner-trust",
+ "text": "b has a level-1 trust signature from a and also full owner trust: its own trust signature on c is not capped",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "87373F1784412018CFED6E6B2E08F2DD12B10F2D",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "D39D775152B774D275D3CA3D1171D79E0906D2A5",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "11F46E9BC6B7429418190ACF69B15681BA823D11",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "4FD520B34C3B701DA6E538F06D1A5130F05603F7",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "DE38D51DF86F0B3109E14E3FB8D1401B9E814A9A",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "87373F1784412018CFED6E6B2E08F2DD12B10F2D": "u",
+  "D39D775152B774D275D3CA3D1171D79E0906D2A5": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "11F46E9BC6B7429418190ACF69B15681BA823D11",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "DE38D51DF86F0B3109E14E3FB8D1401B9E814A9A",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

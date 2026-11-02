@@ -1,0 +1,59 @@
+{
+ "name": "c04-three-marginals",
+ "text": "three marginal introducers sign t",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "C2CE485936D6FAD4F87064FE3C083798CD6E82A0",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "09E35DF7A358CFE0D75DAA780237BE3AAE7CB479",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "A815D530F91AADB4EE4A7616CA3AB536C9E8129D",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "CA14158D6B6515AD81251DE332F112A77C24203A",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "e": {
+   "fingerprint": "19AC2383156C6663E061532ACD335D5FDB25EA2A",
+   "userIds": [
+    "E <e@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "3F80C81A6FD690875DA046DA6C4510ECCC47CADB",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "C2CE485936D6FAD4F87064FE3C083798CD6E82A0": "u",
+  "09E35DF7A358CFE0D75DAA780237BE3AAE7CB479": "m",
+  "A815D530F91AADB4EE4A7616CA3AB536C9E8129D": "m",
+  "CA14158D6B6515AD81251DE332F112A77C24203A": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "3F80C81A6FD690875DA046DA6C4510ECCC47CADB",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

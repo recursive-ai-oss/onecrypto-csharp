@@ -1,0 +1,32 @@
+{
+ "name": "f02-partial-amount",
+ "text": "a certifies b with amount 60: partially authenticated",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "ADB6344E80580CE1D4790E5B57F65136B9A0657A",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "0C38949126A50666C21850612F37F7B019D8B4EE",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "ADB6344E80580CE1D4790E5B57F65136B9A0657A"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "0C38949126A50666C21850612F37F7B019D8B4EE",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

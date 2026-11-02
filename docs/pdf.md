@@ -41,7 +41,12 @@ doc.SignPadesArchive(output, key, certificate, chain, new PadesSignOptions { Tim
 
 ## Reader compatibility
 
-Signatures the bridge writes are strict DER throughout (shortest lengths, minimal integers, sorted `SET OF`, canonical times), including the time-stamp tokens and certificates inside them; a test walks every signature written at every level and key kind to keep it so. In Adobe Acrobat Reader (2026.002.22031, test root trusted), RSA B-LT/B-LTA, RSA-PSS B-LTA and all ECDSA P-256 files validate. Two first-test results are not explained yet: an RSA B-T file that Reader reports as having formatting errors although the same structure with other values is accepted, and an RSA B-B file reported as "validity unknown" for lack of revocation evidence while the ECDSA B-B file is not. A second sample set varies one property at a time (the length of the time-stamp authority's ECDSA signature, an RSA-only chain, the ESS attribute, key usage bits, the RSA padding) to find what Reader keys on. Reader does not implement Ed25519 in PDF (ISO/TS 32002) and reports such signatures as malformed.
+Signatures the bridge writes are strict DER throughout (shortest lengths, minimal integers, sorted `SET OF`, canonical times), including the time-stamp tokens and certificates inside them; a test walks every signature written at every level and key kind to keep it so. In Adobe Acrobat Reader (2026.002.22031, test root trusted), RSA B-LT/B-LTA, RSA-PSS B-LTA and all ECDSA P-256 files validate. A second sample set, varying one property at a time, showed the following, each file opened in a fresh Reader session:
+
+- Every B-LT and B-LTA file (RSA, RSA-PSS, ECDSA) validates, with LTV enabled and valid document time-stamps.
+- B-B and B-T files usually read "validity unknown" because revocation could not be checked. These levels carry no revocation data by definition.
+- Reader's occasional "errors in the formatting" on B-T files is not tied to the file. Of two files of the same kind, one fails and one is accepted. The first set's failing file is now accepted unchanged. Its time-stamp token has the same structure as the accepted files', and poppler's `pdfsig` validates all of them.
+- Without the ESS signing-certificate attribute (which the bridge always writes, as the baseline requires), Reader reports the signer's certificate as invalid. Reader does not implement Ed25519 in PDF (ISO/TS 32002) and reports such signatures as malformed.
 
 ## Verification
 

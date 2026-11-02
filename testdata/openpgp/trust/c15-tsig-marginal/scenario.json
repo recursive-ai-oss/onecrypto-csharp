@@ -1,0 +1,38 @@
+{
+ "name": "c15-tsig-marginal",
+ "text": "a trust signature with amount 60 makes b a marginal introducer",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "0EB20DEA884551E91E712BAF243389608DD19BDC",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "8ED63749BBC27EB8FC338427EDEF8584DE65104D",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "CEB48220B1C212C8038BCE1E7E411A7AB7AEE15C",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "0EB20DEA884551E91E712BAF243389608DD19BDC": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "CEB48220B1C212C8038BCE1E7E411A7AB7AEE15C",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

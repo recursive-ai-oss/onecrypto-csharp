@@ -1,0 +1,50 @@
+{
+ "name": "c16-tsig-level-2",
+ "text": "a -> b (level 2) -> c (level 1) -> t",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "9DB74E7BA85EE574DC84A2120168F39FBA24E05F",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "F6F21A36B1214809FBF851DE521F341FF15E45BC",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "2D9BE2A1AE279017DD1B62E847679FFD6B7F9E58",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "76ADAD37BB61689A8BF5F1B622D39FD64C7EAC12",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "9DB74E7BA85EE574DC84A2120168F39FBA24E05F": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "2D9BE2A1AE279017DD1B62E847679FFD6B7F9E58",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "76ADAD37BB61689A8BF5F1B622D39FD64C7EAC12",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

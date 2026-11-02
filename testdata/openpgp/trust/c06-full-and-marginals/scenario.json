@@ -1,0 +1,52 @@
+{
+ "name": "c06-full-and-marginals",
+ "text": "one full introducer is enough",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "715E57EE6E1B235728949A4F9B00C228DAF55351",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "69E642A5632BEF4ED51C5EF15D3F944B0CD2697F",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "5DC67F31BDCD00C1E6A57919AB54C5A3D676BD23",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "9DC4C1AA70D7655A251F1488D3F4E3802F7B5106",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "C77711C8D57722CB783A2C37CC489F6E054B3CAD",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "715E57EE6E1B235728949A4F9B00C228DAF55351": "u",
+  "69E642A5632BEF4ED51C5EF15D3F944B0CD2697F": "f",
+  "5DC67F31BDCD00C1E6A57919AB54C5A3D676BD23": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "C77711C8D57722CB783A2C37CC489F6E054B3CAD",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

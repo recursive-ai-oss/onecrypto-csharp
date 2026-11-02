@@ -153,6 +153,9 @@ public sealed class FetchResult
     /// <summary>The URL of the last request made (after redirects).</summary>
     public Uri FinalUri { get; internal set; }
 
+    /// <summary>For a <see cref="FetchOutcome.NetworkError"/> or <see cref="FetchOutcome.AddressBlocked"/> raised by the transport, what the transport reported (for example <see cref="TransportFailure.NameResolution"/>); otherwise null.</summary>
+    public TransportFailure? TransportFailure { get; internal set; }
+
     /// <summary>The last HTTP status received, if any.</summary>
     public int? StatusCode { get; internal set; }
 
@@ -327,6 +330,7 @@ public sealed class Fetcher
             }
             catch (TransportException ex)
             {
+                result.TransportFailure = ex.Failure;
                 FetchOutcome o = ex.Failure == TransportFailure.AddressBlocked ? FetchOutcome.AddressBlocked : FetchOutcome.NetworkError;
                 return Fail(result, o, ex.Message, redirects, request, cacheKey, useCache && o == FetchOutcome.NetworkError);
             }

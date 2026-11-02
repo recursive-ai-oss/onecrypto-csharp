@@ -1,0 +1,32 @@
+{
+ "name": "c29-unsigned",
+ "text": "no certification at all",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "A8F2EBBC73B2D90E83092446D60B8C0DE7559CBF",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "B8310E264C508CB89246FFA61E1276DF18B444B4",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "A8F2EBBC73B2D90E83092446D60B8C0DE7559CBF": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "B8310E264C508CB89246FFA61E1276DF18B444B4",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

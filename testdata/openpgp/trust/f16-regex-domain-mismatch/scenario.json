@@ -1,0 +1,38 @@
+{
+ "name": "f16-regex-domain-mismatch",
+ "text": "the same, but t's user ID is in another domain",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "F4ECFD3EAE1854FC07502CD9824612B610517DC5",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "ca": {
+   "fingerprint": "E2FC7954EF0967BE39698AE4B048685103FE4A22",
+   "userIds": [
+    "Ca <ca@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "2CB92972616E675F069086EF6E677EED3824B6A3",
+   "userIds": [
+    "T <t@other.example>"
+   ]
+  }
+ },
+ "roots": [
+  "F4ECFD3EAE1854FC07502CD9824612B610517DC5"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "2CB92972616E675F069086EF6E677EED3824B6A3",
+   "targetName": "t",
+   "userId": "T <t@other.example>",
+   "at": 1748736000
+  }
+ ]
+}

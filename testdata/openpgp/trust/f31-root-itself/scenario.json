@@ -1,0 +1,26 @@
+{
+ "name": "f31-root-itself",
+ "text": "the root's own self-signed user ID",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "B74A9DA74AA8CBEE7151C33AC2E04A5A933E00C2",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "B74A9DA74AA8CBEE7151C33AC2E04A5A933E00C2"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "B74A9DA74AA8CBEE7151C33AC2E04A5A933E00C2",
+   "targetName": "a",
+   "userId": "A <a@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

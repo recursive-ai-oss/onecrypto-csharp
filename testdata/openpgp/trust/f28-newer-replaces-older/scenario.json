@@ -1,0 +1,38 @@
+{
+ "name": "f28-newer-replaces-older",
+ "text": "a newer certification by the same issuer replaces the older one (120 then 30)",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "6F2536751607D7188FFAA8AAF45124108240CBD8",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "82827F1EB627B217CC5C43320B11F8081094F225",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "6F2536751607D7188FFAA8AAF45124108240CBD8"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "82827F1EB627B217CC5C43320B11F8081094F225",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "82827F1EB627B217CC5C43320B11F8081094F225",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1738540800
+  }
+ ]
+}

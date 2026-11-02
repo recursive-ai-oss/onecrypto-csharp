@@ -1,0 +1,39 @@
+{
+ "name": "c39-tsig-vs-never",
+ "text": "a trust signature on b, but b is marked never trusted",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "DDEE6EF1EC73441065B785D71A736918F7FB156B",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "103318D3346715E426810DD3CFDB56748C8CB26D",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "70034BC3B0CAE6DBEF1E3E1822F7A48427F0190B",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "DDEE6EF1EC73441065B785D71A736918F7FB156B": "u",
+  "103318D3346715E426810DD3CFDB56748C8CB26D": "n"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "70034BC3B0CAE6DBEF1E3E1822F7A48427F0190B",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

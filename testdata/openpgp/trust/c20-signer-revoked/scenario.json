@@ -1,0 +1,45 @@
+{
+ "name": "c20-signer-revoked",
+ "text": "the signer's key is revoked",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "CEA5ACF98C7D24A95B4C1DBBA098F3F61C689623",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "3CA53936C72D154109147DBBEF4A23803910F156",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "3E2E6EB168E19B04BB7E47A0EB84075637F64D37",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "CEA5ACF98C7D24A95B4C1DBBA098F3F61C689623": "u",
+  "3CA53936C72D154109147DBBEF4A23803910F156": "f"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "3E2E6EB168E19B04BB7E47A0EB84075637F64D37",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "3CA53936C72D154109147DBBEF4A23803910F156",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

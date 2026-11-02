@@ -1,0 +1,40 @@
+{
+ "name": "c01-ultimate-signs",
+ "text": "an ultimately trusted key signs b",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "A06370BE3E177842F3525DD9E487ABE969827415",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "450D3EE3FDF32B8BAB749E98FAB870DB124C868E",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "A06370BE3E177842F3525DD9E487ABE969827415"
+ ],
+ "ownertrust": {
+  "A06370BE3E177842F3525DD9E487ABE969827415": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "450D3EE3FDF32B8BAB749E98FAB870DB124C868E",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "A06370BE3E177842F3525DD9E487ABE969827415",
+   "targetName": "a",
+   "userId": "A <a@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

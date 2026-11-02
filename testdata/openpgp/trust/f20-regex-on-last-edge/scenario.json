@@ -1,0 +1,50 @@
+{
+ "name": "f20-regex-on-last-edge",
+ "text": "a regular expression on the final certification restricts it too",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "4ECEE8A1C218100A9F201D32A6B0481790CEACAC",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "5287ABC6F700792A19E665EA1F97DD0ACC6A505B",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "6869947F8359E9046533C2E3F7B3EA130CDEBEA1",
+   "userIds": [
+    "T <t@in.example>"
+   ]
+  },
+  "u": {
+   "fingerprint": "BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A",
+   "userIds": [
+    "U <u@out.example>"
+   ]
+  }
+ },
+ "roots": [
+  "4ECEE8A1C218100A9F201D32A6B0481790CEACAC"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "6869947F8359E9046533C2E3F7B3EA130CDEBEA1",
+   "targetName": "t",
+   "userId": "T <t@in.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "BDB31E5AFBAE2F36EE2EB9AC6F674233467E4E6A",
+   "targetName": "u",
+   "userId": "U <u@out.example>",
+   "at": 1748736000
+  }
+ ]
+}

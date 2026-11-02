@@ -1,0 +1,27 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "C05362D0963B3667059F031A0827234B76141B45",
+    "targetName": "t",
+    "userId": "T <t@example.org>",
+    "at": 1748736000
+   },
+   "exit": 1,
+   "stdout": "",
+   "stderr": "No valid bindings match --cert C05362D0963B3667059F031A0827234B76141B45 --userid \"T <t@example.org>\".\n  - Warning: C05362D0963B3667059F031A0827234B76141B45, T <t@example.org> is revoked: User ID information is no longer validtest.\nNo bindings are valid.\n1 binding found.\nSkipped 1 binding, which is unusable.\n\n  Error: No bindings match the query.\n"
+  },
+  {
+   "query": {
+    "target": "C05362D0963B3667059F031A0827234B76141B45",
+    "targetName": "t",
+    "userId": "T <t@example.org>",
+    "at": 1738800000
+   },
+   "exit": 0,
+   "stdout": " - C05362D0963B3667059F031A0827234B76141B45\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] T <t@example.org>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c 99F1FF24C6B1249B79EC24585128E54573032985\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c C05362D0963B3667059F031A0827234B76141B45\n       \u2514 T <t@example.org>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c C05362D0963B3667059F031A0827234B76141B45\n     \u2502 \u2514 T <t@example.org>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example C05362D0963B3667059F031A0827234B76141B45, run:\n\n  $ sq inspect --cert=C05362D0963B3667059F031A0827234B76141B45\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

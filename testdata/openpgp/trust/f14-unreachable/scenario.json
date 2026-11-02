@@ -1,0 +1,38 @@
+{
+ "name": "f14-unreachable",
+ "text": "t is certified by b, but nothing connects the root to b",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "E8965910D498CE515CC624E41415F0E9CD5DDF8B",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "15C630E83BBB0E44DBA79DCC5560B0535EB07273",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "236A36504ED1E009441B150DD17118F21B5E6D2D",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "E8965910D498CE515CC624E41415F0E9CD5DDF8B"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "236A36504ED1E009441B150DD17118F21B5E6D2D",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

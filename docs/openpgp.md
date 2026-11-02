@@ -136,11 +136,11 @@ Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib,
 | Oracle | Result |
 |---|---|
 | GnuPG 2.4.8 (`gpg-keys.sh`) | 121 pass, 0 fail, 8 n/a (version 6 keys and the native Ed25519 algorithms are not readable by GnuPG 2.4) |
-| GnuPG 2.5.24 | 113 pass, 10 n/a with the reasons below, 0 unexplained |
+| GnuPG 2.5.24 | 113 pass, 0 fail, 16 n/a (the reasons below, plus 6 revocation cells), 0 unexplained |
 | RNP 0.17 (`rnp-keys.sh`) | 93 pass, 0 fail, 4 n/a (version 6 profiles) |
-| sqop 0.38 / Sequoia 2.4.1 (`sop-keys-matrix.sh`, every non-post-quantum profile, with and without a password) | 294 pass, 0 fail, 2 unsupported |
-| gosop 1.1 / GopenPGP 3.0 (same profiles) | 229 pass, 0 fail, 79 unsupported (gosop has no `update-key`, `merge-certs` or `validate-userid`) |
-| OpenPGP.js 6.3 (our driver, same profiles) | 264 pass, 0 fail, 44 unsupported (same subcommands) |
+| sqop 0.38 / Sequoia 2.4.1 (`sop-keys-matrix.sh`, every non-post-quantum profile, with and without a password) | 302 pass, 0 fail, 6 unsupported (release-gate run) |
+| gosop 1.1 / GopenPGP 3.0 (same profiles) | 237 pass, 0 fail, 83 unsupported (release-gate run; gosop has no `update-key`, `merge-certs` or `validate-userid`) |
+| OpenPGP.js 6.3 (our driver, same profiles) | 272 pass, 0 fail, 48 unsupported (same subcommands; release-gate run) |
 | Post-quantum profiles (`pqc`, `pqc-high`) on OpenSSL 3.5.9, same matrices | sqop 50 pass / 0 fail / 6 unsupported, gosop 48 / 0 / 20, OpenPGP.js 56 / 0 / 12 (cells the other side cannot run are unsupported; our own round trips run in all) |
 | Three-process two-phase signing, verified by our `verify`, sqop 0.38 and GnuPG 2.5.24 | 46 pass, 0 fail; GnuPG 2.4.8: 36 pass, 0 fail |
 
@@ -150,3 +150,14 @@ Differences that are the oracle's, not ours:
 - GnuPG 2.5.24 as built for the oracle cache asks the terminal for `--gen-revoke` even with `--command-fd`; the six cells that use its revocation certificate run with 2.4.8 (pass).
 - Sequoia's `sqop` is built on nettle, which has no ML-DSA or ML-KEM: it cannot generate or use `rfc9980` keys. The post-quantum profiles are checked against our own sign/verify/encrypt/decrypt round trip, and Sequoia's `sq` parses their certificates without complaint.
 - A third-party certification is hashed with the key framed by the version of the *signature* (version 4: `0x99` and a two-octet length; version 6: `0x9B` and a four-octet length), not by the version of the certified key (RFC 9580 §5.2.4). Certifications between keys of different versions failed in both directions against Sequoia until the framing followed the signature.
+
+## Key discovery and Autocrypt
+
+**`KeyDiscovery`** (no I/O) turns the bytes a Web Key Directory (`WkdClient`), keyserver (`HkpClient`) or `VksClient` returned into the certificates that answer the query. The response may be binary packets, armored public key blocks, or armor inside other text (HKP: "silently ignore any content preceding or following a returned armored key block"); a block that does not decode or parse is skipped and reported in `Dropped`, never an exception.
+
+- `ForAddress(response, address)`: keeps a certificate only if one of its User IDs has the address (a bare address or the `<addr-spec>` of a name-addr, compared ignoring case, domains through IDNA), **drops every other User ID and User Attribute** with their signatures (WKD draft §5: "MUST check that the received key has the requested User-Id and MUST drop all other User-Ids"), and removes **third-party certifications** (signatures on the kept User ID whose issuer is not the primary key; a signature that names no issuer counts as third-party). Key revocations by any issuer stay (a designated revoker's is genuine) and so do subkey bindings. `DiscoveryOptions.KeepThirdPartyCertifications` turns the stripping off. Revoked and expired keys are returned as they are: that judgement is the caller's, at its own reference time.
+- `ForKey(response, fingerprintOrKeyId)`: keeps only certificates containing that fingerprint (16, 20 or 32 octets) or key ID (8) as primary key or subkey, whole.
+- `ReadAll(response)`: every public certificate, unfiltered.
+- **Never accepted:** certificates with secret key material; more than `MaxCertificates` (32) per response; a stream that stops parsing at a malformed packet (the rest of that chunk is lost, since the packet layer cannot resynchronise). Trust packets are dropped.
+
+**Autocrypt Level 1** is in [autocrypt.md](autocrypt.md).

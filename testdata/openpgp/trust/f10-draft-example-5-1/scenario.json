@@ -1,0 +1,50 @@
+{
+ "name": "f10-draft-example-5-1",
+ "text": "the draft's worked example: alice -> bob(2/100) -> carol -> dave -> ed and bob -> ed at 30",
+ "kind": "flow",
+ "keys": {
+  "alice": {
+   "fingerprint": "48BDFDDA6D03537AE0083BAEEE58548F758CE61A",
+   "userIds": [
+    "Alice <alice@example.org>"
+   ]
+  },
+  "bob": {
+   "fingerprint": "452664B44CC2243B801BD42A17FFAC0F18F83A46",
+   "userIds": [
+    "Bob <bob@example.org>"
+   ]
+  },
+  "carol": {
+   "fingerprint": "BB0933A48E59DD1A3956510734D81876153A40D2",
+   "userIds": [
+    "Carol <carol@example.org>"
+   ]
+  },
+  "dave": {
+   "fingerprint": "841A3E389F548FA32A72D620B43BAAC10D581213",
+   "userIds": [
+    "Dave <dave@example.org>"
+   ]
+  },
+  "ed": {
+   "fingerprint": "A8C0984359D98992ABD00D3097B65F17E4C6FA53",
+   "userIds": [
+    "Ed <ed@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "48BDFDDA6D03537AE0083BAEEE58548F758CE61A"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "A8C0984359D98992ABD00D3097B65F17E4C6FA53",
+   "targetName": "ed",
+   "userId": "Ed <ed@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

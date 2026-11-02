@@ -1,0 +1,44 @@
+{
+ "name": "c45-tsig-then-plain",
+ "text": "a newer plain certification replaces the earlier trust signature",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "AD2D9BB9577276A2BC6C240D9EDB5C94B51DE2BB",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "37688DF416C354C7F7631682AFCD07B9659C88E8",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "6B107E8627589EC6B3644AD8215BA85CA77026B8",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "AD2D9BB9577276A2BC6C240D9EDB5C94B51DE2BB": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "37688DF416C354C7F7631682AFCD07B9659C88E8",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "6B107E8627589EC6B3644AD8215BA85CA77026B8",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

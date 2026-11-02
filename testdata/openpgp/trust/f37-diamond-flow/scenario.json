@@ -1,0 +1,44 @@
+{
+ "name": "f37-diamond-flow",
+ "text": "a diamond whose paths share the final certification: capacity of the shared edge limits the sum",
+ "kind": "flow",
+ "keys": {
+  "a": {
+   "fingerprint": "E19BF9C408793AA90827FAB78CAED9569D99E158",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "x": {
+   "fingerprint": "4B2B3049891606664FF8DDA5E0E804B86C37BA43",
+   "userIds": [
+    "X <x@example.org>"
+   ]
+  },
+  "y": {
+   "fingerprint": "D890CA03FBB45FC05FA0AB07C3178434537E4D9A",
+   "userIds": [
+    "Y <y@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "BC4B96B166AC70CF3B8502D89A3E99E284ACA840",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [
+  "E19BF9C408793AA90827FAB78CAED9569D99E158"
+ ],
+ "ownertrust": {},
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "BC4B96B166AC70CF3B8502D89A3E99E284ACA840",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

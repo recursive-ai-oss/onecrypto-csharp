@@ -1,0 +1,62 @@
+{
+ "name": "c50-two-domains-second",
+ "text": "a trust signature with two domain expressions; the second one matches",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "5C03E137B5837A21267DAA9E42242AAD11E9F56F",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "BC69AE0720289BD192FDDFA1542C0D785E0590CD",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t1": {
+   "fingerprint": "74C3E29CAAEE1A112A6FFD1349EE591E3E7CF2E7",
+   "userIds": [
+    "T1 <t1@one.example>"
+   ]
+  },
+  "t2": {
+   "fingerprint": "CFA51EFCC94CB1EE7B1C01D52A391D1F8C119BFA",
+   "userIds": [
+    "T2 <t2@two.example>"
+   ]
+  },
+  "t3": {
+   "fingerprint": "EB0D36734D0A19FBBB8C67D8FDC1A7FA27838BCD",
+   "userIds": [
+    "T3 <t3@three.example>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "5C03E137B5837A21267DAA9E42242AAD11E9F56F": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "74C3E29CAAEE1A112A6FFD1349EE591E3E7CF2E7",
+   "targetName": "t1",
+   "userId": "T1 <t1@one.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "CFA51EFCC94CB1EE7B1C01D52A391D1F8C119BFA",
+   "targetName": "t2",
+   "userId": "T2 <t2@two.example>",
+   "at": 1748736000
+  },
+  {
+   "target": "EB0D36734D0A19FBBB8C67D8FDC1A7FA27838BCD",
+   "targetName": "t3",
+   "userId": "T3 <t3@three.example>",
+   "at": 1748736000
+  }
+ ]
+}

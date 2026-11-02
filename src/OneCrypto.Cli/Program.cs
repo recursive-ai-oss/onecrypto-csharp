@@ -2,7 +2,7 @@ using RecursiveAI.OneCrypto.Cli.Sop;
 
 namespace RecursiveAI.OneCrypto.Cli;
 
-/// <summary>The <c>onecrypto</c> tool. <c>onecrypto sop ...</c> is the Stateless OpenPGP interface; the <c>inspect</c> and convenience verbs are added as the libraries they sit on arrive.</summary>
+/// <summary>The <c>onecrypto</c> tool. <c>onecrypto sop ...</c> is the Stateless OpenPGP interface; <c>onecrypto pgp authenticate</c> runs the web of trust; the <c>inspect</c> and convenience verbs are added as the libraries they sit on arrive.</summary>
 internal static class Program
 {
     private static int Main(string[] args)
@@ -15,9 +15,14 @@ internal static class Program
             return SopApp.Run(args[1..], io, sopvOnly: args[0] == "sopv");
         }
 
+        if (args.Length > 1 && args[0] == "pgp" && args[1] == "authenticate")
+        {
+            return PgpAuthenticate.Run(args[2..], Console.Out, Console.Error);
+        }
+
         Console.Error.WriteLine(args.Length == 0
-            ? "onecrypto: no command given. Available: sop, sopv."
-            : $"onecrypto: unknown command '{args[0]}'. Available: sop, sopv.");
+            ? "onecrypto: no command given. Available: sop, sopv, pgp authenticate."
+            : $"onecrypto: unknown command '{args[0]}'. Available: sop, sopv, pgp authenticate.");
         return 2;
     }
 }

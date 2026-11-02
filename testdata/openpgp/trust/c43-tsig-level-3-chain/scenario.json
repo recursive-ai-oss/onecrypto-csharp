@@ -1,0 +1,80 @@
+{
+ "name": "c43-tsig-level-3-chain",
+ "text": "a -> b (level 3) -> c (level 3) -> d (level 3) -> e: levels are capped hop by hop",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "FEF23C4FA8728FCAA7A05D947866DE6D9ADC34D6",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "679F81323F10175C3BCC510B3903C8F3FF85F7DF",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "53D7E59029985B90143DEFBCE403DE03CCCB850A",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "C735E32B3FFC54F66C0C30BDEBD85928932AB014",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "e": {
+   "fingerprint": "C38048A801B58865B291D657DB16451A6EEF31F2",
+   "userIds": [
+    "E <e@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "2B987749EF0629E8C66470F2D23CA226EF07A3E8",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "FEF23C4FA8728FCAA7A05D947866DE6D9ADC34D6": "u"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "679F81323F10175C3BCC510B3903C8F3FF85F7DF",
+   "targetName": "b",
+   "userId": "B <b@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "53D7E59029985B90143DEFBCE403DE03CCCB850A",
+   "targetName": "c",
+   "userId": "C <c@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "C735E32B3FFC54F66C0C30BDEBD85928932AB014",
+   "targetName": "d",
+   "userId": "D <d@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "C38048A801B58865B291D657DB16451A6EEF31F2",
+   "targetName": "e",
+   "userId": "E <e@example.org>",
+   "at": 1748736000
+  },
+  {
+   "target": "2B987749EF0629E8C66470F2D23CA226EF07A3E8",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "name": "c40-tsig-vs-marginal",
+ "text": "a full trust signature on b, who has only marginal owner trust",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "576E4D7182915F3997371D4BCB53062AFE599373",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "45A182FA079DAC9F64DEA4DCD9AC213397E06EBD",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "24CFA864132F4581E7B61DE178783D4F1B5B1B0C",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "576E4D7182915F3997371D4BCB53062AFE599373": "u",
+  "45A182FA079DAC9F64DEA4DCD9AC213397E06EBD": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "24CFA864132F4581E7B61DE178783D4F1B5B1B0C",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

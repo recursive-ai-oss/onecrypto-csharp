@@ -1,0 +1,16 @@
+{
+ "oracle": "sq-1.5.0",
+ "results": [
+  {
+   "query": {
+    "target": "D508C95681A537C1E9A40CD48B8420BD7CF6378E",
+    "targetName": "t",
+    "userId": "T <t@two.example>",
+    "at": 1748736000
+   },
+   "exit": 0,
+   "stdout": " - D508C95681A537C1E9A40CD48B8420BD7CF6378E\n   - created 2025-01-01 00:00:00 UTC\n   - will expire 2028-01-01T17:26:21Z\n\n   - [    \u2713    ] T <t@two.example>\n\n     Path #1\u00a0of\u00a02, trust amount 120:\n     \u25ef\u2500\u252c D42795DAF541700C88B2986696EBE47BB7779061\n     \u2502 \u2514 (A <a@example.org>)\n     \u2502\n     \u2502  certified the following certificate on 2025\u201102\u201101 (expiry: 2035\u201102\u201101) as a meta-introducer (depth: unconstrained)\n     \u2502\n     \u251c\u2500\u252c 104389965AFA1223525A40EAF7F3970227B3B624\n     \u2502 \u2514 (Ca <ca@example.org>)\n     \u2502\n     \u2502  certified the following binding on 2025\u201102\u201101 (expiry: 2035\u201102\u201101)\n     \u2502\n     \u2514\u2500\u252c D508C95681A537C1E9A40CD48B8420BD7CF6378E\n       \u2514 T <t@two.example>\n\n     Path #2\u00a0of\u00a02, trust amount 0:\n     \u25ef\u2500\u252c D508C95681A537C1E9A40CD48B8420BD7CF6378E\n     \u2502 \u2514 T <t@two.example>\n     \u2502\n     \u2514\u2500\u2500 Self-signed user ID.\n",
+   "stderr": "\nHint: To see more details about a certificate, for example D508C95681A537C1E9A40CD48B8420BD7CF6378E, run:\n\n  $ sq inspect --cert=D508C95681A537C1E9A40CD48B8420BD7CF6378E\nAfter checking that a user ID really belongs to a certificate, use `sq pki link add` to mark the binding as authenticated, or use `sq network search FINGERPRINT|EMAIL` to look for new certifications.\n"
+  }
+ ]
+}

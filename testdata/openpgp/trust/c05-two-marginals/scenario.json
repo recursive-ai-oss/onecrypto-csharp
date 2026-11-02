@@ -1,0 +1,52 @@
+{
+ "name": "c05-two-marginals",
+ "text": "two marginal introducers sign t",
+ "kind": "classic",
+ "keys": {
+  "a": {
+   "fingerprint": "CB13C45BB5ECB5380818A927B07EE13B1345872D",
+   "userIds": [
+    "A <a@example.org>"
+   ]
+  },
+  "b": {
+   "fingerprint": "50FEBC1B120CF972B9CC2A1F15236F330EB8F961",
+   "userIds": [
+    "B <b@example.org>"
+   ]
+  },
+  "c": {
+   "fingerprint": "FE73326CFB3784F6639BBCE5AB95175B7F4DFFCC",
+   "userIds": [
+    "C <c@example.org>"
+   ]
+  },
+  "d": {
+   "fingerprint": "FBC149C46C3032579FE88B67C9728E5C0B1EB1D9",
+   "userIds": [
+    "D <d@example.org>"
+   ]
+  },
+  "t": {
+   "fingerprint": "FEFB68DFC9315327C7AEE4DB63681DF2834CD442",
+   "userIds": [
+    "T <t@example.org>"
+   ]
+  }
+ },
+ "roots": [],
+ "ownertrust": {
+  "CB13C45BB5ECB5380818A927B07EE13B1345872D": "u",
+  "50FEBC1B120CF972B9CC2A1F15236F330EB8F961": "m",
+  "FE73326CFB3784F6639BBCE5AB95175B7F4DFFCC": "m"
+ },
+ "gpgArgs": [],
+ "queries": [
+  {
+   "target": "FEFB68DFC9315327C7AEE4DB63681DF2834CD442",
+   "targetName": "t",
+   "userId": "T <t@example.org>",
+   "at": 1748736000
+  }
+ ]
+}

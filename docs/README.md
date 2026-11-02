@@ -8,13 +8,15 @@ Normative, language-neutral notes on behaviour: verification semantics, policy p
 - [issuance.md](issuance.md): the certificate authority, its profiles, serial numbers, CRLs and delta CRLs, and two-phase issuing.
 - [tsp.md](tsp.md): RFC 3161 requests, responses and TSTInfo, the verifier's rules and the time-stamp authority handler.
 - [ocsp-responder.md](ocsp-responder.md): the OCSP responder handler, its status mapping, preproduced responses and the openssl checks.
-- [online.md](online.md): the online package: the guarded transport, the cache, the TSA, OCSP, CRL and issuer-certificate clients, the validator's sources, record and replay.
+- [online.md](online.md): the online package: the guarded transport, the cache, the TSA, OCSP, CRL and issuer-certificate clients, the validator's sources, certificate discovery (WKD, HKP, VKS), record and replay.
+- [autocrypt.md](autocrypt.md): Autocrypt Level 1: header values, peer state, the recommendation and the setup message.
 - [load.md](load.md): `Crypto.Load`: the formats it reads, the sniffing decision table, password rules, limits and errors.
 - [legacy-ciphers.md](legacy-ciphers.md): Camellia and the decrypt-only CAST5, IDEA, Blowfish and Twofish; how they avoid secret-indexed tables, their cost, and how they are checked.
 - [kdf.md](kdf.md): Argon2, scrypt and bcrypt-pbkdf: behaviour, limits, side channels, tests.
 - [gnupg-home.md](gnupg-home.md): reading a GnuPG home (keybox, keyrings, private-keys-v1.d, trust database) and the cert-d certificate directory: layout as settled, gaps, limits, checks.
 - [keys.md](keys.md): key interfaces, signature specs, operating-system keys and two-phase signing (with the serialised state).
 - [openpgp.md](openpgp.md): the OpenPGP packet layer: what is read and preserved, armor, transferable keys, limits, streaming.
+- [openpgp-trust.md](openpgp-trust.md): the flow-based web of trust and the classic GnuPG trust model: rules, settled behaviour, limits and checks.
 - [pdf.md](pdf.md): the PDF bridge: PAdES levels B-B to B-LTA, augmentation, the verifier's rules and time model, and what OnePDF would need to offer.
 - [policy.md](policy.md): `CryptoPolicy`, the reference-time contract, the dated rules and the presets.
 - [sop.md](sop.md): the `onecrypto sop` command, the interoperability scoreboard and how to run it.
