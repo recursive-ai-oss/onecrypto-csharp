@@ -97,6 +97,8 @@ Three clients find OpenPGP certificates over HTTP. They live here because they f
 
 ## Remote signing: the Cloud Signature Consortium API
 
+> **Preview, not yet reviewed.** This backend has had no security review yet and its behaviour may still change. Do not rely on it for anything that matters until a review has been done and this note is removed.
+
 `CscClient` speaks the Cloud Signature Consortium API v2.2 (cited; its text is CC BY-SA and is not copied): `info`, `credentials/list`, `credentials/info`, `credentials/authorize` and `signatures/signHash`. `CscSigningKey` turns a credential into an `ISigningKey`. Nothing is fetched until a method is called; constructing a client does no I/O.
 
 | Type | Role |

@@ -7,6 +7,12 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        if (SopHelp.IsHelpRequest(args))
+        {
+            Console.Out.Write(SopHelp.ForTool());
+            return 0;
+        }
+
         if (args.Length > 0 && args[0] is "sop" or "sopv")
         {
             using Stream stdin = Console.OpenStandardInput();
@@ -21,8 +27,8 @@ internal static class Program
         }
 
         Console.Error.WriteLine(args.Length == 0
-            ? "onecrypto: no command given. Available: sop, sopv, pgp authenticate."
-            : $"onecrypto: unknown command '{args[0]}'. Available: sop, sopv, pgp authenticate.");
+            ? "onecrypto: no command given. Run 'onecrypto --help' for the commands."
+            : $"onecrypto: unknown command '{args[0]}'. Run 'onecrypto --help' for the commands.");
         return 2;
     }
 }

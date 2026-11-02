@@ -2,12 +2,20 @@
 
 `onecrypto sop <subcommand>` implements the Stateless OpenPGP Command Line Interface (draft-dkg-openpgp-stateless-cli, version 16): exit codes, `--` handling, `@ENV:` and `@FD:` indirect inputs, and the `Armor`/`dearmor` rules of the draft. It is the harness the OpenPGP interoperability test suite drives, and a small command line in its own right.
 
+## Install and help
+
+    dotnet tool install --global RecursiveAI.OneCrypto.Cli --prerelease
+
+`onecrypto --help` lists the commands and `onecrypto sop --help` the sop subcommands; `onecrypto sop <subcommand> --help` (or `onecrypto sop help <subcommand>`) shows one subcommand's options. The draft defines no help option, so this is a convenience that exits 0 and writes to standard output.
+
+`verify`, `inline-verify` and `decrypt --verifications-out` end each VERIFICATIONS line with the optional JSON object of draft §7.10.1: `{"signers":["alice.cert"]}` names, as given on the command line, every CERTS argument that holds a certificate that could have issued the signature (an argument named twice is listed once; a certificate in two arguments lists both).
+
 ## What works now
 
 | Subcommand | State |
 |---|---|
 | `version` (`--backend`, `--extended`, `--sop-spec`, `--sopv`) | implemented; `--sopv` answers `1.2` |
-| `list-profiles generate-key`, `list-profiles encrypt` | `encrypt` answers `rfc9580` and `rfc4880`; `generate-key` lists `default`, `rfc9580`, `rfc9580-v4`, `rfc9580-ed448`, `rfc9580-rsa`, `rfc4880` (alias `compatibility`), `draft-koch-eddsa-for-openpgp-00`, `nist-p256`, `nist-p384`, `nist-p521`, `security`, `performance`, `pqc` and `pqc-high` |
+| `list-profiles generate-key`, `list-profiles encrypt` | `encrypt` answers `rfc9580` and `rfc4880`; `generate-key` lists `default` (version 4 EdDSA/ECDH Curve25519, the same as `draft-koch-eddsa-for-openpgp-00`), `rfc9580`, `rfc9580-v4`, `rfc9580-ed448`, `rfc9580-rsa`, `rfc4880` (alias `compatibility`), `draft-koch-eddsa-for-openpgp-00`, `nist-p256`, `nist-p384`, `nist-p521`, `security`, `performance`, `pqc` (alias `rfc9980`) and `pqc-high` |
 | `armor`, `dearmor` | implemented; labels are detected from the packets, input is read strictly, the operations are idempotent |
 | `extract-cert` | implemented: a secret key becomes its certificate (RFC 9580 Appendix A.4 gives A.3 byte for byte) |
 | `inline-detach` | implemented for binary and cleartext-signed messages |
@@ -27,7 +35,7 @@ An algorithm the platform lacks (for example ML-DSA or ML-KEM on an OpenSSL with
 
 ## The scoreboard
 
-The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every test has a producer and a consumer role that both go through sop. Round-trip cases start with `generate-key`, which this tool does not provide yet, so they cannot use it as the producer; every other case runs with us as the consumer of what Sequoia, GopenPGP and the test data produced.
+The suite (OpenPGP interoperability test suite, pinned commit in `tools/oracles/interop-suite.sh`) is a black box: it is built, executed, and only its results are read. Every test has a producer and a consumer role that both go through sop. Every test has two roles, so a round-trip case can use our `generate-key` as the producer as well as the consumer of what Sequoia, GopenPGP and the test data produced.
 
 Run it (on a machine with the oracles installed):
 

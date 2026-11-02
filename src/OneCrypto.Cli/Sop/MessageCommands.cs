@@ -20,7 +20,7 @@ internal static class MessageCommands
         return ms.ToArray();
     }
 
-    internal static List<PgpCertificate> LoadCerts(Options o, SopIo io, IEnumerable<string> designators, bool secret)
+    internal static List<PgpCertificate> LoadCerts(Options o, SopIo io, IEnumerable<string> designators, bool secret, CertOrigins? origins = null)
     {
         var list = new List<PgpCertificate>();
         foreach (string d in designators)
@@ -54,6 +54,7 @@ internal static class MessageCommands
                 }
 
                 list.Add(c);
+                origins?.Add(c, d);
             }
         }
 
@@ -241,7 +242,9 @@ internal static class MessageCommands
         return Array.IndexOf(allowed, v) >= 0 ? v : throw new SopException(SopExit.UnsupportedOption, "unsupported --as value " + v);
     }
 
-    private static void WriteVerifications(Stream? target, PgpReadResult r, DateTimeOffset? notBefore, DateTimeOffset? notAfter)
+    // Draft §7.10.1: the last field of a line is a one-line JSON object; "signers" names, as given on the command line, every CERTS object
+    // that holds a certificate that could have issued the signature.
+    private static void WriteVerifications(Stream? target, PgpReadResult r, DateTimeOffset? notBefore, DateTimeOffset? notAfter, CertOrigins? origins = null)
     {
         if (target is null)
         {
@@ -254,7 +257,20 @@ internal static class MessageCommands
             string mode = s.Signature.Type == SignatureType.Text ? "text" : "binary";
             sb.Append(s.CreatedAt!.Value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)).Append(' ')
               .Append(Convert.ToHexString(s.Signer!.Fingerprint)).Append(' ')
-              .Append(Convert.ToHexString(s.Signer.Certificate.Fingerprint)).Append(" mode:").Append(mode).Append('\n');
+              .Append(Convert.ToHexString(s.Signer.Certificate.Fingerprint)).Append(" mode:").Append(mode);
+            if (origins?.NamesFor(s.Signer.Certificate.Fingerprint) is { Count: > 0 } names)
+            {
+                sb.Append(" {\"signers\":[");
+                for (int i = 0; i < names.Count; i++)
+                {
+                    sb.Append(i == 0 ? "" : ",");
+                    CertOrigins.AppendJsonString(sb, names[i]);
+                }
+
+                sb.Append("]}");
+            }
+
+            sb.Append('\n');
         }
 
         target.Write(Encoding.UTF8.GetBytes(sb.ToString()));
@@ -322,7 +338,8 @@ internal static class MessageCommands
             sigs = ReadAll(s);
         }
 
-        List<PgpCertificate> certs = LoadCerts(o, io, o.Positionals.Skip(1), secret: false);
+        var origins = new CertOrigins();
+        List<PgpCertificate> certs = LoadCerts(o, io, o.Positionals.Skip(1), secret: false, origins);
         PgpReadResult r;
         try
         {
@@ -333,17 +350,17 @@ internal static class MessageCommands
             throw new SopException(SopExit.BadData, e.Message);
         }
 
-        return Finish(r, io.Stdout, before, after);
+        return Finish(r, io.Stdout, before, after, origins);
     }
 
-    private static int Finish(PgpReadResult r, Stream verifications, DateTimeOffset? before, DateTimeOffset? after)
+    private static int Finish(PgpReadResult r, Stream verifications, DateTimeOffset? before, DateTimeOffset? after, CertOrigins? origins)
     {
         if (!Accepted(r, before, after).Any())
         {
             return SopExit.NoSignature;
         }
 
-        WriteVerifications(verifications, r, before, after);
+        WriteVerifications(verifications, r, before, after, origins);
         return SopExit.Ok;
     }
 
@@ -404,7 +421,8 @@ internal static class MessageCommands
             throw new SopException(SopExit.MissingArg, "inline-verify needs at least one CERTS");
         }
 
-        List<PgpCertificate> certs = LoadCerts(o, io, o.Positionals, secret: false);
+        var origins = new CertOrigins();
+        List<PgpCertificate> certs = LoadCerts(o, io, o.Positionals, secret: false, origins);
         var opts = new PgpReadOptions { Now = Now(), Certificates = certs, Require = PgpRequirement.NotEncrypted };
         // Nothing is emitted unless a signature verifies, so the plaintext is held until the verdict is known.
         using var held = new SpoolForSop();
@@ -428,7 +446,7 @@ internal static class MessageCommands
         if (vout is not null)
         {
             using Stream v = SopIo.OpenOutput(vout);
-            WriteVerifications(v, r, before, after);
+            WriteVerifications(v, r, before, after, origins);
         }
 
         return SopExit.Ok;
@@ -544,7 +562,8 @@ internal static class MessageCommands
         }
 
         List<PgpCertificate> keys = LoadCerts(o, io, o.Positionals, secret: true);
-        List<PgpCertificate> verifiers = LoadCerts(o, io, verifyWith, secret: false);
+        var origins = new CertOrigins();
+        List<PgpCertificate> verifiers = LoadCerts(o, io, verifyWith, secret: false, origins);
         Stream? keyOut = sessionOut is null ? null : SopIo.OpenOutput(sessionOut);
         Stream? vstream = vout is null ? null : SopIo.OpenOutput(vout);
         var opts = new PgpReadOptions
@@ -571,7 +590,7 @@ internal static class MessageCommands
                 keyOut.Write(Encoding.ASCII.GetBytes($"{(byte)(r.SessionKeyCipher ?? SymmetricAlgorithm.Aes256)}:{Convert.ToHexString(r.SessionKey)}\n"));
             }
 
-            WriteVerifications(vstream, r, before, after);
+            WriteVerifications(vstream, r, before, after, origins);
         }
         catch (PgpException e)
         {
@@ -592,5 +611,54 @@ internal static class MessageCommands
         }
 
         return SopExit.Ok;
+    }
+}
+
+/// <summary>Which command-line CERTS argument each certificate came from, for the <c>signers</c> field of the VERIFICATIONS output.</summary>
+internal sealed class CertOrigins
+{
+    private readonly Dictionary<string, List<string>> _byFingerprint = new(StringComparer.Ordinal);
+
+    public void Add(PgpCertificate cert, string name)
+    {
+        string key = Convert.ToHexString(cert.Fingerprint);
+        if (!_byFingerprint.TryGetValue(key, out List<string>? names))
+        {
+            _byFingerprint[key] = names = [];
+        }
+
+        if (!names.Contains(name))
+        {
+            names.Add(name);
+        }
+    }
+
+    public List<string>? NamesFor(byte[] primaryFingerprint) =>
+        _byFingerprint.TryGetValue(Convert.ToHexString(primaryFingerprint), out List<string>? names) ? names : null;
+
+    // RFC 8259 §7: quotation mark, backslash and the control characters are escaped; everything else is written as it is.
+    public static void AppendJsonString(StringBuilder sb, string value)
+    {
+        sb.Append('"');
+        foreach (char c in value)
+        {
+            switch (c)
+            {
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\\':
+                    sb.Append("\\\\");
+                    break;
+                case < ' ':
+                    sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                    break;
+                default:
+                    sb.Append(c);
+                    break;
+            }
+        }
+
+        sb.Append('"');
     }
 }

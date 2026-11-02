@@ -128,5 +128,16 @@ internal static class PgpKeyTarget
             PgpPreparedSignature p = PgpPreparedSignature.PrepareDetached(protectedKey.Primary, new MemoryStream(Encoding.ASCII.GetBytes("fuzz")), Now);
             yield return [2, .. p.Encode()];
         }
+
+        // A usable certificate with an undecodable subkey (version 5, algorithm 8, no key material) in front of its real subkey, to reach the skipped-subkey path.
+        PgpCertificate pub = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = Now, Profile = PgpKeyProfile.Rfc4880Curve25519, UserIds = ["Fuzz"] }).ToPublicCertificate();
+        var packets = new List<Packet>(pub.Transferable.Packets);
+        int at = packets.FindIndex(static x => x.Tag == PacketTag.PublicSubkey);
+        packets.Insert(at, PacketParser.ParseAll(new byte[] { 0xCE, 10, 5, 0, 0, 0, 0, 8, 0, 0, 0, 0 })[0]);
+        packets.Insert(at + 1, pub.Transferable.Subkeys[0].Signatures[0]);
+        using var ms = new MemoryStream();
+        PacketParser.Write(packets, ms);
+        yield return [1, .. ms.ToArray()];
+        yield return [0, .. ms.ToArray()];
     }
 }

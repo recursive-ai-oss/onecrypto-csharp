@@ -35,6 +35,12 @@ internal static class SopApp
     {
         try
         {
+            if (SopHelp.IsHelpRequest(args) || (args.Length >= 2 && args[1] is "--help" or "-h"))
+            {
+                io.Stdout.Write(System.Text.Encoding.UTF8.GetBytes(SopHelp.ForSop(args, sopvOnly)));
+                return SopExit.Ok;
+            }
+
             Options o = Options.Parse(args);
             if (o.Subcommand is null)
             {
