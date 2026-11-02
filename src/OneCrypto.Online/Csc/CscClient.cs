@@ -276,9 +276,15 @@ public sealed class CscClient
 
         try
         {
+            // The service signs digests: only a key a digest signature exists for can be used (RSA, RSA-PSS, ECDSA); any other certificate key is not a credential for this client.
+            if (cert.PublicKey.KeyAlgorithm is not (KeyAlgorithm.Rsa or KeyAlgorithm.RsaPss or KeyAlgorithm.EllipticCurve))
+            {
+                return CscResult<CscSigningKey>.Fail(CscOutcome.CredentialUnusable, $"the credential's key is a {cert.PublicKey.Algorithm.Name} key, which cannot sign a digest through this API", info.Fetch);
+            }
+
             return CscResult<CscSigningKey>.Ok(new CscSigningKey(this, c, cert, cert.PublicKey, options ?? new CscKeyOptions(), service), info.Fetch);
         }
-        catch (X509ParseException ex)
+        catch (Exception ex) when (ex is X509ParseException or ArgumentException)
         {
             return CscResult<CscSigningKey>.Fail(CscOutcome.MalformedResponse, "the credential's public key cannot be decoded: " + ex.Message, info.Fetch);
         }

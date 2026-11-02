@@ -95,6 +95,17 @@ public class CscGuardTests
     }
 
     [Fact]
+    public async Task AStringThatIsNotValidUtf8IsMalformedNotAnException()
+    {
+        // Found by the fuzz target: the JSON reader checks structure but transcodes a string only when it is read.
+        byte[] body = [.. Encoding.UTF8.GetBytes("{\"specs\":\"2.2.0.0\",\"name\":\"s\",\"authType\":[\"oauth2cod"), 0xE5, .. Encoding.UTF8.GetBytes("\"]}")];
+        var net = new FakeNetwork(_ => new Reply(200, body, ("Content-Type", "application/json")));
+        Assert.Equal(CscOutcome.MalformedResponse, (await Client(net).InfoAsync()).Outcome);
+        var error = new FakeNetwork(_ => new Reply(400, [.. Encoding.UTF8.GetBytes("{\"error\":\"x"), 0xE5, .. Encoding.UTF8.GetBytes("\"}")]));
+        Assert.Equal(CscOutcome.ServiceError, (await Client(error).ListCredentialsAsync()).Outcome);
+    }
+
+    [Fact]
     public async Task HostileJsonIsBoundedAndReportedAsMalformed()
     {
         string deep = string.Concat(Enumerable.Repeat("{\"a\":", 500)) + "1" + new string('}', 500);
@@ -133,6 +144,17 @@ public class CscGuardTests
         Assert.Equal(CscOutcome.MalformedResponse, (await Client(net).OpenSigningKeyAsync("C1")).Outcome);
         net = new FakeNetwork(_ => Json("{\"key\":{\"status\":\"enabled\",\"algo\":[],\"len\":2048},\"cert\":{\"certificates\":[]},\"auth\":{\"mode\":\"explicit\"}}"));
         Assert.Equal(CscOutcome.MalformedResponse, (await Client(net).OpenSigningKeyAsync("C1")).Outcome);
+    }
+
+    [Fact]
+    public async Task ACredentialWhoseKeyCannotSignADigestIsRefused()
+    {
+        // Found by the fuzz target: a certificate key with no digest signature scheme must not reach the key constructor.
+        using var ed = RecursiveAI.OneCrypto.Keys.PrivateKey.FromEd25519(RecursiveAI.OneCrypto.Primitives.Ed25519PrivateKey.Generate(), ownsKey: true);
+        Certificate cert = World.Get().Intermediate.Issue(ed.PublicKey, DistinguishedName.Create((KnownOids.CommonName, "EdDSA credential")),
+            new RecursiveAI.OneCrypto.Issuance.CertificateIssueOptions { Profile = RecursiveAI.OneCrypto.Issuance.CertificateProfile.SMime, NotBefore = World.T0.AddDays(-1), SubjectAlternativeNames = [GeneralName.Email("e@example.test")] });
+        var net = new FakeNetwork(_ => Json("{\"key\":{\"status\":\"enabled\",\"algo\":[],\"len\":256},\"cert\":{\"certificates\":[\"" + Convert.ToBase64String(cert.Encoded.Span) + "\"]},\"auth\":{\"mode\":\"explicit\"}}"));
+        Assert.Equal(CscOutcome.CredentialUnusable, (await Client(net).OpenSigningKeyAsync("C1")).Outcome);
     }
 
     [Fact]

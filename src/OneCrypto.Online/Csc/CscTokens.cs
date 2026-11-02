@@ -193,7 +193,7 @@ public sealed class CscClientCredentialsTokenSource : ICscTokenSource, IDisposab
             {
                 using JsonDocument doc = JsonDocument.Parse(r.Body, CscJson.Options);
                 JsonElement root = doc.RootElement;
-                if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("access_token", out JsonElement t) || t.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(t.GetString()))
+                if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("access_token", out JsonElement t) || t.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(CscJson.Text(t)))
                 {
                     return null;
                 }
@@ -204,10 +204,10 @@ public sealed class CscClientCredentialsTokenSource : ICscTokenSource, IDisposab
                     expires = now.AddSeconds(seconds);
                 }
 
-                _cached = new CscAccessToken(t.GetString()!, expires);
+                _cached = new CscAccessToken(CscJson.Text(t), expires);
                 return _cached;
             }
-            catch (JsonException)
+            catch (Exception ex) when (ex is JsonException or CscFormatException)
             {
                 return null;
             }

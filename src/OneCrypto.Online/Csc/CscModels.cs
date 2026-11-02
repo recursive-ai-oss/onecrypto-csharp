@@ -228,6 +228,19 @@ internal static class CscJson
     /// <summary>Depth 16, no comments, no trailing commas: the API's objects are shallow.</summary>
     internal static readonly JsonDocumentOptions Options = new() { MaxDepth = 16, CommentHandling = JsonCommentHandling.Disallow, AllowTrailingCommas = false };
 
+    /// <summary>A string value. The parser checks the structure of the text but transcodes a string only when asked, so malformed UTF-8 surfaces here.</summary>
+    internal static string Text(JsonElement e)
+    {
+        try
+        {
+            return e.GetString()!;
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new CscFormatException("a string is not valid UTF-8", ex);
+        }
+    }
+
     internal static JsonElement Root(ReadOnlyMemory<byte> body)
     {
         try
@@ -253,7 +266,7 @@ internal static class CscJson
             throw new CscFormatException($"'{name}' is not a string");
         }
 
-        string s = v.GetString()!;
+        string s = Text(v);
         return s.Length > max ? throw new CscFormatException($"'{name}' is too long") : s;
     }
 
@@ -274,7 +287,7 @@ internal static class CscJson
 
         foreach (JsonElement e in v.EnumerateArray())
         {
-            list.Add(e.ValueKind == JsonValueKind.String && e.GetString()!.Length <= max ? e.GetString()! : throw new CscFormatException($"'{name}' holds something that is not a string"));
+            list.Add(e.ValueKind == JsonValueKind.String && Text(e).Length <= max ? Text(e) : throw new CscFormatException($"'{name}' holds something that is not a string"));
         }
 
         return list;
@@ -303,7 +316,7 @@ internal static class CscJson
             return n;
         }
 
-        if (v.ValueKind == JsonValueKind.String && int.TryParse(v.GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out int m))
+        if (v.ValueKind == JsonValueKind.String && int.TryParse(Text(v), NumberStyles.None, CultureInfo.InvariantCulture, out int m))
         {
             return m;
         }

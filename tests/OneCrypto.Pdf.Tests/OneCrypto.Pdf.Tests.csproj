@@ -22,6 +22,8 @@
     <!-- The openssl wrapper of the core tests: the same black-box oracle, the same pinned build. -->
     <Compile Include="../OneCrypto.Tests/Support/OpenSslTool.cs" Link="Support/OpenSslTool.cs" />
     <Compile Include="../OneCrypto.Tests/Support/ToolRunner.cs" Link="Support/ToolRunner.cs" />
+    <!-- The remote-signing test service of the Online tests: a PAdES signature made through it. -->
+    <Compile Include="../OneCrypto.Online.Tests/Csc/CscTestServer.cs" Link="Csc/CscTestServer.cs" />
     <!-- The verify path's fuzz body doubles as a deterministic mutation smoke test. -->
     <Compile Include="../../fuzz/OneCrypto.Fuzz/PadesTarget.cs" Link="Fuzz/PadesTarget.cs" />
   </ItemGroup>
