@@ -16,6 +16,9 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
 {
     private static readonly string OpenSsl = Environment.GetEnvironmentVariable("ONECRYPTO_OPENSSL") ?? "openssl";
 
+    // A private OpenSSL build needs its own library directory, which must not leak into the GnuPG processes.
+    private static readonly Dictionary<string, string?> OpenSslEnv = Environment.GetEnvironmentVariable("ONECRYPTO_OPENSSL_LIB") is { } lib ? new() { ["LD_LIBRARY_PATH"] = lib } : [];
+
     private readonly GpgAgentFixture _f;
     private readonly string _work;
 
@@ -128,7 +131,7 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
                 Subject = DistinguishedName.Create((KnownOids.CommonName, cn)),
                 NotBefore = DateTimeOffset.UtcNow.AddDays(-1),
                 NotAfter = DateTimeOffset.UtcNow.AddYears(1),
-                Extensions = [Extension.Create(new BasicConstraints(false, null), critical: true), Extension.Create(new KeyUsageExtension(usages), critical: true)],
+                Extensions = [Extension.Create(new BasicConstraints(true, null), critical: true), Extension.Create(new KeyUsageExtension(usages), critical: true)],
             },
             X509Signer.FromKey(key, spec));
 
@@ -139,14 +142,31 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
         using GpgAgentKey agentKey = Client().GetKey(_f.Key(name).SignGrip);
         var key = (ISigningKey)agentKey;
         SignatureSpec spec = key.DefaultSpec;
-        Certificate cert = SelfSigned("agent " + name, key, spec, KeyUsages.DigitalSignature);
+        Certificate cert = SelfSigned("agent " + name, key, spec, KeyUsages.DigitalSignature | KeyUsages.KeyCertSign);
         byte[] content = Encoding.UTF8.GetBytes("CMS content signed through gpg-agent");
         SignedData signed = SignedData.Create(content, [new CmsSignerSpec { Certificate = cert, Key = key, SignatureSpec = spec }], new SignedDataOptions { Detached = true });
 
         string der = Write("cms.der", signed.Encoded.ToArray()), certPem = Write("cert.pem", Encoding.ASCII.GetBytes(cert.ToPem())), data = Write("content.bin", content);
-        (int code, byte[] o, string e) = Tools.Run(OpenSsl, ["cms", "-verify", "-inform", "DER", "-in", der, "-content", data, "-CAfile", certPem, "-purpose", "any", "-out", Path.Combine(_work, "out.bin")]);
+        (int code, byte[] o, string e) = Tools.Run(OpenSsl, ["cms", "-verify", "-inform", "DER", "-in", der, "-content", data, "-CAfile", certPem, "-purpose", "any", "-out", Path.Combine(_work, "out.bin")], OpenSslEnv);
         Assert.True(code == 0, e + Tools.Text(o));
         Assert.Equal(content, File.ReadAllBytes(Path.Combine(_work, "out.bin")));
+
+        // GnuPG's own S/MIME verifier too, with the self-signed certificate imported and trusted. (gpgsm cannot verify EdDSA CMS signatures: it reports an internal error
+        // on the hash length, so that case is left to OpenSSL.)
+        string gpgsm = Path.Combine(Path.GetDirectoryName(_f.Gpg)!, "gpgsm");
+        if (File.Exists(gpgsm) && name != "ed25519")
+        {
+#pragma warning disable CA5350 // The trust list names certificates by their SHA-1 fingerprint.
+            string fpr = Convert.ToHexString(SHA1.HashData(cert.Encoded.Span));
+#pragma warning restore CA5350
+            File.AppendAllText(Path.Combine(_f.Home, "trustlist.txt"), fpr + " S\n");
+            string[] common = ["--homedir", _f.Home, "--batch", "--no-tty", "--disable-crl-checks", "--disable-policy-checks"];
+            (int ic, byte[] io, string ie) = Tools.Run(gpgsm, [.. common, "--import", certPem]);
+            Assert.True(ic == 0, ie + Tools.Text(io));
+            (int vc, byte[] vo, string ve) = Tools.Run(gpgsm, [.. common, "--verify", der, data]);
+            Assert.True(vc == 0, ve + Tools.Text(vo));
+            Assert.Contains("Good signature", ve, StringComparison.Ordinal);
+        }
     }
 
     [Theory]
@@ -159,7 +179,7 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
         Certificate cert = SelfSigned("agent recipient " + name, key, key.DefaultSpec, name == "rsa" ? KeyUsages.KeyEncipherment | KeyUsages.DigitalSignature : KeyUsages.KeyAgreement | KeyUsages.DigitalSignature);
         byte[] content = Encoding.UTF8.GetBytes("CMS content for a key in gpg-agent");
         string certPem = Write("rcpt.pem", Encoding.ASCII.GetBytes(cert.ToPem()));
-        (int code, byte[] o, string e) = Tools.Run(OpenSsl, ["cms", "-encrypt", "-aes256", "-outform", "DER", "-recip", certPem], stdin: content);
+        (int code, byte[] o, string e) = Tools.Run(OpenSsl, ["cms", "-encrypt", "-aes256", "-outform", "DER", "-recip", certPem], OpenSslEnv, stdin: content);
         Assert.True(code == 0, e);
         EnvelopedData env = EnvelopedData.Parse(o);
         using CmsDecryptionKey dk = CmsDecryptionKey.FromKey(agentKey, cert);
@@ -222,7 +242,7 @@ public class GpgAgentInteropTests : IClassFixture<GpgAgentFixture>
         PublicKeyInfo pk = PublicKeyInfo.FromAsymmetricAlgorithm(rsa);
         PreparedSignature prepared = PreparedSignature.Prepare(pk, SignatureSpec.RsaPkcs1(HashAlgorithmName.SHA256), [1], RecursiveAI.OneCrypto.Policy.CryptoPolicy.Standard, DateTimeOffset.UtcNow);
         string state = Write("foreign.der", prepared.Encode());
-        (int code, string log) = SignInOtherProcess("core", new string('0', 40), state, Path.Combine(_work, "x.bin"));
+        (int code, string log) = SignInOtherProcess("core", "ABCDEF0123456789ABCDEF0123456789ABCDEF01", state, Path.Combine(_work, "x.bin"));
         Assert.Equal(4, code);
         Assert.Contains("AgentKeyNotFoundException", log, StringComparison.Ordinal);
     }

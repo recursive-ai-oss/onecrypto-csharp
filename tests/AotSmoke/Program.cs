@@ -453,5 +453,11 @@ if (!OneCrypto.Smoke.TrustSmoke.Run())
     return 1;
 }
 
+if (!await OneCrypto.Smoke.AgentSmoke.Run())
+{
+    Console.Error.WriteLine("agent smoke failed");
+    return 1;
+}
+
 Console.WriteLine("OneCrypto AOT smoke: ok");
 return 0;

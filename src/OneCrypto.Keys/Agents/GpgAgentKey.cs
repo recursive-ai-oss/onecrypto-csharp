@@ -45,6 +45,18 @@ public abstract class GpgAgentKey : IKey
 
     internal static GpgAgentKey FromPublicKeySExp(GpgAgentClient client, string keygrip, byte[] sexp, string? description)
     {
+        try
+        {
+            return ParsePublicKeySExp(client, keygrip, sexp, description);
+        }
+        catch (X509ParseException e)
+        {
+            throw new AgentProtocolException("The agent's public key is not a usable key: " + e.Message, e);
+        }
+    }
+
+    private static GpgAgentKey ParsePublicKeySExp(GpgAgentClient client, string keygrip, byte[] sexp, string? description)
+    {
         if (!SExp.TryParse(sexp, out SExp? root, out string? error) || root!.Name != "public-key" || root.Items!.Count < 2)
         {
             throw new AgentProtocolException("The agent's public key is not a public-key S-expression" + (error is null ? "." : ": " + error));

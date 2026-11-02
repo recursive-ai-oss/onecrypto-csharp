@@ -190,7 +190,7 @@ public class GpgAgentTests : IClassFixture<GpgAgentFixture>
     [Fact]
     public void AKeyTheAgentDoesNotHaveIsATypedNotFound()
     {
-        Assert.Throws<AgentKeyNotFoundException>(() => Client().GetKey(new string('0', 40)));
+        Assert.Throws<AgentKeyNotFoundException>(() => Client().GetKey("ABCDEF0123456789ABCDEF0123456789ABCDEF01"));
         Assert.Throws<ArgumentException>(() => Client().GetKey("not a keygrip"));
     }
 
