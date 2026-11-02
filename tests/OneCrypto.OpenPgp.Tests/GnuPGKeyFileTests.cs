@@ -150,11 +150,13 @@ public class GnuPGKeyFileTests
     [Fact]
     public void ExtendedFormatHeadersAreRead()
     {
-        string path = Directory.GetFiles(GnuPGHomes.Dir("2.4.8", "main", "private-keys-v1.d"), "*.key")[0];
+        // Directory order is unspecified, so take the files in name order; the fixture keys carry the creation time GnuPG wrote, which may be backdated.
+        string path = Directory.GetFiles(GnuPGHomes.Dir("2.4.8", "main", "private-keys-v1.d"), "*.key").Order(StringComparer.Ordinal).First();
         GnuPGKeyFile kf = GnuPGKeyFile.Parse(File.ReadAllBytes(path));
         Assert.Equal("Created", kf.Headers[0].Key);
         Assert.Equal("Key", kf.Headers[1].Key);
-        Assert.Equal(DateTimeOffset.UtcNow.Year, kf.Created!.Value.Year);
+        Assert.NotNull(kf.Created);
+        Assert.InRange(kf.Created!.Value.Year, 2000, 2100);
 
         string custom = "# a comment\nDescription: Key for\n  signing\nCreated: 20200102T030405\nUse-for-ssh: yes\nKey: (private-key (dsa (p #0B#)(q #05#)(g #02#)(y #04#)(x #03#)))\n";
         GnuPGKeyFile k2 = GnuPGKeyFile.Parse(Encoding.UTF8.GetBytes(custom));
@@ -320,7 +322,19 @@ internal static class KeyProofs
                 ECCurve curve = CurveOf(kf.Curve!);
                 int size = (point.Length - 1) / 2;
                 var prm = new ECParameters { Curve = curve, Q = new ECPoint { X = point.Slice(1, size).ToArray(), Y = point.Slice(1 + size, size).ToArray() } };
-                using var ecdsa = ECDsa.Create(prm);
+                ECDsa ecdsaOrNull;
+                try
+                {
+                    ecdsaOrNull = ECDsa.Create(prm);
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    // The proof signs and verifies with the platform's ECDSA; macOS has no Brainpool curves. The key file itself was read above.
+                    Assert.Skip($"The platform has no ECDSA on {kf.Curve}.");
+                    return;
+                }
+
+                using var ecdsa = ecdsaOrNull;
                 PublicKeyInfo info = PublicKeyInfo.FromAsymmetricAlgorithm(ecdsa);
                 using ISigningKey sk = secret.ToSigningKey();
                 SignatureSpec spec = SignatureSpec.DefaultFor(info);

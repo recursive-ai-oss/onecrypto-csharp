@@ -374,8 +374,17 @@ public class MessageTests
         // Found by the interoperability suite on a platform whose OpenSSL has no ML-DSA: the platform exception escaped through the certificate checks.
         Assert.SkipWhen(System.Security.Cryptography.MLDsa.IsSupported, "ML-DSA is available on this platform");
         PgpCertificate pub = PgpCertificate.Parse(Pqc("A_3_pub.asc"));
-        var e = Assert.Throws<PgpException>(() => PgpMessageReader.VerifyDetached(new MemoryStream("Testing\n"u8.ToArray()), new MemoryStream(Pqc("A_3_sig.asc")), new PgpReadOptions { Now = Now, Certificates = [pub] }));
-        Assert.Equal(PgpFailure.Unsupported, e.Failure);
+        // Depending on where the platform's gap surfaces, the reader either raises a typed Unsupported failure or reports the signature
+        // as not valid (macOS: the self-signatures cannot be checked, so no key is bound). Either is fail-closed; a platform exception or a valid verdict is not.
+        try
+        {
+            PgpReadResult r = PgpMessageReader.VerifyDetached(new MemoryStream("Testing\n"u8.ToArray()), new MemoryStream(Pqc("A_3_sig.asc")), new PgpReadOptions { Now = Now, Certificates = [pub] });
+            Assert.All(r.Signatures, x => Assert.False(x.IsValid));
+        }
+        catch (PgpException e)
+        {
+            Assert.Equal(PgpFailure.Unsupported, e.Failure);
+        }
     }
 
     [Theory]

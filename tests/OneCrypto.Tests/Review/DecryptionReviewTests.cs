@@ -94,6 +94,7 @@ public class DecryptionReviewTests
     public void AuthEnvelopedDataRefusesTagsShorterThanTwelveOctets()
     {
         // A four-octet CCM tag is a 2^-32 forgery per attempt. RFC 5084 §3.3 allows it; a library default should not.
+        Assert.SkipUnless(AesCcm.IsSupported, "AES-CCM is not available on this platform");
         byte[] plain = Content(100);
         AuthEnvelopedData made = AuthEnvelopedData.Create(plain, [KekRecipient()], new CmsEncryptOptions { ContentEncryption = CmsOids.Aes256Ccm });
         byte[]? cek = CmsCiphers.AesUnwrap(Kek, ((KekRecipientInfo)made.RecipientInfos[0]).EncryptedKey.Span);
