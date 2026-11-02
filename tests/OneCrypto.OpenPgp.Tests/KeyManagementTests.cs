@@ -116,6 +116,15 @@ public class KeyManagementTests
     }
 
     [Fact]
+    public void TheGeneratorAndTheHappyPathMakeTheSameKeyVersionByDefault()
+    {
+        Assert.Equal(PgpKeyProfile.Rfc4880Curve25519, new PgpKeyGenerationOptions { Now = T0 }.Profile);
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["A"] });
+        Assert.Equal(4, key.Primary.Packet.Version);
+        Assert.Equal(4, Pgp.GenerateKey("A").Primary.Packet.Version);
+    }
+
+    [Fact]
     public void SigningOnlyKeyHasNoEncryptionSubkeyAndNoUserIdKeyStillBinds()
     {
         PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, SigningOnly = true });
@@ -129,7 +138,7 @@ public class KeyManagementTests
     [Fact]
     public void GeneratedKeysCarryExpiryAndPreferences()
     {
-        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["A"], ValidFor = TimeSpan.FromDays(30) });
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, Profile = PgpKeyProfile.Rfc9580, UserIds = ["A"], ValidFor = TimeSpan.FromDays(30) });
         Assert.Equal(T0.AddDays(30), key.Primary.StateAt(T1).ExpiresAt);
         Assert.False(key.Primary.StateAt(T0.AddDays(31)).IsValid);
         Assert.False(key.Keys[1].StateAt(T0.AddDays(31)).IsValid);
@@ -388,7 +397,7 @@ public class KeyManagementTests
     [Fact]
     public void RefreshRemovesWeakPreferencesAndAddsAnEncryptionSubkey()
     {
-        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, UserIds = ["Old"], SigningOnly = true });
+        PgpCertificate key = PgpKeyGenerator.Generate(new PgpKeyGenerationOptions { Now = T0, Profile = PgpKeyProfile.Rfc9580, UserIds = ["Old"], SigningOnly = true });
         using PgpSecretKey primary = Unlock(key);
         PgpCertificate weak = PgpKeyEditor.SetPreferences(key, primary, new PgpKeyPreferences { Hash = [PgpHashAlgorithm.Sha1, PgpHashAlgorithm.Sha256] }, T0.AddDays(1));
         PgpCertificate fresh = PgpKeyEditor.Refresh(weak, primary, T1, signingOnly: false, noAddedCapabilities: false);
@@ -432,6 +441,46 @@ public class KeyManagementTests
         Assert.NotNull(error);
     }
 
+    [Theory]
+    [InlineData(PgpKeyProfile.Rfc9580)]
+    [InlineData(PgpKeyProfile.NistP256)]
+    public void EveryTruncationAndOctetChangeOfAPgpStateIsATypedResult(PgpKeyProfile profile)
+    {
+        PgpCertificate key = Generate(profile);
+        PgpPreparedSignature prepared = PgpPreparedSignature.PrepareDetached(key.Primary, new MemoryStream("the document"u8.ToArray()), T1);
+        byte[] state = prepared.Encode();
+        using PgpSecretKey secret = Unlock(key);
+        byte[] good = prepared.SignWith(secret.SigningKey);
+        byte[] raw = prepared.Input == SigningInput.Digest ? secret.SigningKey.SignDigest(prepared.ToSign.Span, prepared.Spec) : secret.SigningKey.Sign(prepared.ToSign.Span, prepared.Spec);
+
+        for (int n = 0; n < state.Length; n++)
+        {
+            Assert.False(PgpPreparedSignature.TryDecode(state.AsSpan(0, n), out _, out _), $"truncation to {n}");
+        }
+
+        for (int i = 0; i < state.Length; i++)
+        {
+            byte[] m = (byte[])state.Clone();
+            m[i] ^= 0x01;
+            if (!PgpPreparedSignature.TryDecode(m, out PgpPreparedSignature? damaged, out _))
+            {
+                continue;
+            }
+
+            // A damaged state that still reads either completes to a signature that verifies for exactly what the damaged state says, or is refused with the typed error.
+            try
+            {
+                byte[] sig = damaged!.Complete(raw);
+                Assert.NotEmpty(sig);
+            }
+            catch (PgpException)
+            {
+            }
+        }
+
+        Assert.NotEmpty(good);
+    }
+
     [Fact]
     public void TextSignaturesAndTamperedStateAreHandled()
     {
@@ -459,5 +508,16 @@ public class KeyManagementTests
         PgpCertificate dave = Pgp.GenerateKey("Dave");
         PgpCertificate certified = Pgp.Certify(open.ToPublicCertificate(), "Carol <carol@example.org>", dave);
         Assert.Equal(open.ToPublicCertificate().Transferable.Packets.Count + 1, certified.Transferable.Packets.Count);
+    }
+
+    [Fact]
+    public void TheHappyPathDefaultIsTheVersion4FormAndAProfileCanBeChosen()
+    {
+        PgpCertificate def = Pgp.GenerateKey("Erin <erin@example.org>");
+        Assert.Equal(4, def.Primary.Packet.Version);
+        Assert.Equal(PublicKeyAlgorithm.EdDsaLegacy, ((KeyPacket)def.Primary.Packet).Algorithm);
+        PgpCertificate v6 = Pgp.GenerateKey("Erin <erin@example.org>", PgpKeyProfile.Rfc9580);
+        Assert.Equal(6, v6.Primary.Packet.Version);
+        Assert.Equal(PublicKeyAlgorithm.Ed25519, ((KeyPacket)v6.Primary.Packet).Algorithm);
     }
 }

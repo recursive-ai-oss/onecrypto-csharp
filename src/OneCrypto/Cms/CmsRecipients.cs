@@ -135,7 +135,7 @@ public abstract class CmsDecryptionKey : IDisposable
                     return dk.Supports(spec) ? dk.Decrypt(encryptedKey, spec) : null;
                 }
             }
-            catch (Exception e) when (e is CryptographicException or NotSupportedException or ArgumentException)
+            catch (Exception e) when (e.GetType() == typeof(CryptographicException) || e is NotSupportedException or ArgumentException)
             {
                 // Padding errors are folded into "no key" so the caller cannot tell which check failed (RFC 3218 §2.3).
             }
@@ -165,9 +165,20 @@ public abstract class CmsDecryptionKey : IDisposable
                     peer = PublicKeyInfo.Parse(DerWriter.Sequence(_key.PublicKey.Algorithm.Encoded.ToArray(), X509Signer.BitString(point)));
                 }
 
-                return ak.Agree(peer);
+                byte[] shared = ak.Agree(peer);
+                // RFC 7748 §6.1 and RFC 8418 §3: an all-zero X25519/X448 result means the originator sent a point of small order; a key held elsewhere may not check.
+                if (_key.PublicKey.KeyAlgorithm is KeyAlgorithm.X25519 or KeyAlgorithm.X448 && CryptographicOperations.FixedTimeEquals(shared, new byte[shared.Length]))
+                {
+                    return null;
+                }
+
+                return shared;
             }
-            catch (Exception e) when (e is CryptographicException or ArgumentException or X509ParseException or Asn1ParseException)
+            catch (CryptographicException e) when (e.GetType() == typeof(CryptographicException))
+            {
+                return null;
+            }
+            catch (Exception e) when (e is ArgumentException or X509ParseException or Asn1ParseException)
             {
                 return null;
             }
@@ -185,7 +196,7 @@ public abstract class CmsDecryptionKey : IDisposable
                 DecryptionSpec spec = DecryptionSpec.MlKem();
                 return dk.Supports(spec) ? dk.Decrypt(ciphertext, spec) : null;
             }
-            catch (Exception e) when (e is CryptographicException or NotSupportedException or ArgumentException)
+            catch (Exception e) when (e.GetType() == typeof(CryptographicException) || e is NotSupportedException or ArgumentException)
             {
                 return null;
             }

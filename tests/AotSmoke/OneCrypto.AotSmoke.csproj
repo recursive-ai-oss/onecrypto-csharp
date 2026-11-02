@@ -33,6 +33,8 @@
     <Compile Include="../Common/DiscoverySmoke.cs" Link="DiscoverySmoke.cs" />
     <Compile Include="../Common/GnuPGSmoke.cs" Link="GnuPGSmoke.cs" />
     <Compile Include="../Common/TrustSmoke.cs" Link="TrustSmoke.cs" />
+    <Compile Include="../Common/Pkcs11Smoke.cs" Link="Pkcs11Smoke.cs" />
+    <Compile Include="../Common/AgentSmoke.cs" Link="AgentSmoke.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,6 +42,7 @@
     <ProjectReference Include="../../src/OneCrypto.Pdf/OneCrypto.Pdf.csproj" />
     <ProjectReference Include="../../src/OneCrypto.Online/OneCrypto.Online.csproj" />
     <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Keys/OneCrypto.Keys.csproj" />
   </ItemGroup>
 
 </Project>

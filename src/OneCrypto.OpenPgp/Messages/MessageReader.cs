@@ -909,6 +909,22 @@ internal sealed class MessageProcessor : IDisposable
                 }
             }
 
+            foreach (PgpSecretKey external in _o.ExternalKeys)
+            {
+                if (!Targets(p, external.Key))
+                {
+                    continue;
+                }
+
+                tried = true;
+                SessionKeys.Recovered? rec = SessionKeys.Decrypt(external, p);
+                if (rec is { } r)
+                {
+                    recovered = true;
+                    list.Add(new Candidate(r.Cipher, r.Key));
+                }
+            }
+
             // RFC 9580 §13.5: a packet that was addressed to us and could not be unwrapped must not be told apart from one that unwrapped to a wrong key.
             if (tried && !recovered)
             {

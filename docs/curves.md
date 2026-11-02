@@ -18,7 +18,7 @@ are plain immutable byte holders. Signing is deterministic. `Verify` returns `fa
 throws on data; signing and key-derivation methods throw `ArgumentException` for wrong lengths or an over-long context.
 
 Ed448 hashes with SHAKE256: the platform's where it has one, otherwise a managed Keccak-f[1600] (xor, and, not and fixed
-rotations only, so constant time by construction) with identical output. Ed448 therefore runs on every platform.
+rotations only, with no secret-dependent branch or index) with identical output. Ed448 therefore runs on every platform.
 
 ## Verification semantics
 

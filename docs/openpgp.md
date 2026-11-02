@@ -107,13 +107,22 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpKeyGenerator`, `PgpKeyEditor`, `P
 
 | Profile | Version | Primary / subkey |
 |---|---|---|
-| `Rfc9580` (default) | 6 | Ed25519 / X25519 |
+| `Rfc9580` | 6 | Ed25519 / X25519 |
 | `Rfc9580V4` | 4 | Ed25519 / X25519 (native algorithms) |
 | `Rfc9580Ed448` | 6 | Ed448 / X448 |
 | `Rfc9580Rsa`, `Rfc4880Rsa` | 6, 4 | RSA-3072 both |
-| `Rfc4880Curve25519` | 4 | EdDSA legacy / ECDH Curve25519 |
+| `Rfc4880Curve25519` (default of `PgpKeyGenerationOptions`, `Pgp.GenerateKey` and `sop generate-key`) | 4 | EdDSA legacy / ECDH Curve25519 |
 | `NistP256`, `NistP384`, `NistP521` | 4 | ECDSA / ECDH |
 | `Rfc9980Pqc`, `Rfc9980PqcHigh` | 6 | ML-DSA-65+Ed25519 / ML-KEM-768+X25519, ML-DSA-87+Ed448 / ML-KEM-1024+X448; `AlgorithmNotSupportedException` where the platform lacks ML-DSA or ML-KEM |
+
+**Which profile is the default.** `PgpKeyGenerationOptions.Profile`, `Pgp.GenerateKey(userId, password)` and `sop generate-key` make version 4 EdDSA/ECDH Curve25519 keys (`Rfc4880Curve25519`, sop name `draft-koch-eddsa-for-openpgp-00`, alias `default`, the name and default Sequoia's `sqop` also uses), because every implementation we test reads them; ask for `Pgp.GenerateKey(userId, PgpKeyProfile.Rfc9580)` (`--profile=rfc9580`) for a version 6 key. Evidence, `tools/oracles/profile-interop.sh` (a certificate and a detached signature of ours imported or verified, a message encrypted to it and decrypted by us):
+
+| Oracle | v6 Ed25519/X25519 | v4 native Ed25519/X25519 | v4 EdDSA legacy / Cv25519 |
+|---|---|---|---|
+| GnuPG 2.4.4, 2.4.8 | not read | imported, signature not checkable | import, verify, encrypt all work |
+| GnuPG 2.5.24 | cannot use it | cannot use it | all work |
+| RNP 0.17.0 | not read | not read | all work |
+| sqop 0.38.0 (Sequoia), gosop 1.1.0, OpenPGP.js 6.3.2 | all work | all work | all work |
 
 Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib, zip, none; for the profiles that read SEIPD v2 also the AEAD suites AES-256/OCB and AES-128/OCB and the features octet `0x09`, otherwise `0x01`. RSA keys keep `p < q` (RFC 9580 §5.5.5.1): the platform's key is regenerated when its primes come out the other way round.
 

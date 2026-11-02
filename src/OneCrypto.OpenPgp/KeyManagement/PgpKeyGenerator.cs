@@ -8,7 +8,10 @@ namespace RecursiveAI.OneCrypto.OpenPgp;
 /// <summary>The algorithm sets and key versions <see cref="PgpKeyGenerator"/> can produce. No profile writes a version 5 key.</summary>
 public enum PgpKeyProfile
 {
-    /// <summary>Version 6 Ed25519 primary key and X25519 encryption subkey (RFC 9580). The default.</summary>
+    /// <summary>
+    /// Version 6 Ed25519 primary key and X25519 encryption subkey (RFC 9580). Sequoia, OpenPGP.js and GopenPGP read it; GnuPG (2.4 and 2.5) and RNP do not.
+    /// Not the default: <see cref="PgpKeyGenerationOptions"/> and <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/> use <see cref="Rfc4880Curve25519"/>, so ask for this profile to get a version 6 key.
+    /// </summary>
     Rfc9580 = 0,
 
     /// <summary>Version 4 key with the native Ed25519 and X25519 algorithms (RFC 9580 §5.5.5.6, §5.5.5.8).</summary>
@@ -20,7 +23,10 @@ public enum PgpKeyProfile
     /// <summary>Version 6 RSA-3072 primary key and subkey.</summary>
     Rfc9580Rsa,
 
-    /// <summary>Version 4 EdDSA (legacy, Ed25519 curve) and ECDH (Curve25519) keys, the layout RFC 4880 implementations read.</summary>
+    /// <summary>
+    /// Version 4 EdDSA (legacy, Ed25519 curve) and ECDH (Curve25519) keys, the layout RFC 4880 implementations read: GnuPG 2.4 and 2.5, RNP, Sequoia,
+    /// OpenPGP.js and GopenPGP. The default of <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/>.
+    /// </summary>
     Rfc4880Curve25519,
 
     /// <summary>Version 4 RSA-3072 primary key and subkey, for readers that predate elliptic curves.</summary>
@@ -51,8 +57,8 @@ public sealed class PgpKeyGenerationOptions
     /// <summary>User IDs to bind to the key (UTF-8 text, certified as written). The first is the primary User ID. Default none.</summary>
     public IReadOnlyList<string> UserIds { get; init; } = [];
 
-    /// <summary>Which algorithms and key version. Default <see cref="PgpKeyProfile.Rfc9580"/>.</summary>
-    public PgpKeyProfile Profile { get; init; } = PgpKeyProfile.Rfc9580;
+    /// <summary>Which algorithms and key version. Default <see cref="PgpKeyProfile.Rfc4880Curve25519"/>, as for <see cref="Pgp.GenerateKey(string, string?, TimeProvider?)"/>: a version 4 key that every OpenPGP implementation reads. Ask for <see cref="PgpKeyProfile.Rfc9580"/> for version 6.</summary>
+    public PgpKeyProfile Profile { get; init; } = PgpKeyProfile.Rfc4880Curve25519;
 
     /// <summary>True to leave out the encryption subkey, so the key can certify and sign but not decrypt. Default false.</summary>
     public bool SigningOnly { get; init; }

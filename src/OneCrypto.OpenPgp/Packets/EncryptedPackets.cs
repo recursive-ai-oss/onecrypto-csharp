@@ -362,17 +362,39 @@ internal static class PacketFactory
         switch ((PacketTag)tagId)
         {
             case PacketTag.PublicKey:
-            case PacketTag.PublicSubkey:
                 {
                     KeyPacket.KeyFields? f = KeyPacket.ReadPublicPart(body, false, limits);
                     return f is null ? new UnrecognizedPacket(tagId, body, header, encoded) : new PublicKeyPacket(tagId, body, header, encoded, f.Value);
                 }
 
+            case PacketTag.PublicSubkey:
+                // RFC 9580 §10.1: an implementation may ignore a subkey it cannot use, so a subkey that does not decode is kept as received
+                // with the reason, and the rest of the certificate stays usable.
+                try
+                {
+                    KeyPacket.KeyFields? f = KeyPacket.ReadPublicPart(body, false, limits);
+                    return f is null ? new UnrecognizedPacket(tagId, body, header, encoded) : new PublicKeyPacket(tagId, body, header, encoded, f.Value);
+                }
+                catch (OpenPgpParseException e)
+                {
+                    return new UnrecognizedPacket(tagId, body, header, encoded, e.Failure);
+                }
+
             case PacketTag.SecretKey:
-            case PacketTag.SecretSubkey:
                 {
                     KeyPacket.KeyFields? f = KeyPacket.ReadPublicPart(body, true, limits);
                     return f is null ? new UnrecognizedPacket(tagId, body, header, encoded) : SecretKeyPacket.Parse(tagId, body, header, encoded, f.Value, limits);
+                }
+
+            case PacketTag.SecretSubkey:
+                try
+                {
+                    KeyPacket.KeyFields? f = KeyPacket.ReadPublicPart(body, true, limits);
+                    return f is null ? new UnrecognizedPacket(tagId, body, header, encoded) : SecretKeyPacket.Parse(tagId, body, header, encoded, f.Value, limits);
+                }
+                catch (OpenPgpParseException e)
+                {
+                    return new UnrecognizedPacket(tagId, body, header, encoded, e.Failure);
                 }
 
             case PacketTag.Signature:

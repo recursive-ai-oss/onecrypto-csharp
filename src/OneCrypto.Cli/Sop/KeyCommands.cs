@@ -17,7 +17,7 @@ internal static class KeyCommands
     /// <summary>The profiles generate-key accepts; the first is the default (draft §7.12).</summary>
     internal static readonly (string Name, string Description, PgpKeyProfile Profile)[] Profiles =
     [
-        ("default", "use the implementer's recommendations: version 6 Ed25519/X25519 keys (RFC 9580)", PgpKeyProfile.Rfc9580),
+        ("default", "use the implementer's recommendations: version 4 EdDSA and ECDH keys over Curve25519, which GnuPG, RNP, Sequoia, OpenPGP.js and GopenPGP all read", PgpKeyProfile.Rfc4880Curve25519),
         ("rfc9580", "version 6 Ed25519 and X25519 keys", PgpKeyProfile.Rfc9580),
         ("rfc9580-v4", "version 4 keys with the native Ed25519 and X25519 algorithms", PgpKeyProfile.Rfc9580V4),
         ("rfc9580-ed448", "version 6 Ed448 and X448 keys", PgpKeyProfile.Rfc9580Ed448),
@@ -30,6 +30,7 @@ internal static class KeyCommands
         ("nist-p521", "version 4 ECDSA and ECDH keys on NIST P-521", PgpKeyProfile.NistP521),
         ("security", "higher security, maybe reduced performance: version 6 Ed448 and X448 keys", PgpKeyProfile.Rfc9580Ed448),
         ("performance", "higher performance, maybe reduced security: version 6 Ed25519 and X25519 keys", PgpKeyProfile.Rfc9580),
+        ("rfc9980", "alias for pqc", PgpKeyProfile.Rfc9980Pqc),
         ("pqc", "version 6 ML-DSA-65 + Ed25519 and ML-KEM-768 + X25519 keys (RFC 9980; needs platform support)", PgpKeyProfile.Rfc9980Pqc),
         ("pqc-high", "version 6 ML-DSA-87 + Ed448 and ML-KEM-1024 + X448 keys (RFC 9980; needs platform support)", PgpKeyProfile.Rfc9980PqcHigh),
     ];
@@ -128,7 +129,7 @@ internal static class KeyCommands
         string? profileName = o.Value("--profile");
         byte[]? password = NewPasswordFromKeyOption(o, io);
         o.RejectUnknown();
-        PgpKeyProfile profile = PgpKeyProfile.Rfc9580;
+        PgpKeyProfile profile = Profiles[0].Profile;
         if (profileName is not null)
         {
             (string Name, string Description, PgpKeyProfile Profile) found = Profiles.FirstOrDefault(p => p.Name == profileName);

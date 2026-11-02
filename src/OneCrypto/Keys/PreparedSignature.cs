@@ -242,7 +242,17 @@ public sealed class PreparedSignature
                 return false;
             }
 
-            state = new PreparedSignature(purpose, spec, key, (SigningInput)input, toSign, data);
+            var decoded = new PreparedSignature(purpose, spec, key, (SigningInput)input, toSign, data);
+            // A state is written in one form only. Reading anything else (a public key whose bit string says it has unused bits, a spec with extra parameters)
+            // would mean two different byte strings stand for one state, so a state that does not encode back to what was read is refused as damaged.
+            byte[] canonicalKey = DerWriter.Sequence(key.Algorithm.Encoded.ToArray(), DerWriter.Tlv(0x03, [0, .. key.KeyBits.ToArray()]));
+            if (!decoded.Encode().AsSpan().SequenceEqual(encoded) || !canonicalKey.AsSpan().SequenceEqual(decoded._publicKey))
+            {
+                error = "The prepared signature is not in the form this library writes.";
+                return false;
+            }
+
+            state = decoded;
             return true;
         }
         catch (Exception e) when (e is Asn1ParseException or X509ParseException or ArgumentException)

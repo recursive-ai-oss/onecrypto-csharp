@@ -447,9 +447,21 @@ if (!OneCrypto.Smoke.GnuPGSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.Pkcs11Smoke.Run())
+{
+    Console.Error.WriteLine("the PKCS #11 backend failed");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.TrustSmoke.Run())
 {
     Console.Error.WriteLine("the trust models gave a wrong verdict");
+    return 1;
+}
+
+if (!await OneCrypto.Smoke.AgentSmoke.Run())
+{
+    Console.Error.WriteLine("agent smoke failed");
     return 1;
 }
 

@@ -52,8 +52,9 @@ public sealed class SubkeyComponent
 public sealed class TransferableKey
 {
     private TransferableKey(IReadOnlyList<Packet> packets, KeyPacket primary, List<SignaturePacket> direct, List<Packet> primaryOther,
-        List<UserComponent> users, List<SubkeyComponent> subkeys)
+        List<UserComponent> users, List<SubkeyComponent> subkeys, List<SkippedSubkeyComponent> skipped)
     {
+        SkippedSubkeys = skipped;
         Packets = packets;
         Primary = primary;
         DirectSignatures = direct;
@@ -69,7 +70,7 @@ public sealed class TransferableKey
     public KeyPacket Primary { get; }
 
     /// <summary>True for a Transferable Secret Key.</summary>
-    public bool IsSecret => Primary.IsSecret || Subkeys.Any(k => k.Key.IsSecret);
+    public bool IsSecret => Primary.IsSecret || Subkeys.Any(k => k.Key.IsSecret) || SkippedSubkeys.Any(k => k.IsSecret);
 
     /// <summary>The signatures between the primary key and the first User ID or subkey (direct key signatures and key revocations).</summary>
     public IReadOnlyList<SignaturePacket> DirectSignatures { get; }
@@ -82,6 +83,9 @@ public sealed class TransferableKey
 
     /// <summary>The subkeys, in order.</summary>
     public IReadOnlyList<SubkeyComponent> Subkeys { get; }
+
+    /// <summary>Subkeys that did not decode or have an unknown version, with their signatures; they are kept for lossless writing and never used.</summary>
+    public IReadOnlyList<SkippedSubkeyComponent> SkippedSubkeys { get; }
 
     /// <summary>Splits a packet sequence into transferable keys: each Public Key or Secret Key packet starts a new one.</summary>
     /// <param name="packets">The packets, for example from <see cref="PacketParser.ParseAll(ReadOnlyMemory{byte}, OpenPgpLimits?)"/>.</param>
@@ -146,9 +150,23 @@ public sealed class TransferableKey
             return this;
         }
 
+        // A secret subkey that did not decode cannot be turned into a public one, so it goes with everything that belongs to it.
+        var dropped = new HashSet<Packet>(ReferenceEqualityComparer.Instance);
+        foreach (SkippedSubkeyComponent k in SkippedSubkeys.Where(k => k.IsSecret))
+        {
+            dropped.Add(k.Packet);
+            dropped.UnionWith(k.Signatures);
+            dropped.UnionWith(k.OtherPackets);
+        }
+
         var converted = new List<Packet>(Packets.Count);
         foreach (Packet p in Packets)
         {
+            if (dropped.Contains(p))
+            {
+                continue;
+            }
+
             if (p is SecretKeyPacket sk)
             {
                 converted.Add(sk.ToPublic());
@@ -173,15 +191,17 @@ public sealed class TransferableKey
         var primaryOther = new List<Packet>();
         var users = new List<UserComponent>();
         var subkeys = new List<SubkeyComponent>();
+        var skipped = new List<SkippedSubkeyComponent>();
         UserComponent? user = null;
         SubkeyComponent? subkey = null;
+        SkippedSubkeyComponent? skip = null;
         for (int i = start + 1; i < end; i++)
         {
             Packet p = all[i];
             switch (p)
             {
                 case UserIdPacket or UserAttributePacket:
-                    if (subkey is not null)
+                    if (subkey is not null || skip is not null)
                     {
                         throw new OpenPgpParseException(OpenPgpError.InvalidStructure, 0, "a User ID follows a subkey");
                     }
@@ -194,11 +214,22 @@ public sealed class TransferableKey
                     subkey = new SubkeyComponent(sub);
                     subkeys.Add(subkey);
                     user = null;
+                    skip = null;
+                    break;
+                case UnrecognizedPacket { TagId: (byte)PacketTag.PublicSubkey or (byte)PacketTag.SecretSubkey } bad:
+                    skip = new SkippedSubkeyComponent(bad);
+                    skipped.Add(skip);
+                    subkey = null;
+                    user = null;
                     break;
                 case KeyPacket:
                     throw new OpenPgpParseException(OpenPgpError.InvalidStructure, 0, "a second primary key");
                 case SignaturePacket sig:
-                    if (subkey is not null)
+                    if (skip is not null)
+                    {
+                        skip.SignatureList.Add(sig);
+                    }
+                    else if (subkey is not null)
                     {
                         subkey.SignatureList.Add(sig);
                     }
@@ -213,7 +244,11 @@ public sealed class TransferableKey
 
                     break;
                 default:
-                    if (subkey is not null)
+                    if (skip is not null)
+                    {
+                        skip.OtherList.Add(p);
+                    }
+                    else if (subkey is not null)
                     {
                         subkey.OtherList.Add(p);
                     }
@@ -236,6 +271,6 @@ public sealed class TransferableKey
             slice.Add(all[i]);
         }
 
-        return new TransferableKey(slice, primary, direct, primaryOther, users, subkeys);
+        return new TransferableKey(slice, primary, direct, primaryOther, users, subkeys, skipped);
     }
 }

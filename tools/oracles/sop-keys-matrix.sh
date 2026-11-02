@@ -30,7 +30,7 @@ x generate-key "Theirs <theirs@example.org>" > theirs.key 2>/dev/null; x extract
 
 profiles=${PROFILES:-$(o list-profiles generate-key | cut -d: -f1)}
 for prof in $profiles; do
-  case $prof in default|compatibility|security|performance) continue;; esac # aliases of listed profiles
+  case $prof in default|compatibility|security|performance|rfc9980) continue;; esac # aliases of listed profiles
   for prot in none pw; do
     k=k-$prof-$prot; kp=""; ow=""; xw=""
     if [ $prot = pw ]; then kp="--with-key-password=pw1.txt"; fi

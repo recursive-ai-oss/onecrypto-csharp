@@ -10,17 +10,32 @@ namespace RecursiveAI.OneCrypto;
 public static partial class Pgp
 {
     /// <summary>
-    /// Generates a key for one User ID: a version 6 Ed25519 key that certifies and signs, with an X25519 subkey for encryption, protected by
-    /// <paramref name="password"/> when it is given.
+    /// Generates a key for one User ID with the default profile, <see cref="PgpKeyProfile.Rfc4880Curve25519"/>: a version 4 Ed25519 key that
+    /// certifies and signs, with a Curve25519 subkey for encryption, protected by <paramref name="password"/> when it is given. GnuPG 2.4, RNP and
+    /// OpenPGP.js all read this form; pass <see cref="PgpKeyProfile.Rfc9580"/> to <see cref="GenerateKey(string, PgpKeyProfile, string?, TimeProvider?)"/>
+    /// for a version 6 key.
     /// </summary>
     /// <param name="userId">The User ID, for example <c>Alice &lt;alice@example.org&gt;</c>.</param>
     /// <param name="password">The password, or null to leave the key unprotected.</param>
     /// <param name="time">The clock for the creation time. <see cref="TimeProvider.System"/> when null.</param>
     public static PgpCertificate GenerateKey(string userId, string? password = null, TimeProvider? time = null) =>
+        GenerateKey(userId, DefaultProfile, password, time);
+
+    
+    private const PgpKeyProfile DefaultProfile = PgpKeyProfile.Rfc4880Curve25519;
+
+    /// <summary>Generates a key for one User ID with the algorithms and key version of <paramref name="profile"/>, protected by <paramref name="password"/> when it is given.</summary>
+    /// <param name="userId">The User ID, for example <c>Alice &lt;alice@example.org&gt;</c>.</param>
+    /// <param name="profile">Which algorithms and key version; for example <see cref="PgpKeyProfile.Rfc9580"/> (version 6) or <see cref="PgpKeyProfile.Rfc4880Curve25519"/> (version 4).</param>
+    /// <param name="password">The password, or null to leave the key unprotected.</param>
+    /// <param name="time">The clock for the creation time. <see cref="TimeProvider.System"/> when null.</param>
+    /// <exception cref="AlgorithmNotSupportedException">The platform lacks an algorithm the profile needs (the post-quantum profiles).</exception>
+    public static PgpCertificate GenerateKey(string userId, PgpKeyProfile profile, string? password = null, TimeProvider? time = null) =>
         PgpKeyGenerator.Generate(new PgpKeyGenerationOptions
         {
             Now = (time ?? TimeProvider.System).GetUtcNow(),
             UserIds = [userId],
+            Profile = profile,
             Password = password is null ? null : Encoding.UTF8.GetBytes(password),
         });
 

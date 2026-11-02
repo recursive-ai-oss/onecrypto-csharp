@@ -17,9 +17,11 @@ Oracles run black-box at pinned versions: OpenSSL 3.5.9, Go 1.26.8, GnuPG 2.4.8,
 | CMS | content types and recipient forms tested both ways where OpenSSL supports them | `openssl cms` 3.5.9 matrix: 169 passed, 0 failed, 20 skipped (EdDSA and ML-DSA without signed attributes, X25519/X448 key agreement and ML-KEM KEM recipients, which OpenSSL 3.5.9 cannot produce or open); CompressedData against OpenSSL 3.5.5 | X25519/X448 key agreement (RFC 8418) and KEMRecipientInfo (RFC 9629) are checked by our own reader and writer only; AuthEnvelopedData decryption buffers up to a limit | [cms.md](cms.md) |
 | PKCS#8, PKCS#12, OpenSSH keys | PBES2/PBKDF2/scrypt, PBMAC1 (RFC 9579), legacy PKCS#12 PBEs (read) | OpenSSL 3.5.9 (`pkcs8`, `pkey`, `pkcs12`), the platform's PKCS#8/#12 export and import, `ssh-keygen` (keys, certificates, RFC 4716) | `chacha20-poly1305@openssh.com` key files and RC4 PKCS#12 PBEs are not read; ML-DSA/ML-KEM PKCS#8 is preview | [pkcs.md](pkcs.md) |
 | `CryptoPolicy`, keys, two-phase signing | policy decisions per preset and rule | two-phase signatures and certificates verified by OpenSSL 3.5.9 | macOS login-keychain keys need an interactive session | [policy.md](policy.md), [keys.md](keys.md) |
+| Key backends (`RecursiveAI.OneCrypto.Keys`): PKCS #11, gpg-agent, ssh-agent | every token, agent and fake-agent test of the `.Keys` suite: 184 tests, 0 failures (see [Keys](#keys-and-remote-signing-04)) | SoftHSM2 2.6.1 (Linux) and 2.7.0 (macOS); gpg-agent of GnuPG 2.4.4, 2.4.8 and 2.5.24; OpenSSH 9.6 ssh-agent (Linux) and the macOS system agent; signatures and decryptions checked against OpenSSL 3.0.13 and 3.5.9, `gpg`, `sqop` and `ssh-keygen -Y` | no locked-token test (SoftHSM2 never locks a PIN); Windows PKCS #11 refused; no hardware token; gpg-agent has no RSA-PSS | [keys.md](keys.md), [key-backend-review.md](key-backend-review.md) |
+| Remote signing: Cloud Signature Consortium API v2.2 (`.Online.Csc`) | the spec's calls against a test server that follows the spec: 82 tests in the CSC classes, 81 passed, 1 opt-in (recording fixtures) | two-phase signature prepared, signed through the service in another process and completed, checked with OpenSSL | no live provider was available; the client never retries or redirects | [online.md](online.md#remote-signing-the-cloud-signature-consortium-api) |
 | Issuer side: CA, CRLs and delta CRLs, RFC 3161 TSA and client messages, OCSP responder | profile, serial, status and nonce rules per RFC 5280 §5, 3161, 5816, 6960 | `openssl ts` 3.5.9 both ways (Ed25519 TSA keys ours only, OpenSSL cannot sign them), `openssl ocsp` 68/68, `openssl verify` and `crl -verify` for issued chains and CRLs | code-signing and S/MIME validity limits are our defaults | [issuance.md](issuance.md), [tsp.md](tsp.md), [ocsp-responder.md](ocsp-responder.md) |
 | `RecursiveAI.OneCrypto.Online`: guarded transport, cache, RFC 3161, OCSP, CRL and AIA clients | record/replay fixtures for every client; SSRF guard cases (loopback, private, link-local, carrier-grade NAT, multicast, IPv4-wrapping IPv6, checked on the connected address and on every redirect) | OpenSSL 3.5.9 `ts`/`ocsp` 11 cases; a live run against public TSAs and a public CA's OCSP, CRL and AIA endpoints | revocation is fetched only after a path is chosen; nothing is fetched unless a call asks, and offline revocation stays unknown | [online.md](online.md) |
-| `RecursiveAI.OneCrypto.Pdf`: PAdES B-B to B-LTA on OnePDF 1.17.1 | OnePDF's PDF signature attack corpus through the bridge: 117 comparisons, 0 disagreements with OnePDF's own verdict; certification (DocMDP) levels with document time-stamps | `openssl cms`/`ts` 3.5.9 on the embedded CMS and time-stamps; poppler `pdfsig` 26.01.0 agrees for RSA and ECDSA signatures (it reports every EdDSA and ML-DSA signature as invalid, including those made by other PDF signers, so it is not an oracle for them); **Adobe Acrobat Reader** 2026.002.22031 (Windows, test root trusted): RSA B-LT/B-LTA, RSA-PSS B-LTA and ECDSA P-256 B-B/B-T/B-LT/B-LTA signatures valid, document time-stamps valid with LTV, the tampered control reported as altered; **two first-set files differ and are open:** RSA B-B ("validity unknown": no revocation evidence) and RSA B-T ("errors in the formatting"; every signature, token and certificate in it is strict DER, it verifies with `openssl cms`, and the same structure with other values is accepted, so the cause is not an encoding defect we can find without the reader; a second set separates the remaining hypotheses); Ed25519 is not supported by Reader (ISO/TS 32002), though the Ed25519 B-LTA document time-stamp is valid | EdDSA and ML-DSA signatures are judged by the bridge alone (OnePDF does not check them); ML-DSA is a preview | [pdf.md](pdf.md) |
+| `RecursiveAI.OneCrypto.Pdf`: PAdES B-B to B-LTA on OnePDF 1.17.1 | OnePDF's PDF signature attack corpus through the bridge: 117 comparisons, 0 disagreements with OnePDF's own verdict; certification (DocMDP) levels with document time-stamps | `openssl cms`/`ts` 3.5.9 on the embedded CMS and time-stamps; poppler `pdfsig` 26.01.0 agrees for RSA and ECDSA signatures (it reports every EdDSA and ML-DSA signature as invalid, including those made by other PDF signers, so it is not an oracle for them); **Adobe Acrobat Reader** 2026.002.22031 (Windows, test root trusted): RSA B-LT/B-LTA, RSA-PSS B-LTA and ECDSA P-256 B-B/B-T/B-LT/B-LTA signatures valid, document time-stamps valid with LTV, the tampered control reported as altered; B-B reads "validity unknown" (no revocation evidence, by definition of the level) and B-T files sometimes read "errors in the formatting", but that verdict depends on the Reader session, not on the file: in a second, one-property-at-a-time sample set, of two files of the same kind one failed and one was accepted, the first set's failing file was later accepted unchanged, every signature, token and certificate in them is strict DER, they verify with `openssl cms`, and poppler `pdfsig` accepts all of them ([pdf.md](pdf.md#reader-compatibility)); Ed25519 is not supported by Reader (ISO/TS 32002), though the Ed25519 B-LTA document time-stamp is valid | EdDSA and ML-DSA signatures are judged by the bridge alone (OnePDF does not check them); ML-DSA is a preview | [pdf.md](pdf.md) |
 | OpenPGP packets and armor (`RecursiveAI.OneCrypto.OpenPgp`) | every packet of RFC 9580 §5 with versions 3 to 6 of keys and signatures, RFC 9980 key and PKESK formats; RFC 9580 Appendix A and RFC 9980 Appendix A samples; a corpus of keys, certificates, signatures and messages written by GnuPG 2.4.4, 2.4.8 and 2.5.24, Sequoia `sq` 1.5.0, RNP 0.17.0, OpenPGP.js 6.3.2 and gosop 1.1.0: every file parses and writes back byte for byte; interoperability suite section "Packet parser": 48 successes, no failures | fingerprints agree with each tool's own listing | LibrePGP version 5 is read, never generated | [openpgp.md](openpgp.md) |
 | OpenPGP messages: sign, verify, encrypt, decrypt, cleartext, streaming | RFC 9580 Appendix A (inline, cleartext, detached, OCB/EAX/GCM, Argon2 SKESK), RFC 9980 Appendix A.1–A.4, GnuPG-written messages in every legacy cipher, old SED, bzip2 and zlib; the interoperability suite through `onecrypto sop` ([sop.md](sop.md)): 251 tests | two-way through `sop` on the merged tree: GnuPG 2.4.8 42/0 and 2.5.24 42/0, RNP 0.17.0-3 54/0, Sequoia `sqop` 0.38.0 62/0, `gosop` 1.1.0 (GopenPGP 3.0.0) 81/0, OpenPGP.js 6.3.2 72/0 with 4 not supported by it (passed/failed). Streaming at 1 GiB: peak resident set 51,112 KiB to encrypt, 99,664 KiB to decrypt, 41,236 KiB to inline-sign and 43,724 KiB to inline-verify, against 43,916, 100,688, 40,812 and 43,524 KiB at 128 MiB | **RFC 9580 §12.4**: the library verifies with RSA keys of 1024 to 2047 bits (flagged, `key.rsa.weak-from`) and does not look at the size of a certifying primary key; it decrypts with a weak RSA key without a warning. 59 interoperability cells where Sequoia succeeds and we do not ([sop.md](sop.md)); GnuPG 2.5.24 does the same operation in 56 of them and cannot in 3 for a technical reason. **RSA PKCS#1 v1.5 key transport:** a bad padding and a bad checksum differ by timing (|t| 40.9, the platform's RSA throws); no constant-time claim. Kyber PKESK over NIST or Brainpool curves: `AlgorithmNotSupportedException` | [openpgp.md](openpgp.md), [sop.md](sop.md), [decryption-review.md](decryption-review.md) |
 | OpenPGP keys: generation, edits, revocation, certification, secret-key protection, two-phase signing | every profile with and without a password through signing, encryption, revocation, certification and password change; suite sections "Key Generation" (205 successes, no failures) and "Revocations" (88 successes, no failures) | passed/failed/not applicable: GnuPG 2.4.8 121/0/8, GnuPG 2.5.24 113/0/16, RNP 0.17.0-3 93/0/4, `sqop` 302/0/6, `gosop` 237/0/83, OpenPGP.js 272/0/48 (cells the other side cannot run are not applicable). Three-process two-phase signing verified by us, `sqop` and GnuPG 2.5.24: 46/0; GnuPG 2.4.8: 36/0 | n/a causes are the oracle's (version 6 keys, native Ed25519, unprotected ECDH subkeys in 2.5, a terminal prompt in the 2.5 build's `--gen-revoke`, no `update-key` in `gosop`), see openpgp.md | [openpgp.md](openpgp.md) |
@@ -53,6 +55,27 @@ The OpenPGP counts on 3.5.9 include the 6 tests added for the two fixes of this 
 
 **Interoperability scoreboard**: [sop.md](sop.md#the-scoreboard).
 
+## Keys and remote signing (0.4)
+
+Run on one tree on a 32-core Linux x64 machine (.NET 10.0.402) and on an Apple-silicon Mac (.NET 10.0.403), each suite twice on Linux: with the system OpenSSL 3.0.13 and with OpenSSL 3.5.9.
+
+| `OneCrypto.Keys.Tests` | total / passed / failed / skipped |
+|---|---|
+| Linux x64, OpenSSL 3.0.13, gpg 2.4.4 | 184 / 182 / 0 / 2 |
+| Linux x64, OpenSSL 3.0.13, gpg 2.5.24 | 184 / 182 / 0 / 2 |
+| Linux x64, OpenSSL 3.5.9, gpg 2.4.4 | 184 / 183 / 0 / 1 |
+| Linux x64, OpenSSL 3.5.9, gpg 2.5.24 | 184 / 183 / 0 / 1 |
+| Linux x64 (development host), OpenSSL 3.6.2, gpg 2.4.8, no `sqop` | 184 / 179 / 0 / 5 |
+| macOS arm64, OpenSSL 3.5.9, SoftHSM2 2.7.0, system ssh-agent, no GnuPG | 184 / 134 / 0 / 50 |
+
+The skips: one test that needs a mechanism the token lacks (SoftHSM2 has them all, so it skips everywhere); one Ed25519 CMS check that OpenSSL 3.0 cannot make (OpenSSL 3.0 rows only); on the development host, three Sequoia cross-checks (no `sqop`) and Ed448 (gpg 2.4.8 cannot make such keys); on macOS, 46 gpg-agent tests (no GnuPG installed) and the three Sequoia cross-checks. The gpg-agent tests need the environment `tools/oracles/gpg-agent-home.sh` sets up for GnuPG 2.5 (its libraries on the library path).
+
+- **Two-phase signing across processes.** 14 tests in `OneCrypto.Keys.Tests` prepare a CMS or OpenPGP signature in one process, sign it with the PKCS #11 token or through gpg-agent in a second, and complete it in a third; all pass with gpg 2.4.4 and 2.5.24. The CSC client does the same through the test service (`CscInteropTests`, 7 tests, all pass).
+- **Other suites on the same tree** (total / passed / failed / skipped; OpenSSL 3.0.13, then 3.5.9): `OneCrypto.Tests` 1409 / 1316 / 0 / 93 and 1411 / 1370 / 0 / 41; `OneCrypto.Online.Tests` 389 / 379 / 0 / 10 for both (live checks and fixture recording are opt-in); `OneCrypto.OpenPgp.Tests` 737 / 710 / 0 / 27 and 737 / 723 / 0 / 14; `OneCrypto.Pdf.Tests` 172 / 166 / 0 / 6 and 172 / 169 / 0 / 3.
+- **Platforms.** The NativeAOT smoke app publishes for linux-x64 with warnings as errors and no trim or AOT warning, and runs with SoftHSM2 present (its PKCS #11 smoke passes), the agent smoke and the CSC call (`csc info Ok`). The browser-wasm smoke app runs under Node and its availability table matches. The browser suite in headless Chromium (Chrome for Testing 156.0.8078.80) agrees with Node on all 1,940 shared cases; against the native run only the platform probes differ (17, all listed, none in a judged area).
+- **Package.** `dotnet pack` builds all six packages, with package validation against 0.3.0-preview.2 for the five that exist; `.Keys` has no baseline yet. The one reported break is the move of `SkippedSubkeyComponent`.
+- **Gaps.** No locked-token test (SoftHSM2 never locks a user PIN; the return-code mapping is tested directly). PKCS #11 on Windows is refused. No hardware token or card in the test set. No live CSC provider. The cloud KMS adapters are not released.
+
 ## Speed
 
 Ratio = OneCrypto time ÷ the fastest managed .NET library for the row (BouncyCastle 2.7.0; also `System.Formats.Asn1` for ASN.1), lower is faster. The bar is a geomean of at most 1.0 per area and no row above 1.25. Measured with BenchmarkDotNet on an AMD Ryzen 9 7950X3D (x64) and an Apple M2 (arm64), .NET 10. Every number comes from exclusive benchmark jobs that passed the publishability check (x64: mean CPU busy of 3.3–5.0% during each run; arm64: at least 90% idle before each run); the x64 column was re-measured for this release. Path validation is also reported against the platform's offline `X509Chain`, which calls native code: 1.19 on x64, not part of the bar.
@@ -79,31 +102,32 @@ The curve span operations allocate nothing. The platform-gap fallbacks are repor
 Documented exceptions to the bar:
 
 1. **Camellia** encrypts at about 2.3–2.4× and decrypts at about 1.1× BouncyCastle. OneCrypto's Camellia never indexes a table with secret data (its S-box is computed with an AES instruction and nibble shuffles), while table-driven implementations leak through the cache. CBC encryption is a serial chain that parallel blocks cannot shorten.
-2. **AES key wrap on x64** is 1.53×: RFC 3394 key wrap is a chain of dependent single-block AES calls, and the cost is the platform's per-call overhead; OneCrypto does not reimplement AES.
+2. **AES key wrap on x64** is 1.52×: RFC 3394 key wrap is a chain of dependent single-block AES calls, and the cost is the platform's per-call overhead; OneCrypto does not reimplement AES.
 3. **ECDSA P-256 verification**, worst row: 1.68× for a certificate, 1.69× for a 1 KiB CMS message and 1.66× for a P-256 time-stamp token on x64 (1.16 and 1.15 on arm64). Verification calls the platform's ECDSA and is within 4% of the platform called directly; the area geomeans meet the bar.
 
 ## Robustness
 
-Every parser has a fuzz target (`fuzz/`). All 27 targets ran 600 s each on the release tree, libFuzzer with SharpFuzz, up to four in parallel with their own work directories, with no crash, hang or memory blow-up. Every finding made during development is a committed regression test. Limits are on by default.
+Every parser has a fuzz target (`fuzz/`). All 30 targets ran 600 s each on the 0.4 tree, libFuzzer with SharpFuzz, four at a time with their own work directories, with no crash, hang or memory blow-up and no finding. The three added since 0.3 are `agents` (the Assuan, S-expression and ssh-agent readers), `csc` (Cloud Signature Consortium responses) and `pkcs11attrs` (lengths and attributes a PKCS #11 module reports). Every finding made during development is a committed regression test. Limits are on by default. The batches were built before the last small changes of the release (a type move in `.OpenPgp` and the help text of the tool), which touch no parser.
 
 | Target | Executions | Coverage features | | Target | Executions | Coverage features |
 |---|---|---|---|---|---|---|
-| asn1 | 21,778,219 | 7,471 | | pgppacket | 13,372,923 | 9,412 |
-| pem | 31,343,493 | 1,612 | | pgpmessage | 429,262 | 9,088 |
-| x509 | 16,153,774 | 9,865 | | pgpkey | 397,140 | 7,444 |
-| ocsp | 24,868,637 | 4,864 | | gnupghome | 15,083,459 | 8,821 |
-| ocspresp | 19,943,086 | 5,260 | | bzip2 | 1,879,150 | 891 |
-| cms | 6,632,979 | 16,172 | | trust | 945,693 | 12,791 |
-| cmsenv | 3,207,394 | 10,989 | | autocrypt | 1,952,190 | 8,094 |
-| keys | 25,112,777 | 4,038 | | hkpindex | 12,833,637 | 6,460 |
-| verify | 3,515,038 | 419 | | pkcs8 | 20,216,515 | 4,254 |
-| validate | 9,041,837 | 14,655 | | pkcs12 | 15,889,943 | 4,766 |
-| load | 9,362,285 | 8,929 | | ssh | 2,387,628 | 2,596 |
-| tsa | 16,360,464 | 9,776 | | phc | 24,043,010 | 283 |
-| online | 10,750,410 | 12,501 | | pades | 343,995 | 37,876 |
-| placeholder | 1,143,809 | 16,697 | | | | |
+| agents | 6,451,254 | 5,355 | | pem | 23,366,526 | 1,683 |
+| asn1 | 19,812,203 | 7,328 | | pgpkey | 227,035 | 7,276 |
+| autocrypt | 1,916,848 | 7,690 | | pgpmessage | 250,763 | 8,557 |
+| bzip2 | 2,130,425 | 892 | | pgppacket | 11,318,839 | 9,531 |
+| cms | 5,653,597 | 16,100 | | phc | 25,650,040 | 282 |
+| cmsenv | 2,479,035 | 10,811 | | pkcs11attrs | 25,915,986 | 1,389 |
+| csc | 12,864,046 | 3,535 | | pkcs12 | 15,268,993 | 4,744 |
+| gnupghome | 14,584,000 | 9,183 | | pkcs8 | 15,758,168 | 4,133 |
+| hkpindex | 7,404,296 | 6,688 | | placeholder | 1,116,141 | 16,702 |
+| keys | 21,172,971 | 4,379 | | ssh | 1,409,729 | 2,568 |
+| load | 7,057,318 | 8,795 | | trust | 1,042,921 | 12,353 |
+| ocsp | 17,883,891 | 4,714 | | tsa | 16,124,239 | 9,567 |
+| ocspresp | 21,308,447 | 5,225 | | validate | 7,932,757 | 14,297 |
+| online | 11,032,014 | 12,594 | | verify | 2,996,673 | 418 |
+| pades | 367,324 | 38,107 | | x509 | 13,883,344 | 9,867 |
 
-The slowest targets are the ones that build keys or whole messages (`pgpkey`, `pgpmessage`, `pades`). `pgpmessage` and `pgpkey` were run again for 600 s each on the final tree, after the two small OpenPGP fixes of this release (the padded ECDH value and the RSA size check on encryption), with no crashes; the numbers above are from that run.
+The slowest targets are the ones that build keys or whole messages (`pgpkey`, `pgpmessage`, `pades`).
 
 ## Platforms
 

@@ -5,6 +5,8 @@ using RecursiveAI.OneCrypto.OpenPgp.Packets;
 namespace RecursiveAI.OneCrypto.OpenPgp.Tests;
 
 /// <summary>The sop subcommands that need only the packet layer, driven in process.</summary>
+// The sop commands spool through the temp directory, which DecryptionReviewTests redirects process-wide; run them in the same serial collection.
+[Collection("ProcessMemory")]
 public class SopTests
 {
     private sealed record Result(int Code, byte[] Out, string Err);

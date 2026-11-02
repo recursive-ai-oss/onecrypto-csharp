@@ -119,7 +119,13 @@ public sealed class PadesSignatureReport
     /// <summary>One check per rule the bridge evaluated, each with its reason and the clause it comes from.</summary>
     public IReadOnlyList<CmsCheck> Checks { get; }
 
-    /// <summary>The core CMS verification (signed attributes, digest, signature, ESS signing-certificate, countersignatures) of a signature; null for a document time-stamp or when the CMS did not parse.</summary>
+    /// <summary>
+    /// The core CMS verification (signed attributes, digest, signature, ESS signing-certificate, countersignatures) of a signature. It is null in exactly
+    /// these cases, and <see cref="Checks"/> says which: <see cref="Kind"/> is <see cref="PadesSignatureKind.DocumentTimestamp"/> (the token's own verification is in
+    /// <see cref="Timestamps"/>), <see cref="Kind"/> is <see cref="PadesSignatureKind.Other"/> (a sub-filter the bridge does not evaluate, or an internal error it
+    /// reports as a failed <c>bridge-error</c> check), or the byte range was invalid, /Contents is not a CMS SignedData, or it does not have exactly one SignerInfo,
+    /// so there was nothing to verify. A <see cref="PadesSignatureKind.Signature"/> whose <c>contents</c>, <c>byte-range</c>, <c>cms</c> and <c>single-signer</c> checks did not fail always has it.
+    /// </summary>
     public SignedDataReport? Cms { get; }
 
     /// <summary>The path validator's report for the signer's certificate (paths tried, per-rule results, revocation findings), judged at <see cref="ValidationTime"/>.</summary>

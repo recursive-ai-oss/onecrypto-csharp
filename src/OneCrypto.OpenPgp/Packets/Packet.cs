@@ -105,10 +105,17 @@ public abstract class Packet
 /// <summary>A packet with a tag this layer does not decode (reserved, private or future), or a known tag with a version it does not know. Preserved as received.</summary>
 public sealed class UnrecognizedPacket : Packet
 {
-    internal UnrecognizedPacket(byte tagId, ReadOnlyMemory<byte> body, PacketHeader? header, ReadOnlyMemory<byte> encoded)
+    internal UnrecognizedPacket(byte tagId, ReadOnlyMemory<byte> body, PacketHeader? header, ReadOnlyMemory<byte> encoded, OpenPgpFailure? decodeFailure = null)
         : base(tagId, body, header, encoded)
     {
+        DecodeFailure = decodeFailure;
     }
+
+    /// <summary>
+    /// Why a subkey packet could not be decoded (malformed key material, for example); null when the tag or version is simply not one this layer
+    /// knows. Only subkey packets are kept this way: a primary key that does not decode still fails the parse.
+    /// </summary>
+    public OpenPgpFailure? DecodeFailure { get; }
 
     /// <summary>The first body octet, which is the version for every versioned packet type; null for an empty body.</summary>
     public int? FirstOctet => Body.IsEmpty ? null : Body.Span[0];

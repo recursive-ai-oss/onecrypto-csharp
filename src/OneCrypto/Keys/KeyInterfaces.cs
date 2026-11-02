@@ -125,6 +125,11 @@ public interface IDecryptionKey : IKey
     /// Decrypts <paramref name="ciphertext"/>. The caller wipes the result when done. A failed RSAES-PKCS1-v1_5 or OAEP decryption throws
     /// <see cref="CryptographicException"/> without saying why (RFC 8017 §7.1.2 note on error oracles).
     /// </summary>
+    /// <remarks>
+    /// The exception type is the contract that keeps the failure uniform: a ciphertext the key could not use is exactly <see cref="CryptographicException"/> (not a subclass),
+    /// whatever the backend said about it. Failures that do not depend on the ciphertext (a locked or removed token, an unreachable agent, a refused prompt) are other types, and
+    /// callers such as CMS and OpenPGP let those through instead of reporting the message as undecryptable.
+    /// </remarks>
     /// <exception cref="NotSupportedException">The key does not support the spec.</exception>
     /// <exception cref="CryptographicException">The ciphertext did not decrypt.</exception>
     byte[] Decrypt(ReadOnlySpan<byte> ciphertext, DecryptionSpec spec);
@@ -145,7 +150,7 @@ public interface IAgreementKey : IKey
     /// u-coordinate result of RFC 7748 §5 for X25519 and X448. Callers run it through a KDF; it is not a key.
     /// </summary>
     /// <exception cref="ArgumentException">The peer's key is of another family or curve.</exception>
-    /// <exception cref="CryptographicException">The secret is invalid (X25519 and X448 refuse an all-zero result, RFC 7748 §6.1).</exception>
+    /// <exception cref="CryptographicException">The secret is invalid (X25519 and X448 refuse an all-zero result, RFC 7748 §6.1), or the peer's point was refused: exactly this type, as for <see cref="IDecryptionKey.Decrypt"/>.</exception>
     byte[] Agree(PublicKeyInfo peer);
 
     /// <summary>The async form of <see cref="Agree"/>.</summary>

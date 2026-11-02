@@ -1,9 +1,11 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using RecursiveAI.OneCrypto.Asn1;
 using RecursiveAI.OneCrypto.Keys;
 using RecursiveAI.OneCrypto.OpenPgp.Packets;
 using RecursiveAI.OneCrypto.Primitives;
+using RecursiveAI.OneCrypto.X509;
 
 namespace RecursiveAI.OneCrypto.OpenPgp;
 
@@ -50,8 +52,11 @@ internal static class SessionKeys
                     return null;
             }
         }
-        catch (CryptographicException)
+        catch (CryptographicException e) when (key.External is null || e.GetType() == typeof(CryptographicException))
         {
+            // A key that lives elsewhere reports a ciphertext it could not use as a plain CryptographicException (see IDecryptionKey and IAgreementKey).
+            // Its other failures (a locked or removed token, an unsupported mechanism) do not depend on the message, so they are no oracle and
+            // pass through: folding them would blame the message for a problem with the key.
             return null;
         }
         catch (ArgumentException)
@@ -60,9 +65,37 @@ internal static class SessionKeys
         }
     }
 
+    /// <summary>Has an external key derive the shared secret with a peer point: the raw u-coordinate for X25519 and X448, a SEC 1 uncompressed point for the NIST and Brainpool curves.</summary>
+    internal static byte[] ExternalAgree(IAgreementKey agent, ReadOnlySpan<byte> point)
+    {
+        PublicKeyInfo mine = agent.PublicKey;
+        byte[] bits = DerWriter.Tlv(0x03, [0, .. point]);
+        byte[] spki = mine.KeyAlgorithm is KeyAlgorithm.X25519 or KeyAlgorithm.X448
+            ? DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(mine.Algorithm.Oid)), bits)
+            : DerWriter.Sequence(DerWriter.Sequence(DerWriter.Oid(KnownOids.EcPublicKey), DerWriter.Oid(mine.CurveOid ?? throw new CryptographicException("The external key has no curve."))), bits);
+        byte[] shared = agent.Agree(PublicKeyInfo.Parse(spki));
+        // RFC 7748 §6.1: a peer point of small order gives an all-zero result, which the in-memory path refuses; a key elsewhere may not.
+        if (mine.KeyAlgorithm is KeyAlgorithm.X25519 or KeyAlgorithm.X448)
+        {
+            int zero = 0;
+            foreach (byte b in shared)
+            {
+                zero |= b;
+            }
+
+            if (zero == 0)
+            {
+                throw new CryptographicException("The key agreement produced an all-zero secret.");
+            }
+        }
+
+        return shared;
+    }
+
     private static Recovered? DecryptRsa(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p)
     {
-        var rsa = (IDecryptionKey)key.SigningKey;
+        // An external key (an agent, a token) is asked directly: it need not sign to decrypt.
+        var rsa = key.External as IDecryptionKey ?? (IDecryptionKey)key.SigningKey;
         int n = key.Key.Packet.Material.Values[0].Length;
         byte[] c = SignatureEngine.LeftPad(p.Values[0].Span, n);
         byte[] m = rsa.Decrypt(c, DecryptionSpec.RsaPkcs1());
@@ -78,14 +111,21 @@ internal static class SessionKeys
 
     private static Recovered? DecryptNative(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p, int size, string info, HashAlgorithmName hash, int kekSize)
     {
-        List<byte[]> sec = key.SecretParts();
         byte[] eph = p.Values[0].ToArray();
         byte[] pub = key.Key.Packet.Material.Values[0].ToArray();
         byte[] shared = new byte[size];
-        bool ok = size == 32 ? X25519.TryDeriveSharedSecret(sec[0], eph, shared) : X448.TryDeriveSharedSecret(sec[0], eph, shared);
-        if (!ok)
+        if (key.External is IAgreementKey agent)
         {
-            return null;
+            shared = ExternalAgree(agent, eph);
+        }
+        else
+        {
+            List<byte[]> sec = key.SecretParts();
+            bool ok = size == 32 ? X25519.TryDeriveSharedSecret(sec[0], eph, shared) : X448.TryDeriveSharedSecret(sec[0], eph, shared);
+            if (!ok)
+            {
+                return null;
+            }
         }
 
         byte[] ikm = [.. eph, .. pub, .. shared];
@@ -130,14 +170,25 @@ internal static class SessionKeys
         byte symId = kdfp[2];
         byte[] zb;
         ReadOnlySpan<byte> eph = p.Values[0].Span;
-        List<byte[]> sec = key.SecretParts();
-        if (SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
+        if (key.External is IAgreementKey agent)
+        {
+            // The agreement happens where the key lives: the peer's point goes out, the shared x-coordinate (u for Curve25519) comes back.
+            bool is25519 = SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span);
+            if (is25519 ? eph.Length != 33 || eph[0] != 0x40 : eph.Length < 3 || eph[0] != 4)
+            {
+                return null;
+            }
+
+            zb = ExternalAgree(agent, is25519 ? eph[1..] : eph);
+        }
+        else if (SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
         {
             if (eph.Length != 33 || eph[0] != 0x40)
             {
                 return null;
             }
 
+            List<byte[]> sec = key.SecretParts();
             byte[] scalar = SignatureEngine.LeftPad(sec[0], 32);
             Array.Reverse(scalar);
             zb = new byte[32];
@@ -150,6 +201,7 @@ internal static class SessionKeys
         }
         else
         {
+            List<byte[]> sec = key.SecretParts();
             ECCurve curve = SignatureEngine.Curves.Find(pubm.CurveOid.Span, out int size);
             if (eph.Length != 1 + 2 * size || eph[0] != 4)
             {
