@@ -62,7 +62,11 @@ internal static class SessionKeys
 
     private static Recovered? DecryptRsa(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p)
     {
-        var rsa = (IDecryptionKey)key.SigningKey;
+        if ((key.External ?? key.SigningKey) is not IDecryptionKey rsa)
+        {
+            return null;
+        }
+
         int n = key.Key.Packet.Material.Values[0].Length;
         byte[] c = SignatureEngine.LeftPad(p.Values[0].Span, n);
         byte[] m = rsa.Decrypt(c, DecryptionSpec.RsaPkcs1());
@@ -78,6 +82,12 @@ internal static class SessionKeys
 
     private static Recovered? DecryptNative(PgpSecretKey key, PublicKeyEncryptedSessionKeyPacket p, int size, string info, HashAlgorithmName hash, int kekSize)
     {
+        if (key.External is not null)
+        {
+            // The interfaces have no X25519 or X448 token operation yet.
+            return null;
+        }
+
         List<byte[]> sec = key.SecretParts();
         byte[] eph = p.Values[0].ToArray();
         byte[] pub = key.Key.Packet.Material.Values[0].ToArray();
@@ -130,9 +140,26 @@ internal static class SessionKeys
         byte symId = kdfp[2];
         byte[] zb;
         ReadOnlySpan<byte> eph = p.Values[0].Span;
-        List<byte[]> sec = key.SecretParts();
-        if (SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
+        if (key.External is not null)
         {
+            // A token does the point multiplication. Only the NIST curves: Curve25519 agreement has no token operation in the interfaces.
+            if (key.External is not IAgreementKey agree || SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
+            {
+                return null;
+            }
+
+            ECCurve c = SignatureEngine.Curves.Find(pubm.CurveOid.Span, out int sz);
+            if (eph.Length != 1 + 2 * sz || eph[0] != 4)
+            {
+                return null;
+            }
+
+            using var theirsPoint = ECDiffieHellman.Create(new ECParameters { Curve = c, Q = new ECPoint { X = eph.Slice(1, sz).ToArray(), Y = eph.Slice(1 + sz, sz).ToArray() } });
+            zb = agree.Agree(PublicKeyInfo.FromAsymmetricAlgorithm(theirsPoint));
+        }
+        else if (SignatureEngine.Curves.IsCurve25519(pubm.CurveOid.Span))
+        {
+            List<byte[]> sec = key.SecretParts();
             if (eph.Length != 33 || eph[0] != 0x40)
             {
                 return null;
@@ -156,6 +183,7 @@ internal static class SessionKeys
                 return null;
             }
 
+            List<byte[]> sec = key.SecretParts();
             ReadOnlySpan<byte> q = pubm.Values[0].Span;
             using var mine = ECDiffieHellman.Create(new ECParameters
             {

@@ -2,6 +2,22 @@
 
   <PropertyGroup>
     <Description>Key backends for OneCrypto: PKCS#11, gpg-agent and ssh-agent. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
+    <!-- Only the PKCS #11 function-pointer calls into a token module use unsafe code (Pkcs11/NativeModule.cs). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Keys.Tests" />
+    <InternalsVisibleTo Include="$(LibName).AotSmoke" />
+    <InternalsVisibleTo Include="$(LibName).Fuzz" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneCrypto/OneCrypto.csproj" />
+  </ItemGroup>
 
 </Project>

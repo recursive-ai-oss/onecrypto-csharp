@@ -151,6 +151,12 @@ public sealed class PgpReadOptions
     /// <summary>Certificates with secret keys used to open public-key encrypted data.</summary>
     public IReadOnlyList<PgpCertificate> SecretKeys { get; init; } = [];
 
+    /// <summary>
+    /// Keys whose private operation runs elsewhere (a token, an agent), made with <see cref="PgpSecretKey.FromExternal"/>. They are tried for public-key
+    /// encrypted data like <see cref="SecretKeys"/>, but nothing is unlocked. The caller keeps ownership and disposes them.
+    /// </summary>
+    public IReadOnlyList<PgpSecretKey> ExternalKeys { get; init; } = [];
+
     /// <summary>Passwords (UTF-8 octets) that unlock the secret keys.</summary>
     public IReadOnlyList<byte[]> KeyPasswords { get; init; } = [];
 

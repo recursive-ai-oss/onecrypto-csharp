@@ -447,6 +447,12 @@ if (!OneCrypto.Smoke.GnuPGSmoke.Run())
     return 1;
 }
 
+if (!OneCrypto.Smoke.Pkcs11Smoke.Run())
+{
+    Console.Error.WriteLine("the PKCS #11 backend failed");
+    return 1;
+}
+
 if (!OneCrypto.Smoke.TrustSmoke.Run())
 {
     Console.Error.WriteLine("the trust models gave a wrong verdict");

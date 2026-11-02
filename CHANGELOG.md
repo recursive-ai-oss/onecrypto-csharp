@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- PKCS #11 in `.Keys` (`RecursiveAI.OneCrypto.Keys.Pkcs11`): `Pkcs11Module`, `Pkcs11Slot`, `Pkcs11Session` and the token keys `Pkcs11RsaKey` (`IRsaKey`: PKCS #1 v1.5, PSS, OAEP), `Pkcs11EcKey` (ECDSA and ECDH) and `Pkcs11EdKey` (Ed25519, Ed448). Modules load by path; PINs are passed through and wiped; failures are typed (`Pkcs11ModuleException`, `Pkcs11PinException`, `Pkcs11PinLockedException`, `Pkcs11TokenException`, `Pkcs11KeyException`, `Pkcs11MechanismException`). 64-bit macOS and Linux. Tested against SoftHSM2 (docs/keys.md).
+- `PgpSecretKey.FromExternal` and `PgpReadOptions.ExternalKeys` (`.OpenPgp`): OpenPGP signing and RSA/NIST-ECDH decryption with a key that lives behind a key interface, such as a token.
+
 ## [0.3.0-preview.1] - 2026-11-02
 
 Third preview. Adds OpenPGP in a new package, `RecursiveAI.OneCrypto.OpenPgp`: RFC 9580 version 6 and 4, the post-quantum algorithms of RFC 9980, LibrePGP read and written only for recipients that need it, version 3 read, key management, GnuPG home and cert-d, two trust models, WKD, HKP, VKS and Autocrypt. It also adds the `onecrypto` tool with `sop`. Decryption paths in CMS and OpenPGP have had an internal review, and its findings are fixed. The API is not stable yet. This library has not been independently audited. Interop results, timing evidence and the documented deviations are in [docs/conformance.md](docs/conformance.md).

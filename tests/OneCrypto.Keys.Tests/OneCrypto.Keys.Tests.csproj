@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Keys.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Tests deliberately call blocking and token-defaulted APIs of the library under test. -->
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Linq" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneCrypto/OneCrypto.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.Keys/OneCrypto.Keys.csproj" />
+    <ProjectReference Include="../../src/OneCrypto.OpenPgp/OneCrypto.OpenPgp.csproj" />
+    <!-- The second and third processes of the two-phase tests. -->
+    <ProjectReference Include="../Pkcs11TwoPhase/OneCrypto.Pkcs11TwoPhase.csproj" />
+  </ItemGroup>
+
+</Project>

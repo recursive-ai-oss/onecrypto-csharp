@@ -909,6 +909,29 @@ internal sealed class MessageProcessor : IDisposable
                 }
             }
 
+            // Keys that live in a token or another service: the private operation runs there, so there is nothing to unlock.
+            foreach (PgpSecretKey ext in _o.ExternalKeys)
+            {
+                if (!Targets(p, ext.Key))
+                {
+                    continue;
+                }
+
+                PgpKeyState state = ext.Key.Evaluate(_o.Now, out bool noBinding);
+                if (noBinding || ((state.IsValid || state.Usage != PgpKeyUsage.None) && (state.Usage & (PgpKeyUsage.EncryptCommunications | PgpKeyUsage.EncryptStorage)) == 0))
+                {
+                    continue;
+                }
+
+                tried = true;
+                SessionKeys.Recovered? rec = SessionKeys.Decrypt(ext, p);
+                if (rec is { } r)
+                {
+                    recovered = true;
+                    list.Add(new Candidate(r.Cipher, r.Key));
+                }
+            }
+
             // RFC 9580 §13.5: a packet that was addressed to us and could not be unwrapped must not be told apart from one that unwrapped to a wrong key.
             if (tried && !recovered)
             {
