@@ -209,13 +209,13 @@ internal static class SessionKeys
             }
 
             ReadOnlySpan<byte> q = pubm.Values[0].Span;
-            using var mine = ECDiffieHellman.Create(new ECParameters
+            using var mine = RecursiveAI.OneCrypto.Internal.Platform.CreateEcdh(new ECParameters
             {
                 Curve = curve,
                 D = SignatureEngine.LeftPad(sec[0], size),
                 Q = new ECPoint { X = q.Slice(1, size).ToArray(), Y = q.Slice(1 + size, size).ToArray() },
-            });
-            using var theirs = ECDiffieHellman.Create(new ECParameters { Curve = curve, Q = new ECPoint { X = eph.Slice(1, size).ToArray(), Y = eph.Slice(1 + size, size).ToArray() } });
+            }, "OpenPGP ECDH key import");
+            using var theirs = RecursiveAI.OneCrypto.Internal.Platform.CreateEcdh(new ECParameters { Curve = curve, Q = new ECPoint { X = eph.Slice(1, size).ToArray(), Y = eph.Slice(1 + size, size).ToArray() } }, "OpenPGP ECDH key import");
             zb = mine.DeriveRawSecretAgreement(theirs.PublicKey);
         }
 
@@ -501,7 +501,7 @@ internal static class SessionKeys
             ECCurve curve = SignatureEngine.Curves.Find(pm.CurveOid.Span, out int size);
             ReadOnlySpan<byte> q = pm.Values[0].Span;
             using var eph = ECDiffieHellman.Create(curve);
-            using var theirs = ECDiffieHellman.Create(new ECParameters { Curve = curve, Q = new ECPoint { X = q.Slice(1, size).ToArray(), Y = q.Slice(1 + size, size).ToArray() } });
+            using var theirs = RecursiveAI.OneCrypto.Internal.Platform.CreateEcdh(new ECParameters { Curve = curve, Q = new ECPoint { X = q.Slice(1, size).ToArray(), Y = q.Slice(1 + size, size).ToArray() } }, "OpenPGP ECDH key import");
             zb = eph.DeriveRawSecretAgreement(theirs.PublicKey);
             ECParameters ep = eph.ExportParameters(false);
             ephPoint = [4, .. SignatureEngine.LeftPad(ep.Q.X, size), .. SignatureEngine.LeftPad(ep.Q.Y, size)];

@@ -167,7 +167,10 @@ internal static class Platform
         }
     }
 
-    /// <summary>Makes an ECDSA object for the given key, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no ECDSA or lacks the curve.</summary>
+    /// <summary>
+    /// Makes an ECDSA object for the given key. A key the platform refuses is a <see cref="CryptographicException"/> when the platform has the curve
+    /// (the point is not on it, the parameters are inconsistent) and an <see cref="AlgorithmNotSupportedException"/> when it lacks the curve.
+    /// </summary>
     /// <param name="parameters">The key.</param>
     /// <param name="what">What it is for, for the message.</param>
     public static ECDsa CreateEcdsa(ECParameters parameters, string what)
@@ -178,9 +181,36 @@ internal static class Platform
         }
         catch (PlatformNotSupportedException e)
         {
-            throw CurveNotSupported(what, e);
+            throw ImportRefused(parameters.Curve, what, e);
         }
     }
+
+    /// <summary>Makes an ECDH object for the given key, with the same failure mapping as <see cref="CreateEcdsa(ECParameters, string)"/>.</summary>
+    /// <param name="parameters">The key.</param>
+    /// <param name="what">What it is for, for the message.</param>
+    public static ECDiffieHellman CreateEcdh(ECParameters parameters, string what)
+    {
+        try
+        {
+            return ECDiffieHellman.Create(parameters);
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw ImportRefused(parameters.Curve, what, e);
+        }
+    }
+
+    /// <summary>True when the platform can make a key on <paramref name="curve"/> (a named curve it has).</summary>
+    /// <param name="curve">The curve.</param>
+    public static bool CurveIsUsable(ECCurve curve) => curve.IsNamed && ProbeCurve(curve);
+
+    // Windows CNG reports a point that is not on a curve it has as PlatformNotSupportedException ("the curve or its parameters are not valid"),
+    // where OpenSSL and Apple's libraries report a CryptographicException. Asking the platform for a fresh key on the same curve tells a refused
+    // key from a missing curve: key material from outside is malformed input, a missing curve is a platform gap.
+    internal static Exception ImportRefused(ECCurve curve, string what, PlatformNotSupportedException cause) =>
+        CurveIsUsable(curve)
+            ? new CryptographicException("The public key is not a valid point on its curve.", cause)
+            : CurveNotSupported(what, cause);
 
     /// <summary>Makes an ECDH object, or throws <see cref="AlgorithmNotSupportedException"/> when the platform has no ECDH (the browser).</summary>
     /// <param name="what">What it is for, for the message.</param>

@@ -145,6 +145,11 @@ internal static class PlatformSignatures
         {
             throw new ArgumentException("The public key is not a point on the curve.", nameof(publicKey), ex);
         }
+        catch (PlatformNotSupportedException ex) when (Platform.CurveIsUsable(named))
+        {
+            // Windows CNG says this for a point that is not on a curve it has; see Platform.CreateEcdsa.
+            throw new ArgumentException("The public key is not a point on the curve.", nameof(publicKey), ex);
+        }
 
         // Platform verifiers differ in how much BER they forgive in a DER signature; the library accepts DER only.
         if (format == DSASignatureFormat.Rfc3279DerSequence && !EcdsaVerifier.TryParseDer(signature, out _, out _))
