@@ -35,6 +35,9 @@ public enum PgpFailure
 
     /// <summary>The operation was refused by the crypto policy.</summary>
     PolicyViolation,
+
+    /// <summary>An external key is not the private half of the key packet it was attached to (a different algorithm, curve or public key).</summary>
+    KeyMismatch,
 }
 
 /// <summary>

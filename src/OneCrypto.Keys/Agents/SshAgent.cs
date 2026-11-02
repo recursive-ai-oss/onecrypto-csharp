@@ -24,6 +24,16 @@ public sealed class SshAgentOptions
     /// <summary>Check every signature the agent returns against the key's public key before handing it on. Default true.</summary>
     public bool VerifySignatures { get; init; } = true;
 
+    /// <summary>
+    /// Release a signature unchecked when the platform cannot verify its scheme at all (for example a curve or post-quantum scheme the operating system lacks).
+    /// Default false: such a signature is refused with <see cref="AlgorithmNotSupportedException"/>. Setting it true weakens the check, because a faulty or hostile
+    /// signer's output is then passed on without being compared with the public key. Has no effect where the scheme can be verified, or when <see cref="VerifySignatures"/> is false.
+    /// </summary>
+    public bool AllowUncheckedSignatures { get; init; }
+
+    /// <summary>Treat every scheme as one the platform cannot verify; for tests of the refusal.</summary>
+    internal bool SimulateVerificationGap { get; init; }
+
     /// <summary>The largest message accepted from the agent, and the largest request sent to it. Default 256 KiB, the limit OpenSSH's agent applies.</summary>
     public int MaxMessageBytes { get; init; } = 256 * 1024;
 }
@@ -352,7 +362,13 @@ public sealed class SshAgentKey : ISigningKey
         if (_client.Options.VerifySignatures)
         {
             SignatureVerification v = spec.Verify(PublicKey, data.Span, signature);
-            if (v.Status is not (SignatureStatus.Valid or SignatureStatus.AlgorithmNotSupported))
+            SignatureStatus status = _client.Options.SimulateVerificationGap ? SignatureStatus.AlgorithmNotSupported : v.Status;
+            if (status is SignatureStatus.AlgorithmNotSupported && !_client.Options.AllowUncheckedSignatures)
+            {
+                throw new AlgorithmNotSupportedException(spec.ToString(), System.Runtime.InteropServices.RuntimeInformation.OSDescription, "the platform cannot verify this signature against the key's public key; AllowUncheckedSignatures releases it unchecked");
+            }
+
+            if (status is not (SignatureStatus.Valid or SignatureStatus.AlgorithmNotSupported))
             {
                 throw new AgentProtocolException("The signature the agent returned does not verify against the key's public key: " + v.Reason);
             }

@@ -67,14 +67,20 @@ public abstract class Pkcs11Key : IKey
     /// <summary>
     /// Checks a signature the token made against the key's public key before it is released. A token that is faulty, attacked (a fault during an RSA private
     /// operation can leak the key) or hostile, or a public key that is not the token key's, would otherwise put a bad signature into a certificate or message.
-    /// A platform that cannot check the scheme at all (<see cref="SignatureStatus.AlgorithmNotSupported"/>) lets the signature through unchecked.
+    /// A platform that cannot check the scheme at all (<see cref="SignatureStatus.AlgorithmNotSupported"/>) refuses it unless <see cref="Pkcs11Session.AllowUncheckedSignatures"/> is set.
     /// </summary>
     internal byte[] Checked(SignatureSpec spec, ReadOnlySpan<byte> signed, bool isDigest, byte[] signature)
     {
         SignatureVerification v = isDigest ? spec.VerifyDigest(PublicKey, signed, signature) : spec.Verify(PublicKey, signed, signature);
-        if (v.Status is SignatureStatus.Valid or SignatureStatus.AlgorithmNotSupported)
+        SignatureStatus status = Session is { SimulateVerificationGap: true } ? SignatureStatus.AlgorithmNotSupported : v.Status;
+        if (status is SignatureStatus.Valid || (status is SignatureStatus.AlgorithmNotSupported && Session is { AllowUncheckedSignatures: true }))
         {
             return signature;
+        }
+
+        if (status is SignatureStatus.AlgorithmNotSupported)
+        {
+            throw new AlgorithmNotSupportedException(spec.ToString(), System.Runtime.InteropServices.RuntimeInformation.OSDescription, "the platform cannot verify this signature against the key's public key; Pkcs11Session.AllowUncheckedSignatures releases it unchecked");
         }
 
         throw new Pkcs11Exception("The signature the token returned does not verify against the key's public key: " + v.Reason, "C_Sign");

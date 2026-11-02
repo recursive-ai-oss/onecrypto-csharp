@@ -235,6 +235,23 @@ public class SshAgentTests : IClassFixture<SshAgentFixture>
     }
 
     [Fact]
+    public void ASchemeThePlatformCannotVerifyIsRefusedUnlessTheCallerOptsOut()
+    {
+        byte[] data = [1, 2, 3];
+        var refusing = new SshAgentClient(new SshAgentOptions { SocketPath = _f.Socket, SimulateVerificationGap = true });
+        using (SshAgentKey key = refusing.GetKey(_f.PublicKey("ed25519")))
+        {
+            AlgorithmNotSupportedException e = Assert.Throws<AlgorithmNotSupportedException>(() => key.Sign(data, SignatureSpec.Ed25519()));
+            Assert.Contains("AllowUncheckedSignatures", e.Message);
+        }
+
+        var optedOut = new SshAgentClient(new SshAgentOptions { SocketPath = _f.Socket, SimulateVerificationGap = true, AllowUncheckedSignatures = true });
+        using SshAgentKey open = optedOut.GetKey(_f.PublicKey("ed25519"));
+        byte[] sig = open.Sign(data, SignatureSpec.Ed25519());
+        Assert.True(SignatureSpec.Ed25519().Verify(open.PublicKey, data, sig).IsValid);
+    }
+
+    [Fact]
     public void AKeyTheAgentDoesNotHoldIsATypedNotFound()
     {
         byte[] pub = RandomNumberGenerator.GetBytes(32);

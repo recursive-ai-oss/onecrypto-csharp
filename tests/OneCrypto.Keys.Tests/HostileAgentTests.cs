@@ -368,6 +368,49 @@ public class HostileAgentTests
         Assert.Throws<AgentProtocolException>(() => key.Sign([1], SignatureSpec.RsaPkcs1(HashAlgorithmName.SHA256)));
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ASchemeThePlatformCannotVerifyIsRefusedUnlessTheCallerOptsOut(bool gap, bool allow)
+    {
+        using var rsa = RSA.Create(2048);
+        byte[] pubExp = RsaPublicKeySExp(rsa);
+        using var a = new FakeAgent(async (s, _) =>
+        {
+            await Send(s, Pleased);
+            while (true)
+            {
+                string cmd = await Line(s);
+                if (cmd.StartsWith("READKEY", StringComparison.Ordinal))
+                {
+                    await Send(s, "D " + Escaped(pubExp) + "\nOK\n");
+                }
+                else if (cmd.Length == 0)
+                {
+                    return;
+                }
+                else
+                {
+                    await Send(s, "OK\n");
+                }
+            }
+        });
+        var client = new GpgAgentClient(new GpgAgentOptions { SocketPath = a.Path, ForwardEnvironment = false, SimulateVerificationGap = gap, AllowUncheckedSignatures = allow });
+        using var key = (GpgAgentRsaKey)client.GetKey(Grip);
+        SignatureSpec spec = SignatureSpec.RsaPkcs1(HashAlgorithmName.SHA256);
+        byte[] data = [1, 2, 3];
+        byte[] sig = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        if (gap && !allow)
+        {
+            Assert.Throws<AlgorithmNotSupportedException>(() => key.CheckSignature(spec, sig, data, false));
+        }
+        else
+        {
+            Assert.Equal(sig, key.CheckSignature(spec, sig, data, false));
+        }
+    }
+
     // ---- ssh-agent ----
 
     private static byte[] Frame(byte[] body) => [(byte)(body.Length >> 24), (byte)(body.Length >> 16), (byte)(body.Length >> 8), (byte)body.Length, .. body];

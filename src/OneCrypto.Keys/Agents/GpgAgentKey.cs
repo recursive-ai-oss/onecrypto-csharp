@@ -345,10 +345,13 @@ public abstract class GpgAgentKey : IKey
         }
 
         SignatureVerification v = isDigest ? spec.VerifyDigest(PublicKey, signedInput, signature) : spec.Verify(PublicKey, signedInput, signature);
-        return v.Status switch
+        SignatureStatus status = Agent.Options.SimulateVerificationGap ? SignatureStatus.AlgorithmNotSupported : v.Status;
+        return status switch
         {
             SignatureStatus.Valid => signature,
-            SignatureStatus.AlgorithmNotSupported => signature, // the platform cannot check it; nothing to compare against
+            // The platform cannot check it: refused unless the caller opted out.
+            SignatureStatus.AlgorithmNotSupported when Agent.Options.AllowUncheckedSignatures => signature,
+            SignatureStatus.AlgorithmNotSupported => throw new AlgorithmNotSupportedException(spec.ToString(), System.Runtime.InteropServices.RuntimeInformation.OSDescription, "the platform cannot verify this signature against the key's public key; AllowUncheckedSignatures releases it unchecked"),
             _ => throw new AgentProtocolException("The signature the agent returned does not verify against the key's public key: " + v.Reason),
         };
     }

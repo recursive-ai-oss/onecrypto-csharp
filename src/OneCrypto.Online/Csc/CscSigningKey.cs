@@ -13,6 +13,16 @@ public sealed class CscKeyOptions
     /// which is right only for a credential that asks for no authentication objects. Interactive prompts belong here: they pass straight through to the user.
     /// </summary>
     public Func<CscCredentialInfo, CancellationToken, ValueTask<IReadOnlyList<CscAuthObject>>>? AuthDataProvider { get; init; }
+
+    /// <summary>
+    /// Release the service's signature unchecked when the platform cannot verify its scheme at all. Default false: such a signature is refused with
+    /// <see cref="AlgorithmNotSupportedException"/>. Setting it true weakens the check, because a faulty or hostile service's output is then passed on without being
+    /// compared with the credential's public key. Has no effect where the scheme can be verified.
+    /// </summary>
+    public bool AllowUncheckedSignatures { get; init; }
+
+    /// <summary>Treat every scheme as one the platform cannot verify; for tests of the refusal.</summary>
+    internal bool SimulateVerificationGap { get; init; }
 }
 
 /// <summary>
@@ -137,12 +147,20 @@ public sealed class CscSigningKey : ISigningKey
         for (int i = 0; i < result.Length; i++)
         {
             byte[]? normalised = Normalise(signed.Value![i], spec);
-            if (normalised is null || !spec.VerifyDigest(PublicKey, digests[i], normalised).IsValid)
+            SignatureStatus status = normalised is null ? SignatureStatus.Invalid : (_options.SimulateVerificationGap ? SignatureStatus.AlgorithmNotSupported : spec.VerifyDigest(PublicKey, digests[i], normalised).Status);
+            if (status is SignatureStatus.AlgorithmNotSupported)
+            {
+                if (!_options.AllowUncheckedSignatures)
+                {
+                    throw new AlgorithmNotSupportedException(spec.ToString(), System.Runtime.InteropServices.RuntimeInformation.OSDescription, "the platform cannot verify this signature against the credential's public key; CscKeyOptions.AllowUncheckedSignatures releases it unchecked");
+                }
+            }
+            else if (status is not SignatureStatus.Valid)
             {
                 throw new CscSigningException(CscOutcome.BadSignature, "the service returned a signature that does not verify against the credential's certificate key");
             }
 
-            result[i] = normalised;
+            result[i] = normalised!;
         }
 
         return result;
