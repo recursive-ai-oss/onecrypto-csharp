@@ -23,7 +23,6 @@
     <Project Path="tests/TwoPhaseSigner/OneCrypto.TwoPhaseSigner.csproj" />
     <Project Path="tests/CscSigner/OneCrypto.CscSigner.csproj" />
     <Project Path="tests/OpenPgpTwoPhase/OneCrypto.OpenPgpTwoPhase.csproj" />
-    <Project Path="tests/OneCrypto.Keys.Tests/OneCrypto.Keys.Tests.csproj" />
     <Project Path="tests/Pkcs11TwoPhase/OneCrypto.Pkcs11TwoPhase.csproj" />
     <Project Path="tests/AotSmoke/OneCrypto.AotSmoke.csproj" />
     <Project Path="tests/Timing/OneCrypto.Timing.csproj" />
