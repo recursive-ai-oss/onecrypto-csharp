@@ -25,6 +25,8 @@ public sealed record TimingOptions(int Measurements, int BatchSize = 10_000)
 /// <param name="MeanTicksFixed">Mean time per call in the fixed class, in timer ticks.</param>
 /// <param name="MeanTicksRandom">Mean time per call in the random class, in timer ticks.</param>
 /// <param name="TicksPerSecond">Timer frequency.</param>
+/// <param name="FirstHalfAbsT">The same statistic on the first half of the measurements alone.</param>
+/// <param name="SecondHalfAbsT">The same statistic on the second half alone.</param>
 public sealed record TimingResult(
     string Primitive,
     string Operation,
@@ -34,15 +36,26 @@ public sealed record TimingResult(
     bool Leak,
     double MeanTicksFixed,
     double MeanTicksRandom,
-    long TicksPerSecond)
+    long TicksPerSecond,
+    double FirstHalfAbsT = 0,
+    double SecondHalfAbsT = 0)
 {
     /// <summary>The paper's threshold: |t| above this is evidence of a timing difference.</summary>
     public const double Threshold = 4.5;
 
+    /// <summary>
+    /// True when the verdict is a leak and each half of the run alone also shows more than <see cref="HalfThreshold"/>. The verdict
+    /// itself is unchanged by this; it says whether the flag repeats within the run.
+    /// </summary>
+    public bool Replicated => Leak && FirstHalfAbsT >= HalfThreshold && SecondHalfAbsT >= HalfThreshold;
+
+    /// <summary>Each half is half the data, so its t is about 1/sqrt(2) of the whole run's for a steady difference: 4.5 becomes 3.2.</summary>
+    public const double HalfThreshold = 3.2;
+
     /// <summary>A one-line summary.</summary>
     public string Summary() =>
         FormattableString.Invariant(
-            $"{Primitive}/{Operation}: N={Measurements} max|t|={MaxAbsT:F2} (crop {CropAtMax}) mean fixed={MeanTicksFixed * 1e9 / TicksPerSecond:F1}ns random={MeanTicksRandom * 1e9 / TicksPerSecond:F1}ns => {(Leak ? "LEAK" : "pass")}");
+            $"{Primitive}/{Operation}: N={Measurements} max|t|={MaxAbsT:F2} (crop {CropAtMax}) mean fixed={MeanTicksFixed * 1e9 / TicksPerSecond:F1}ns random={MeanTicksRandom * 1e9 / TicksPerSecond:F1}ns halves={FirstHalfAbsT:F2}/{SecondHalfAbsT:F2} => {(Leak ? "LEAK" : "pass")}{(Replicated ? " replicated" : "")}");
 }
 
 /// <summary>
@@ -118,11 +131,26 @@ public static class Dudect
 
     internal static TimingResult Analyse(TimingTarget target, long[] times, TimingClass[] classes)
     {
+        double max = MaxOverCrops(times, classes, out int maxCrop, out double meanFixed, out double meanRandom);
+
+        // The same test on each half of the run, taken separately: a timing difference in the code is in both halves, while a chance
+        // excursion of the heavy-tailed crops is rarely in both.
+        int half = times.Length / 2;
+        double first = MaxOverCrops(times[..half], classes[..half], out _, out _, out _);
+        double second = MaxOverCrops(times[half..], classes[half..], out _, out _, out _);
+
+        return new TimingResult(
+            target.Primitive, target.Operation, times.Length, max, maxCrop, !(max < TimingResult.Threshold),
+            meanFixed, meanRandom, Stopwatch.Frequency, first, second);
+    }
+
+    private static double MaxOverCrops(long[] times, TimingClass[] classes, out int maxCrop, out double meanFixed, out double meanRandom)
+    {
         var sorted = (long[])times.Clone();
         Array.Sort(sorted);
 
-        double max = Welch(times, classes, long.MaxValue, out double meanFixed, out double meanRandom);
-        int maxCrop = -1;
+        double max = Welch(times, classes, long.MaxValue, out meanFixed, out meanRandom);
+        maxCrop = -1;
         for (int k = 0; k < Crops; k++)
         {
             double q = 1.0 - Math.Pow(0.5, 10.0 * (k + 1) / Crops);
@@ -135,9 +163,7 @@ public static class Dudect
             }
         }
 
-        return new TimingResult(
-            target.Primitive, target.Operation, times.Length, max, maxCrop, !(max < TimingResult.Threshold),
-            meanFixed, meanRandom, Stopwatch.Frequency);
+        return max;
     }
 
     /// <summary>|t| of Welch's t-test between the classes, using only measurements at or below <paramref name="limit"/>.</summary>

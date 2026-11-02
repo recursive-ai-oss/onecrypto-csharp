@@ -107,7 +107,7 @@ internal static class ChaCha20Poly1305Managed
     }
 
     // ChaCha20 encryption with the block counter starting at 1 (RFC 8439 section 2.4); the counter is public.
-    private static void Xor(ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> input, Span<byte> output)
+    internal static void Xor(ReadOnlySpan<byte> key, ReadOnlySpan<byte> nonce, ReadOnlySpan<byte> input, Span<byte> output)
     {
         Span<byte> stream = stackalloc byte[64]; // fixed size
         uint counter = 1;
@@ -116,7 +116,16 @@ internal static class ChaCha20Poly1305Managed
         {
             Block(key, counter, nonce, stream);
             int n = Math.Min(64, input.Length - offset);
-            for (int i = 0; i < n; i++)
+            // Whole 8-byte words first, then the bytes of a short tail (n is public). Writing words rather than bytes lets the
+            // authenticator's wide loads of this output forward from the stores; byte stores made the pair of loops' time
+            // depend on the data on some processors.
+            int i = 0;
+            for (; i + 8 <= n; i += 8)
+            {
+                BinaryPrimitives.WriteUInt64LittleEndian(output[(offset + i)..], BinaryPrimitives.ReadUInt64LittleEndian(input[(offset + i)..]) ^ BinaryPrimitives.ReadUInt64LittleEndian(stream[i..]));
+            }
+
+            for (; i < n; i++)
             {
                 output[offset + i] = (byte)(input[offset + i] ^ stream[i]);
             }
@@ -161,22 +170,14 @@ internal static class ChaCha20Poly1305Managed
             QuarterRound(ref x3, ref x4, ref x9, ref x14);
         }
 
-        BinaryPrimitives.WriteUInt32LittleEndian(output, x0 + s[0]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[4..], x1 + s[1]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[8..], x2 + s[2]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[12..], x3 + s[3]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[16..], x4 + s[4]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[20..], x5 + s[5]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[24..], x6 + s[6]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[28..], x7 + s[7]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[32..], x8 + s[8]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[36..], x9 + s[9]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[40..], x10 + s[10]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[44..], x11 + s[11]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[48..], x12 + s[12]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[52..], x13 + s[13]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[56..], x14 + s[14]);
-        BinaryPrimitives.WriteUInt32LittleEndian(output[60..], x15 + s[15]);
+        BinaryPrimitives.WriteUInt64LittleEndian(output, (x0 + s[0]) | ((ulong)(x1 + s[1]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[8..], (x2 + s[2]) | ((ulong)(x3 + s[3]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[16..], (x4 + s[4]) | ((ulong)(x5 + s[5]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[24..], (x6 + s[6]) | ((ulong)(x7 + s[7]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[32..], (x8 + s[8]) | ((ulong)(x9 + s[9]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[40..], (x10 + s[10]) | ((ulong)(x11 + s[11]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[48..], (x12 + s[12]) | ((ulong)(x13 + s[13]) << 32));
+        BinaryPrimitives.WriteUInt64LittleEndian(output[56..], (x14 + s[14]) | ((ulong)(x15 + s[15]) << 32));
         s.Clear();
     }
 
@@ -313,16 +314,14 @@ internal static class ChaCha20Poly1305Managed
         [MethodImpl(MethodImplOptions.NoInlining)] // kept separate so its compiled form can be inspected
         private void Block(scoped ReadOnlySpan<byte> m, ulong hibit)
         {
-            ulong t0 = BinaryPrimitives.ReadUInt32LittleEndian(m);
-            ulong t1 = BinaryPrimitives.ReadUInt32LittleEndian(m[3..]);
-            ulong t2 = BinaryPrimitives.ReadUInt32LittleEndian(m[6..]);
-            ulong t3 = BinaryPrimitives.ReadUInt32LittleEndian(m[9..]);
-            ulong t4 = BinaryPrimitives.ReadUInt32LittleEndian(m[12..]);
-            ulong h0 = _h0 + (t0 & Mask);
-            ulong h1 = _h1 + ((t1 >> 2) & Mask);
-            ulong h2 = _h2 + ((t2 >> 4) & Mask);
-            ulong h3 = _h3 + ((t3 >> 6) & Mask);
-            ulong h4 = _h4 + ((t4 >> 8) | hibit);
+            // Two 8-byte loads, split into 26-bit limbs by shifts (the block is 130 bits with the high bit appended below).
+            ulong w0 = BinaryPrimitives.ReadUInt64LittleEndian(m);
+            ulong w1 = BinaryPrimitives.ReadUInt64LittleEndian(m[8..]);
+            ulong h0 = _h0 + (w0 & Mask);
+            ulong h1 = _h1 + ((w0 >> 26) & Mask);
+            ulong h2 = _h2 + (((w0 >> 52) | (w1 << 12)) & Mask);
+            ulong h3 = _h3 + ((w1 >> 14) & Mask);
+            ulong h4 = _h4 + ((w1 >> 40) | hibit);
 
             // 2^130 = 5 mod p, so limbs that overflow past limb 4 fold back multiplied by 5.
             ulong s1 = _r1 * 5, s2 = _r2 * 5, s3 = _r3 * 5, s4 = _r4 * 5;

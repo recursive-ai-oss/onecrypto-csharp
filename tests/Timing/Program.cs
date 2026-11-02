@@ -126,6 +126,9 @@ internal static class Program
                 w.WriteNumber("meanNsFixed", Math.Round(r.MeanTicksFixed * 1e9 / r.TicksPerSecond, 2));
                 w.WriteNumber("meanNsRandom", Math.Round(r.MeanTicksRandom * 1e9 / r.TicksPerSecond, 2));
                 w.WriteNumber("timerHz", r.TicksPerSecond);
+                w.WriteNumber("firstHalfAbsT", Math.Round(r.FirstHalfAbsT, 3));
+                w.WriteNumber("secondHalfAbsT", Math.Round(r.SecondHalfAbsT, 3));
+                w.WriteBoolean("replicated", r.Replicated);
                 w.WriteString("verdict", r.Leak ? "leak" : "pass");
                 w.WriteEndObject();
             }
