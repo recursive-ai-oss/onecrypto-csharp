@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 namespace RecursiveAI.OneCrypto.Primitives.Fallback;
 
 /// <summary>
-/// ChaCha20-Poly1305 (RFC 8439), used only where the platform has none. Constant time by construction: ChaCha20 is add, rotate and
+/// ChaCha20-Poly1305 (RFC 8439), used only where the platform has none. No secret-dependent branch or index by design (measured claims: docs/conformance.md): ChaCha20 is add, rotate and
 /// xor on 32-bit words, and Poly1305 is fixed-width limb arithmetic with explicit carries and a masked final reduction. No branch,
 /// index or loop bound depends on the key, the nonce or the data; only the message and associated-data lengths, which are public,
 /// decide the number of blocks. The tag is compared with <see cref="CryptographicOperations.FixedTimeEquals"/> after the whole

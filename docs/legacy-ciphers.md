@@ -52,6 +52,8 @@ JIT output was inspected with `DOTNET_JitDisasm` (full opts) for `CamelliaEngine
 `Cast5Engine.F`, `BlowfishEngine.F` and `IdeaEngine.Mul`: the only conditional jumps are the static-initialisation check, bounds checks,
 and loops over public counts (stage, round, table position); no jump, `cmov` or address depends on a secret.
 
+The design above is not, by itself, a claim. What the timing measurements support is in [conformance.md](conformance.md#constant-time): every cipher here passes on arm64; on x64, Camellia-128 and Twofish key setup and IDEA with secret data are not claimed while one x64 measurement is investigated.
+
 ## Verification
 
 - Camellia: RFC 3713 Appendix A (3 vectors); Wycheproof `camellia_cbc_pkcs5_test.json` (216 tests, both directions, invalid padding

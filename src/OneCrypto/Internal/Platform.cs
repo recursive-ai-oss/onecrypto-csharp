@@ -9,7 +9,7 @@ internal enum Provider
     /// <summary>The platform's own cryptography (the BCL) does it.</summary>
     Bcl,
 
-    /// <summary>The platform lacks it and a narrow managed fallback does it (verify-only, or constant time by construction).</summary>
+    /// <summary>The platform lacks it and a narrow managed fallback does it (verify-only, or written with no secret-dependent branch or index).</summary>
     Fallback,
 
     /// <summary>Neither: calls throw <see cref="AlgorithmNotSupportedException"/>.</summary>

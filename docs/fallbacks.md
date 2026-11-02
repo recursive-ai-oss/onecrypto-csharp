@@ -12,7 +12,7 @@ How the library chooses between the platform's cryptography, a narrow managed fa
    Nothing is decided by catching an exception on a hot path.
 2. **A managed fallback**, only where the platform lacks the primitive, and only for the two kinds of work that can be done safely
    in managed code:
-   - *constant time by construction*: SHA-3 and SHAKE (FIPS 202), ChaCha20-Poly1305 (RFC 8439);
+   - *no secret-dependent branch or memory index, by design*: SHA-3 and SHAKE (FIPS 202), ChaCha20-Poly1305 (RFC 8439);
    - *public data only*: RSA and ECDSA **verification**.
 3. **`AlgorithmNotSupportedException`**, naming the algorithm, the platform (operating system, architecture, runtime, and the loaded
    OpenSSL version on Linux) and the reason. It is a `NotSupportedException`.
@@ -54,6 +54,9 @@ checks first.
   with `DOTNET_JitDisasm` under full optimisation: every conditional jump is a loop counter, a length test on public sizes or a
   bounds check that leads to a throw helper; none depends on key, nonce or data. Statistical timing tests for both are in
   `tests/Timing/FallbackTargets.cs` (see [timing.md](timing.md)).
+- What the measurements support is stated only in [conformance.md](conformance.md#constant-time): ChaCha20-Poly1305 is claimed
+  with secret keys on x64 and arm64 and with secret data on arm64 only (an x64 measurement is under investigation). SHA-3 and
+  SHAKE have no timing claim yet. The design above is not, by itself, a claim.
 - The verify-only RSA and ECDSA code uses `BigInteger` and handles only public values (keys, digests, signatures). It makes no
   constant-time claim and has no timing test.
 

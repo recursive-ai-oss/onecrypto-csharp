@@ -14,7 +14,7 @@ namespace RecursiveAI.OneCrypto.Primitives;
 /// encodings (y below p, on the curve, the unused bits of the last byte zero, not "negative zero"); and the cofactorless equation
 /// [S]B = R + [k]A holds, with R compared as an encoding. RFC 8032 section 5.2.7 allows this form as well as the cofactored one.</para>
 /// <para><b>Hashing.</b> Ed448 needs SHAKE256. The platform's is used where it exists; otherwise (macOS, for one) a managed
-/// Keccak that is constant time by construction gives identical output, so Ed448 runs on every platform.</para>
+/// Keccak with no secret-dependent branch or index gives identical output, so Ed448 runs on every platform.</para>
 /// </remarks>
 public static class Ed448
 {

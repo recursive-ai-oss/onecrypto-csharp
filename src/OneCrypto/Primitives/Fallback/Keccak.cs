@@ -7,7 +7,7 @@ namespace RecursiveAI.OneCrypto.Primitives.Fallback;
 /// SHA-3 and SHAKE (FIPS 202) over the Keccak-f[1600] permutation. This is the library's only Keccak; it runs where the platform has
 /// no SHA-3 or SHAKE (macOS, older OpenSSL, the browser) and for SHA3-224, which the platform never offers. The permutation is built
 /// from xor, and, not and fixed rotations on 64-bit lanes: no table lookup, branch or loop bound depends on the data, so it is
-/// constant time by construction. Everything absorbed may be secret (a key or seed), so the state and block are cleared on exit.
+/// free of secret-dependent timing by design (no timing claim yet). Everything absorbed may be secret (a key or seed), so the state and block are cleared on exit.
 /// </summary>
 internal static class Keccak
 {
