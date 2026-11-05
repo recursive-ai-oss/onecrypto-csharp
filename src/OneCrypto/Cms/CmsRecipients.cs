@@ -103,6 +103,9 @@ public abstract class CmsDecryptionKey : IDisposable
         private readonly Certificate? _cert;
         private readonly bool _owns;
 
+        // DER NULL, the explicit-NULL parameters form of an AlgorithmIdentifier.
+        private static ReadOnlySpan<byte> NullParameters => new byte[] { 5, 0 };
+
         public KeyAdapter(IKey key, Certificate? cert, bool owns)
         {
             _key = key;
@@ -153,9 +156,9 @@ public abstract class CmsDecryptionKey : IDisposable
             try
             {
                 PublicKeyInfo peer = originator;
-                if (originator.KeyAlgorithm == KeyAlgorithm.EllipticCurve && originator.Algorithm.Parameters.IsEmpty)
+                if (originator.KeyAlgorithm == KeyAlgorithm.EllipticCurve && (originator.Algorithm.Parameters.IsEmpty || originator.Algorithm.Parameters.Span.SequenceEqual(NullParameters)))
                 {
-                    // RFC 5753 §3.1.1 asks for the curve parameters in originatorKey, but some senders leave them out; the curve is then the recipient's own.
+                    // RFC 5753 §3.1.1 asks for the curve parameters in originatorKey, but some senders leave them out or write an explicit NULL (Windows does); the curve is then the recipient's own.
                     ReadOnlySpan<byte> point = originator.KeyBits.Span;
                     if (point.Length < 3 || point[0] != 4 || (point.Length - 1) % 2 != 0)
                     {
@@ -538,7 +541,11 @@ public abstract class CmsRecipient
                     throw new ArgumentException("Key agreement needs an EC, X25519 or X448 certificate.");
             }
 
-            AlgorithmIdentifier wrap = AlgorithmIdentifier.Create(CmsCiphers.WrapOid(cek.Length));
+            // RFC 3565 §2.3.2 leaves the key-wrap parameters absent, but Windows (and so Outlook) opens an EC key-agreement message only when they are an
+            // explicit NULL, and it derives the RFC 5753 §7.2 SharedInfo keyInfo from the message's own bytes. So for EC the same NULL encoding is written in
+            // the message and fed to the KDF. X25519/X448 (RFC 8418) keep the parameters absent.
+            string wrapOid = CmsCiphers.WrapOid(cek.Length);
+            AlgorithmIdentifier wrap = pub.KeyAlgorithm == KeyAlgorithm.EllipticCurve ? AlgorithmIdentifier.WithNull(wrapOid) : AlgorithmIdentifier.Create(wrapOid);
             byte[] kek = CmsCiphers.AgreementKek(scheme, z, wrap, default, cek.Length);
             byte[] wrapped = CmsCiphers.AesWrap(kek, cek);
             CryptographicOperations.ZeroMemory(kek);

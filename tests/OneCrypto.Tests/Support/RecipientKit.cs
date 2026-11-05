@@ -12,6 +12,7 @@ public enum RecipKind
     Rsa,
     P256,
     P384,
+    P521,
     X25519,
     X448,
     MlKem768,
@@ -91,8 +92,9 @@ internal sealed class RecipientKit
 
             case RecipKind.P256:
             case RecipKind.P384:
+            case RecipKind.P521:
                 {
-                    var ec = ECDiffieHellman.Create(kind == RecipKind.P256 ? ECCurve.NamedCurves.nistP256 : ECCurve.NamedCurves.nistP384);
+                    var ec = ECDiffieHellman.Create(kind == RecipKind.P256 ? ECCurve.NamedCurves.nistP256 : kind == RecipKind.P384 ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP521);
                     Certificate c = Issue("Edna Recipient " + kind, PublicKeyInfo.Parse(ec.ExportSubjectPublicKeyInfo()), KeyUsages.KeyAgreement);
                     return new RecipientKit(kind, c, () => CmsDecryptionKey.FromECDiffieHellman(ec, c), ec.ExportPkcs8PrivateKeyPem());
                 }
