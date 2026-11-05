@@ -13,7 +13,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Documentation
 
 - `PgpCertificate.UserIds` now says it includes User IDs with no valid self-signature and points to `PgpUserIds.HasSelfSignature` for the certified ones.
-- Importing a secret key with a Curve25519 encryption subkey into GnuPG 2.5.24 (built with libgcrypt 1.12.4) shows the subkey as missing (`ssb#`), also for keys GnuPG 2.4 itself exported; GnuPG 2.4 and Sequoia accept the same files, so this is GnuPG 2.5's import, not the key export (`docs/openpgp.md`).
+- Importing an unprotected secret key with a Curve25519 encryption subkey into GnuPG 2.5.24 (built with libgcrypt 1.12.4) shows the subkey as missing (`ssb#`), also for keys GnuPG 2.4 itself exported; GnuPG 2.4 and Sequoia accept the same files, so this is GnuPG 2.5's import, not the key export (`docs/openpgp.md`).
 
 ### Fixed
 
@@ -181,7 +181,8 @@ First preview of `RecursiveAI.OneCrypto`, the core package. The API is not stabl
 - Platform gaps in AES-GCM, AES-CCM, named curves (for example Brainpool on macOS) and ML-KEM/ML-DSA keys now surface as `AlgorithmNotSupportedException` naming the algorithm and platform, never the platform's own `PlatformNotSupportedException`; the availability table lists AES-GCM and AES-CCM (macOS has no AES-CCM; AuthEnvelopedData defaults to AES-256-GCM and writes CCM only when asked).
 - Package metadata, package validation, NativeAOT and browser-wasm smoke apps, fuzz targets for every parser, and benchmarks against the managed libraries this one replaces.
 
-[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.4.0-preview.1...HEAD
+[Unreleased]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.4.0-preview.2...HEAD
+[0.4.0-preview.2]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.4.0-preview.1...v0.4.0-preview.2
 [0.4.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.2...v0.4.0-preview.1
 [0.3.0-preview.2]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.3.0-preview.1...v0.3.0-preview.2
 [0.3.0-preview.1]: https://github.com/recursive-ai-oss/onecrypto-csharp/compare/v0.2.0-preview.1...v0.3.0-preview.1

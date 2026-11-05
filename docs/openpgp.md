@@ -57,7 +57,7 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpMessageReader` (`Read`, `ReadSign
 
 **Writing** (`PgpMessageWriter.Write`): `PgpWriteOptions.HiddenRecipients` writes every public-key encrypted session key packet without naming its recipient (RFC 9580 section 5.1.1: version 3 with an all-zero key ID; section 5.1.2: version 6 with a zero-length key field), for blind copies. The reader tries each secret key it holds for such a packet. GnuPG 2.4.4 and 2.5.24 and Sequoia `sqop` 0.38.0 open these messages.
 
-**Known oracle behaviour:** GnuPG 2.5.24 (libgcrypt 1.12.4) imports the secret half of a version 4 Curve25519 encryption subkey under a key grip that does not match the public subkey, so `gpg -K` shows `ssb#` and decryption says "No secret key". This happens for keys written by this library and for keys GnuPG 2.4.4 exported itself; GnuPG 2.4.4 and `sqop` import and decrypt the same files, and a key generated inside a 2.5.24 home works there.
+**Known oracle behaviour:** GnuPG 2.5.24 (libgcrypt 1.12.4) imports the secret half of an *unprotected* version 4 Curve25519 encryption subkey under a key grip that does not match the public subkey, so `gpg -K` shows `ssb#` and decryption says "No secret key". Of 20 freshly generated unprotected `Rfc4880Curve25519` keys of ours, GnuPG 2.5.24 decrypted with none, while GnuPG 2.4.4 and `sqop` 0.38.0 imported and decrypted all 20. An unprotected key that GnuPG 2.4.4 generated and exported itself fails in 2.5.24 the same way. A key generated inside a 2.5.24 home works there. Password-protected keys import and decrypt in 2.5.24 (two-way results below). Public-key use (importing the certificate, verifying, encrypting to it) is not affected.
 
 **Certificates at a point in time** (`PgpKey.StateAt`)
 
@@ -124,7 +124,7 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpKeyGenerator`, `PgpKeyEditor`, `P
 | Oracle | v6 Ed25519/X25519 | v4 native Ed25519/X25519 | v4 EdDSA legacy / Cv25519 |
 |---|---|---|---|
 | GnuPG 2.4.4, 2.4.8 | not read | imported, signature not checkable | import, verify, encrypt all work |
-| GnuPG 2.5.24 | cannot use it | cannot use it | all work |
+| GnuPG 2.5.24 | cannot use it | cannot use it | all work (certificate use; an unprotected secret key does not import, see "Known oracle behaviour") |
 | RNP 0.17.0 | not read | not read | all work |
 | sqop 0.38.0 (Sequoia), gosop 1.1.0, OpenPGP.js 6.3.2 | all work | all work | all work |
 
@@ -159,7 +159,7 @@ Preferences written: AES-256, AES-192, AES-128; SHA-512, SHA-256, SHA-384; zlib,
 
 Differences that are the oracle's, not ours:
 
-- GnuPG 2.5.24 does not import an unprotected ECDH subkey: `gpg -K` lists it as `ssb#` and decryption says "No secret key". Its own `--export-secret-keys` of a key without a passphrase behaves the same when imported into a new home. Protected keys work, and so does 2.4.8. The cells report n/a.
+- GnuPG 2.5.24 does not import an unprotected Curve25519 ECDH subkey: `gpg -K` lists it as `ssb#` and decryption says "No secret key" (0 of 20 fresh keys; see "Known oracle behaviour" above). An unprotected key exported by GnuPG 2.4.4 fails the same way. Password-protected keys import and decrypt in 2.5.24. GnuPG 2.4.4 and 2.4.8 import both kinds. The cells that need an unprotected secret key in 2.5.24 report n/a.
 - GnuPG 2.5.24 as built for the oracle cache asks the terminal for `--gen-revoke` even with `--command-fd`; the six cells that use its revocation certificate run with 2.4.8 (pass).
 - Sequoia's `sqop` is built on nettle, which has no ML-DSA or ML-KEM: it cannot generate or use `rfc9980` keys. The post-quantum profiles are checked against our own sign/verify/encrypt/decrypt round trip, and Sequoia's `sq` parses their certificates without complaint.
 - A third-party certification is hashed with the key framed by the version of the *signature* (version 4: `0x99` and a two-octet length; version 6: `0x9B` and a four-octet length), not by the version of the certified key (RFC 9580 §5.2.4). Certifications between keys of different versions failed in both directions against Sequoia until the framing followed the signature.
