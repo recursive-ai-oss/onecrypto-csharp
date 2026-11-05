@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PgpWriteOptions.HiddenRecipients` writes public-key encrypted session key packets without naming the recipient (an all-zero key ID in version 3 packets, no key version or fingerprint in version 6 packets; RFC 9580 sections 5.1.1 and 5.1.2), for blind copies. The default is unchanged. Readers must try each of their keys; OneCrypto, GnuPG and Sequoia do.
+
+### Documentation
+
+- `PgpCertificate.UserIds` now says it includes User IDs with no valid self-signature and points to `PgpUserIds.HasSelfSignature` for the certified ones.
+- Importing a secret key with a Curve25519 encryption subkey into GnuPG 2.5.24 (built with libgcrypt 1.12.4) shows the subkey as missing (`ssb#`), also for keys GnuPG 2.4 itself exported; GnuPG 2.2, 2.4 and Sequoia accept the same files, so this is GnuPG 2.5's import, not the key export (`docs/openpgp.md`).
+
 ## [0.4.0-preview.1] - 2026-11-02
 
 ### Added

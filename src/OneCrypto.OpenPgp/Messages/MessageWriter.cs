@@ -230,6 +230,13 @@ public sealed class PgpWriteOptions
     /// with SEIPD v2 use Argon2id instead.
     /// </summary>
     public byte S2kIterationCode { get; init; } = 0xCA;
+
+    /// <summary>
+    /// True to write every public-key encrypted session key packet without naming its recipient (RFC 9580 §5.1.1: a version 3 packet with an all-zero
+    /// key ID; §5.1.2: a version 6 packet with no key version or fingerprint), so the message does not reveal who it is for, for example for blind copies.
+    /// Readers then have to try each of their keys; OneCrypto does, and GnuPG and Sequoia do too. Default false. Has no effect on password recipients.
+    /// </summary>
+    public bool HiddenRecipients { get; init; }
 }
 
 /// <summary>The container that protects the data of an encrypted message.</summary>
@@ -378,7 +385,7 @@ public static partial class PgpMessageWriter
             foreach (PgpKey k in keys)
             {
                 // RFC 9580 §5.1: v6 PKESK for SEIPD v2. LibrePGP §5.1 knows only the version 3 packet, with the symmetric algorithm inside the encrypted value.
-                SessionKeys.Encrypt(k, sessionKey, cipher, v2 ? 6 : 3).WriteTo(sink);
+                SessionKeys.Encrypt(k, sessionKey, cipher, v2 ? 6 : 3, o.HiddenRecipients).WriteTo(sink);
             }
 
             foreach (byte[] pw in o.Passwords)
