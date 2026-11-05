@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- CMS EC key agreement (P-256, P-384, P-521) now interoperates with Windows (Outlook's S/MIME). EnvelopedData and AuthEnvelopedData we write carry an explicit NULL parameter on the AES key-wrap AlgorithmIdentifier, the same encoding that goes into the RFC 5753 SharedInfo, because Windows otherwise cannot open the message (RFC 3565 §2.3.2 says the parameter is absent; OpenSSL opens both forms). Messages written by Windows, which also put NULL on the originator key's algorithm identifier, now decrypt. X25519 and X448 key agreement is unchanged.
+
 ## [0.4.0-preview.1] - 2026-11-02
 
 ### Added

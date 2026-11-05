@@ -112,6 +112,7 @@ Settled by experiment (black box, `openssl cms`, 3.5.9 built with its standard t
 * Ed25519, Ed448 and ML-DSA signatures cannot be made or verified by `openssl cms` without signed attributes ("invalid eddsa instance"); those cases are checked against the attribute form only. Ed25519 and ML-DSA need `-md sha512`, Ed448 `-md shake256`.
 * `openssl cms` leaves the curve parameters out of `originatorKey` in a KeyAgreeRecipientInfo. RFC 5753 asks for them; we accept their absence.
 * `openssl cms` 3.5.9 cannot make or open X25519 or X448 key agreement, or KEMRecipientInfo with ML-KEM; those forms are checked among our own readers and writers only (we know of no published vectors for RFC 8418 or RFC 9629). The newer OpenSSL 3.6.2 interoperates for ML-KEM-768 in both directions (checked, not the pinned version) and still not for X25519/X448.
+* EC key agreement deviates from RFC 3565 §2.3.2 on purpose: the AES key-wrap algorithm identifier carries an explicit NULL parameter, also in the RFC 5753 §7.2 SharedInfo, because Windows opens the message only that way; on reading, NULL parameters on the originator key count as absent. X25519/X448 (RFC 8418) keep the parameter absent. Messages made by Windows are in `testdata/cms/windows-ecdh`.
 * The 3.5.9 build used here has no zlib, so CompressedData was checked against the distribution's openssl 3.5.5 (`cms -compress`/`-uncompress`).
 * `openssl cms` ignores countersignatures; ours verify them.
 * `openssl cms -encrypt` applies `-keyopt` to the `-recip` before it; an RSA-OAEP key transport needs `-keyopt rsa_padding_mode:oaep`, and the KDF of an ECDH recipient is `sha1kdf` unless `-keyopt ecdh_kdf_md:sha256`.
@@ -128,7 +129,7 @@ Pinned OpenSSL 3.5.9 for both the command-line tool and the platform libraries, 
 | Ed25519, Ed448, ML-DSA-65 without signed attributes | S (openssl cannot) | S (openssl cannot) |
 | two signers; subject key identifier signer | P | P |
 | EnvelopedData KTRI RSA-OAEP (SHA-1, SHA-256), PKCS #1 v1.5 | P | P |
-| EnvelopedData KARI ECDH P-256, P-384 | P | P |
+| EnvelopedData KARI ECDH P-256, P-384, P-521 (AES-128/192/256 wrap) | P | P |
 | EnvelopedData KARI X25519, X448; KEMRI ML-KEM-768 | S (openssl cannot open) | S (openssl cannot make) |
 | EnvelopedData KEKRI, PWRI | P | P |
 | AuthEnvelopedData AES-256-GCM, KTRI and KARI; tampered ciphertext refused | P | P |
