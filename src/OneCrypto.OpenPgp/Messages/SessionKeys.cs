@@ -343,14 +343,20 @@ internal static class SessionKeys
     // ---- encrypt ----
 
     /// <summary>Builds a PKESK packet that carries <paramref name="sessionKey"/> to <paramref name="recipient"/>.</summary>
-    internal static Packet Encrypt(PgpKey recipient, byte[] sessionKey, SymmetricAlgorithm cipher, int pkeskVersion)
+    internal static Packet Encrypt(PgpKey recipient, byte[] sessionKey, SymmetricAlgorithm cipher, int pkeskVersion, bool hidden = false)
     {
         KeyPacket kp = recipient.Packet;
         PublicKeyMaterial pm = kp.Material;
         var body = new List<byte> { (byte)pkeskVersion };
         if (pkeskVersion == 3)
         {
-            body.AddRange(kp.GetKeyId());
+            // RFC 9580 §5.1.1: an all-zero key ID means the recipient is not named.
+            body.AddRange(hidden ? new byte[8] : kp.GetKeyId());
+        }
+        else if (hidden)
+        {
+            // RFC 9580 §5.1.2: a zero octet count leaves out the key version and fingerprint.
+            body.Add(0);
         }
         else
         {

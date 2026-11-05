@@ -436,7 +436,11 @@ public sealed class PgpCertificate
     /// <summary>The primary key then the subkeys, in file order.</summary>
     public IReadOnlyList<PgpKey> Keys { get; }
 
-    /// <summary>The User ID texts, in file order.</summary>
+    /// <summary>
+    /// The User ID texts, in file order. This lists every User ID packet in the certificate, including ones that carry no valid self-signature (anyone can
+    /// attach a User ID to a public key, so an uncertified one proves nothing). To list or check only the certified ones, use
+    /// <see cref="PgpUserIds.HasSelfSignature"/>.
+    /// </summary>
     public IEnumerable<string> UserIds => Transferable.Users.Where(u => u.Identity is UserIdPacket).Select(u => ((UserIdPacket)u.Identity).Text);
 
     /// <summary>The fingerprint of the primary key.</summary>

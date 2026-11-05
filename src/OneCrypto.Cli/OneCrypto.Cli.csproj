@@ -8,7 +8,7 @@
     <IsAotCompatible>false</IsAotCompatible>
     <IsTrimmable>false</IsTrimmable>
     <IsPackable>true</IsPackable>
-    <PackageValidationBaselineVersion>0.3.0-preview.2</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.4.0-preview.1</PackageValidationBaselineVersion>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>onecrypto</ToolCommandName>
     <PackageTags>cryptography;openpgp;sop;pgp;cli</PackageTags>

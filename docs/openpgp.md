@@ -55,6 +55,10 @@ Namespace `RecursiveAI.OneCrypto.OpenPgp`: `PgpMessageReader` (`Read`, `ReadSign
 - Not yet: SLH-DSA.
 - SHA-224 and RIPEMD-160 are verify-only: the platform has neither, so they are computed here (`PgpHash`) to check old signatures and to read keys and messages whose string-to-key uses them. New signatures with them are refused (`PgpFailure.PolicyViolation`). `CryptoPolicy.Standard` treats RIPEMD-160 like SHA-1 (flagged from 2011, rejected from 2031); `Strict` rejects it; SHA-224 has no rule. RSA signatures over them verify through the verify-only PKCS#1 verifier with the DigestInfo for SHA-224 (2.16.840.1.101.3.4.2.4) and RIPEMD-160 (1.3.36.3.2.1).
 
+**Writing** (`PgpMessageWriter.Write`): `PgpWriteOptions.HiddenRecipients` writes every public-key encrypted session key packet without naming its recipient (RFC 9580 section 5.1.1: version 3 with an all-zero key ID; section 5.1.2: version 6 with a zero-length key field), for blind copies. The reader tries each secret key it holds for such a packet. GnuPG 2.4.4 and 2.5.24 and Sequoia `sqop` 0.38.0 open these messages.
+
+**Known oracle behaviour:** GnuPG 2.5.24 (libgcrypt 1.12.4) imports the secret half of a version 4 Curve25519 encryption subkey under a key grip that does not match the public subkey, so `gpg -K` shows `ssb#` and decryption says "No secret key". This happens for keys written by this library and for keys GnuPG 2.4.4 exported itself; GnuPG 2.4.4 and `sqop` import and decrypt the same files, and a key generated inside a 2.5.24 home works there.
+
 **Certificates at a point in time** (`PgpKey.StateAt`)
 
 - A key is valid at time T when it exists, a binding signature in force at T covers it (newest first; a binding that has itself expired, or whose user ID was revoked since, is out; a signing subkey also needs an unexpired primary key binding signature), it has not expired and it is not revoked.

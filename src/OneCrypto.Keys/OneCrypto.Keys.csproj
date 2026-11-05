@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <!-- First release of this package: no baseline to validate against yet. -->
+    <PackageValidationBaselineVersion>0.4.0-preview.1</PackageValidationBaselineVersion>
     <Description>Key backends for OneCrypto: PKCS #11 tokens, gpg-agent (Assuan) and ssh-agent, behind the OneCrypto key interfaces with two-phase signing. Cryptography (not cryptocurrency); unaffiliated with other products named OneCrypto.</Description>
     <PackageTags>cryptography;pkcs11;gpg-agent;ssh-agent;assuan;hsm;softhsm;remote-signing;nativeaot;trimmable</PackageTags>
     <!-- Only the PKCS #11 function-pointer calls into a token module use unsafe code (Pkcs11/NativeModule.cs). -->
